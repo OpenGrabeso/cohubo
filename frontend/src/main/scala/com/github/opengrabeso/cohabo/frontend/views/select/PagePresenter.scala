@@ -36,12 +36,12 @@ class PagePresenter(
     if (!load.isCompleted) {
       // if not completed immediately, show as pending
       model.subProp(_.loading).set(true)
-      model.subProp(_.activities).set(Nil)
+      model.subProp(_.articles).set(Nil)
     }
 
     for (UserContextService.LoadedActivities(stagedActivities) <- load) {
 
-      model.subProp(_.activities).set(stagedActivities.map(id => ArticleRow(id.id, "???", selected = false)))
+      model.subProp(_.articles).set(stagedActivities.map(id => ArticleRow(id.id, "??? " + id.id.toString, selected = false)))
       model.subProp(_.loading).set(false)
     }
 

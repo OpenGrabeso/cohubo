@@ -8,6 +8,7 @@ import common.css._
 import io.udash._
 import io.udash.bootstrap.button.UdashButton
 import io.udash.bootstrap.table.UdashTable
+import io.udash.bootstrap.form.UdashForm
 import io.udash.css._
 import scalatags.JsDom.all._
 import io.udash.bootstrap._
@@ -24,14 +25,14 @@ class PageView(
   private val settingsButton = UdashButton()(_ => "Settings")
 
   def nothingSelected: ReadableProperty[Boolean] = {
-    model.subProp(_.activities).transform(!_.exists(_.selected))
+    model.subProp(_.articles).transform(!_.exists(_.selected))
   }
 
   private val sendToStrava = button(nothingSelected, "Send to Strava".toProperty)
   private val deleteActivity = button(nothingSelected, s"Delete from $appName".toProperty)
   private val mergeAndEdit = button(
     nothingSelected,
-    model.subProp(_.activities).transform(a => if (a.count(_.selected) > 1) "Merge and edit..." else "Edit...")
+    model.subProp(_.articles).transform(a => if (a.count(_.selected) > 1) "Merge and edit..." else "Edit...")
   )
   private val uncheckAll = button(nothingSelected, "Uncheck all".toProperty)
 
@@ -50,7 +51,7 @@ class PageView(
       TableFactory.TableAttrib("Title", (ar, _, _) => ar.title.render),
     )
 
-    val table = UdashTable(model.subSeq(_.activities), striped = true.toProperty, bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
+    val table = UdashTable(model.subSeq(_.articles), striped = true.toProperty, bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
       headerFactory = Some(TableFactory.headerFactory(attribs)),
       rowFactory = TableFactory.rowFactory(attribs)
     )
@@ -66,8 +67,16 @@ class PageView(
           p("Loading...").render,
           div(
             bind(model.subProp(_.error).transform(_.map(ex => p(s"Error loading activities ${ex.toString}")).orNull)),
-            table.render
+            table.render,
+            UdashForm()(factory => Seq[Modifier](
+              factory.input.formGroup()(
+                input = _ => factory.input.textArea(model.subProp(_.articleContent))().render,
+                labelContent = Some(_ => "Max HR": Modifier),
+                helpText = Some(_ => "Drop any samples with HR above this limit as erratic": Modifier)
+              ).render,
+            ))
           ).render
+
         )
       ),
       div(
