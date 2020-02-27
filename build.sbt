@@ -56,10 +56,6 @@ lazy val sharedJs = crossProject(JSPlatform, JVMPlatform)
 lazy val sharedJs_JVM = sharedJs.jvm
 lazy val sharedJs_JS = sharedJs.js
 
-def inDevMode = true || sys.props.get("dev.mode").exists(value => value.equalsIgnoreCase("true"))
-
-val compileCss = taskKey[Unit]("Compiles CSS files.")
-
 def generateIndexTask(index: String, suffix: String) = Def.task {
   val source = baseDirectory.value / "index.html"
   val jsTarget = (Compile / fastOptJS / crossTarget).value / index
@@ -127,9 +123,7 @@ lazy val root = (project in file("."))
       log.info(s"Compile css in $dir($path)")
       dir.mkdirs()
       Def.task {
-        (backend / Compile / runMain).map { _ =>
-          (resources in Compile) += dir / "style.css"
-        }.toTask(s" com.github.opengrabeso.cohubo.CompileCss $path true").value
+        (backend / Compile / runMain).toTask(s" com.github.opengrabeso.cohubo.CompileCss $path true").value
         c // return compile result
       }
     }.value,
