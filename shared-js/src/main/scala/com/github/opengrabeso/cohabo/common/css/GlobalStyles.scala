@@ -39,7 +39,7 @@ object GlobalStyles extends CssBase {
   )
 
   val footerText: CssStyle = style(
-    color.white
+    color.darkblue
   )
   val footerLink: CssStyle = style(
     color.inherit
@@ -79,7 +79,7 @@ object GlobalStyles extends CssBase {
   )
 
   val headerFooterCommon = mixin(
-    backgroundColor(c"#fca"),
+    backgroundColor(c"#def"),
     overflow.auto,
     flexGrow(0),
     flexDirection.column

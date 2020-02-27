@@ -106,7 +106,7 @@ object Root {
                       tr(td(
                         "user:",
                         produce(userId) { s =>
-                          a(href := s"https://www.strava.com/users/$s", bind(name)).render
+                          a(href := s"https://github.com/$s", bind(name)).render
                         }
                       ))
                     )
@@ -144,8 +144,8 @@ object Root {
           a(
             href := s"https://github.com/OndrejSpanel/$gitHubName",
             GlobalStyles.footerLink,
+            "Ondřej Španěl"
           ),
-          "Ondřej Španěl",
           div()
         )
       ).render
