@@ -71,7 +71,7 @@ class PageView(
             UdashForm()(factory => Seq[Modifier](
               factory.input.formGroup()(
                 input = _ => factory.input.textArea(model.subProp(_.articleContent))().render,
-                labelContent = Some(_ => "Max HR": Modifier),
+                labelContent = Some(_ => "Article": Modifier),
                 helpText = Some(_ => "Drop any samples with HR above this limit as erratic": Modifier)
               ).render,
             ))

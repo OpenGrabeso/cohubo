@@ -7,22 +7,22 @@ import scala.concurrent.Future
 
 trait UserRestSettingsAPI {
   @GET
-  def quest_time_offset: Future[Int]
+  def user: Future[String]
 
   @GET
-  def max_hr: Future[Int]
+  def organization: Future[String]
 
   @GET
-  def elev_filter: Future[Int]
+  def repository: Future[String]
 
   @PUT
-  def quest_time_offset(v: Int): Future[Unit]
+  def user(v: String): Future[Unit]
 
   @PUT
-  def max_hr(v: Int): Future[Unit]
+  def organization(v: String): Future[Unit]
 
   @PUT
-  def elev_filter(v: Int): Future[Unit]
+  def repository(v: String): Future[Unit]
 }
 
 object UserRestSettingsAPI extends RestApiCompanion[EnhancedRestImplicits,UserRestSettingsAPI](EnhancedRestImplicits)
