@@ -67,10 +67,20 @@ class PageView(
           p("Loading...").render,
           div(
             bind(model.subProp(_.error).transform(_.map(ex => p(s"Error loading activities ${ex.toString}")).orNull)),
-            table.render,
+            div(
+              s.selectTableContainer,
+              table.render,
+            ),
             UdashForm()(factory => Seq[Modifier](
               factory.input.formGroup()(
-                input = _ => factory.input.textArea(model.subProp(_.articleContent))().render,
+                input = _ => factory.input.textArea(model.subProp(_.articleContent))(
+                  Some(_ =>
+                    Seq[Modifier](
+                      s.articleContentTextArea
+                      //rows := 12
+                    )
+                  )
+                ).render,
                 labelContent = Some(_ => "Article": Modifier),
                 helpText = Some(_ => "Drop any samples with HR above this limit as erratic": Modifier)
               ).render,

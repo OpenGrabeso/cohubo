@@ -30,6 +30,11 @@ object SelectPageStyles extends CssBase {
     containerBorder,
   )
 
+  val selectTableContainer: CssStyle = style(
+    maxHeight(50 vh),
+    overflow.auto
+  )
+
   val uploading: CssStyle = style(
     backgroundColor.lightblue
   )
@@ -41,6 +46,11 @@ object SelectPageStyles extends CssBase {
     maxWidth(500 px)
   )
 
+  val articleContentTextArea: CssStyle = style(
+    height(30 vh),
+    minHeight(20 vh),
+    maxHeight(50 vh)
+  )
   val inputDesc: CssStyle = style (
     // ignored, overridden by default Bootstrap styles, need to use different method (Bootstrap theming?}
     backgroundColor.transparent,
