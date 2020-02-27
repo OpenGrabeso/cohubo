@@ -90,32 +90,25 @@ object Root {
         div(
           //GlobalStyles.header,
           id := "header",
-          table(
-            tbody(
-              tr(
-                td(
-                  table(
-                    tbody(
-                      tr(td(a(
-                        href := "/", appName,
-                        onclick :+= {_: dom.Event =>
-                          presenter.gotoMain()
-                          true
-                        }
-                      ))),
-                      tr(td(
-                        "user:",
-                        produce(userId) { s =>
-                          a(href := s"https://github.com/$s", bind(name)).render
-                        }
-                      ))
-                    )
-                  )
-                ),
-
-                logoutButton.render
-              )
+          div(
+            a(
+              href := "/", appName,
+              onclick :+= {_: dom.Event =>
+                presenter.gotoMain()
+                true
+              }
             )
+          ),
+          div(
+            "User:",
+            produce(userId) { s =>
+              a(href := s"https://github.com/$s", bind(name)).render,
+            }
+          ),
+          div(
+            `class`:="ml-auto px-2",
+            GlobalStyles.logoutButton,
+            logoutButton
           )
         ).render
       )

@@ -5,6 +5,7 @@ import io.udash.css._
 import scala.language.postfixOps
 
 object GlobalStyles extends CssBase {
+
   import dsl._
 
   val floatRight: CssStyle = style(
@@ -45,6 +46,10 @@ object GlobalStyles extends CssBase {
     color.inherit
   )
 
+  val logoutButton: CssStyle = style(
+    justifyContent.spaceBetween
+  )
+
   style(
     unsafeRoot("body")(
       display.flex,
@@ -82,7 +87,7 @@ object GlobalStyles extends CssBase {
     backgroundColor(c"#def"),
     overflow.auto,
     flexGrow(0),
-    flexDirection.column
+    flexDirection.row
   )
 
   style(
