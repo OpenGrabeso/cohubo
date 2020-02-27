@@ -77,15 +77,12 @@ generateCssTask := Def.task {
   // we need fastOptJS to execute first
   val dep = (frontend / Compile / fastOptJS).value
   val depCSS = (root / Compile / compile).value
-  val srcJS = (frontend / Compile / fastOptJS / crossTarget).value
-  val src = (Compile / fastOptJS / target).value / "styles"
+  val src = (frontend / Compile / fastOptJS / crossTarget).value
   // https://stackoverflow.com/a/57994298/16673
-  val cssFiles: Seq[File] = (src ** "*.css").get()
-  val jsFiles: Seq[File] = (srcJS ** "*.js").get() ++ (srcJS ** "*.js.map").get() ++ (srcJS ** "*.html").get()
+  val jsFiles: Seq[File] = (src ** "*.css").get() ++ (src ** "*.js").get() ++ (src ** "*.js.map").get() ++ (src ** "*.html").get()
   val tgt = (Compile / crossTarget).value
-  val pairs = (cssFiles pair rebase(src, tgt)) ++ (jsFiles pair rebase(srcJS, tgt))
-  log.info(s"CSS from $src to $tgt")
-  log.info(s"JS from $srcJS to $tgt")
+  val pairs = jsFiles pair rebase(src, tgt)
+  log.info(s"CSS/JS from $src to $tgt")
   // Copy files to source files to target
   IO.copy(pairs, CopyOptions.apply(overwrite = true, preserveLastModified = true, preserveExecutable = false))
 }.value
@@ -118,9 +115,9 @@ lazy val root = (project in file("."))
       (frontend / Compile / fastOptJS).value // the CSS and JS need to be produced first
       val c = (Compile / compile).value
       val log = streams.value.log
-      val dir = (Compile / fastOptJS / target).value / "styles"
+      val dir = (frontend / Compile / fastOptJS / crossTarget).value
       val path = dir.absolutePath
-      log.info(s"Compile css in $dir($path)")
+      log.info(s"Compile css in $dir")
       dir.mkdirs()
       Def.task {
         (backend / Compile / runMain).toTask(s" com.github.opengrabeso.cohubo.CompileCss $path true").value
