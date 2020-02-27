@@ -1,0 +1,27 @@
+/resources/secret.txt
+
+### JetBrains template
+# Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio and Webstorm
+# Reference: https://intellij-support.jetbrains.com/hc/en-us/articles/206544839
+
+.idea/*
+
+## File-based project format:
+*.iws
+
+## Plugin-specific files:
+
+# IntelliJ
+/out/
+
+# IntelliJ seems to build the artifact here when "root" is placed in file(".")
+/classes/
+
+# mpeltonen/sbt-idea plugin
+.idea_modules/
+
+target
+
+/project/project/
+
+secret.*
