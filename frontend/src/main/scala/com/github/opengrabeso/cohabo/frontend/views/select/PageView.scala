@@ -45,13 +45,16 @@ class PageView(
     type DisplayAttrib = TableFactory.TableAttrib[ArticleRow]
     val attribs = Seq[DisplayAttrib](
       TableFactory.TableAttrib("", (ar, p, nested) =>
+        // checkbox will be created by the Bootstrap Table extension
         div(nested(checkbox(p.subProp(_.selected)))).render
       ),
       TableFactory.TableAttrib("Id", (ar, _, _) => ar.id.render),
       TableFactory.TableAttrib("Title", (ar, _, _) => ar.title.render),
+      TableFactory.TableAttrib("Posted by", (ar, _, _) => "???".render),
+      TableFactory.TableAttrib("Date", (ar, _, _) => "???".render),
     )
 
-    val table = ExtTable(model.subSeq(_.articles), striped = true.toProperty, bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
+    val table = ExtTable(model.subSeq(_.articles), bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
       headerFactory = Some(TableFactory.headerFactory(attribs)),
       rowFactory = TableFactory.rowFactory(attribs, true)
     )
