@@ -69,24 +69,6 @@ def generateIndexTask(index: String, suffix: String) = Def.task {
   log.info(s"Generate $index with suffix: $suffix")
 }
 
-val generateCssTask = taskKey[Unit]("Copy CSS and JS files to the output.")
-
-generateCssTask := Def.task {
-  val log = streams.value.log
-  import Path._
-  // we need fastOptJS to execute first
-  val dep = (frontend / Compile / fastOptJS).value
-  val depCSS = (root / Compile / compile).value
-  val src = (frontend / Compile / fastOptJS / crossTarget).value
-  // https://stackoverflow.com/a/57994298/16673
-  val jsFiles: Seq[File] = (src ** "*.css").get() ++ (src ** "*.js").get() ++ (src ** "*.js.map").get() ++ (src ** "*.html").get()
-  val tgt = (Compile / crossTarget).value
-  val pairs = jsFiles pair rebase(src, tgt)
-  log.info(s"CSS/JS from $src to $tgt")
-  // Copy files to source files to target
-  IO.copy(pairs, CopyOptions.apply(overwrite = true, preserveLastModified = true, preserveExecutable = false))
-}.value
-
 lazy val frontend = project.settings(
     name := "Cohubo",
     commonSettings,
@@ -96,7 +78,21 @@ lazy val frontend = project.settings(
     //mainClass in Compile := Some("com.github.opengrabeso.cohabo.MainJS"),
 
     (fastOptJS in Compile) := (fastOptJS in Compile).dependsOn(generateIndexTask("index-fast.html","fastOpt")).value,
-    (fullOptJS in Compile) := (fullOptJS in Compile).dependsOn(generateIndexTask("index.html","opt")).value
+    (fullOptJS in Compile) := (fullOptJS in Compile).dependsOn(generateIndexTask("index.html","opt")).value,
+
+    Compile / fastOptJS := Def.taskDyn {
+      val c = (Compile / fastOptJS).value // the CSS and JS need to be produced first
+      val log = streams.value.log
+      val dir = (Compile / fastOptJS / crossTarget).value
+      val path = dir.absolutePath
+      log.info(s"Compile css in $dir")
+      dir.mkdirs()
+      Def.task {
+        (backend / Compile / runMain).toTask(s" com.github.opengrabeso.cohubo.CompileCss $path true").value
+        c // return compile result
+      }
+    }.value,
+
   ).enablePlugins(ScalaJSPlugin)
     .dependsOn(sharedJs_JS)
 
@@ -108,22 +104,6 @@ lazy val backend = (project in file("backend"))
     commonSettings
   )
 
-lazy val root = (project in file("."))
-  .aggregate(frontend, backend)
-  .settings(
-    Compile / compile := Def.taskDyn {
-      (frontend / Compile / fastOptJS).value // the CSS and JS need to be produced first
-      val c = (Compile / compile).value
-      val log = streams.value.log
-      val dir = (frontend / Compile / fastOptJS / crossTarget).value
-      val path = dir.absolutePath
-      log.info(s"Compile css in $dir")
-      dir.mkdirs()
-      Def.task {
-        (backend / Compile / runMain).toTask(s" com.github.opengrabeso.cohubo.CompileCss $path true").value
-        c // return compile result
-      }
-    }.value,
-
-    Compile / products := (Compile / products dependsOn generateCssTask).value
-  )
+lazy val root = (project in file(".")).aggregate(frontend, backend).settings(
+  Compile / products := (Compile / products).dependsOn(frontend / Compile / fastOptJS).value
+)
