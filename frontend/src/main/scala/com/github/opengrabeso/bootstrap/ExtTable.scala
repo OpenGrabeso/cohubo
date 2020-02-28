@@ -12,6 +12,7 @@ import org.scalajs.dom._
 import scalatags.JsDom.all._
 
 import scala.scalajs.js
+import scala.scalajs.js.|
 
 final class ExtTable[ItemType, ElemType <: ReadableProperty[ItemType]] private(
   items: seq.ReadableSeqProperty[ItemType, ElemType],
@@ -64,15 +65,36 @@ final class ExtTable[ItemType, ElemType <: ReadableProperty[ItemType]] private(
         ExtTable.callback = { t =>
           println(s"JS Callback for $t on $this")
           t.asInstanceOf[js.Dynamic].bootstrapTable()
-          t.find("tr td:first-of-type").each{(td, i) =>
-            jQ(td).find("input").each { (in, _) =>
-              // for some unknown reason items are checked by default - make them not checked
-              // TODO: select one article and make it checked
-              // TODO: note it is still highligter, we should fire an event instead
-              in.removeAttribute("checked")
-            }
-            println(s"  callback on $td $i")
+          val rows = t.find("tr")
+          val checkboxes = rows.find("td:first-of-type input")
+          println(s"checkboxes ${checkboxes.length}")
+          rows.on("select", { (el, ev) =>
+            println(s"  rows 'select' on $el $ev")
+          }).on("click", { (el, ev) =>
+            println(s"  rows 'click' on $el $ev")
+          }).on("check", { (el, ev) =>
+            println(s"  rows 'check' on $el $ev")
+          })
+          rows.each {(ch, i) =>
+            println(s"  callback on $ch $i")
+            ch.addEventListener("check", (e: Event) => println(s"$e"))
+            ch.addEventListener("click", (e: Event) => println(s"$e"))
+            ch.addEventListener("select", (e: Event) => println(s"$e"))
           }
+          val selected = rows.filter("[selected]")
+          val checked = checkboxes.filter("[checked]")
+          println(s"selected ${selected.length}")
+          println(s"checked ${checked.length}")
+          selected.trigger("select")
+          checkboxes.on("click", {(el, ev) =>
+            println(s"  checkboxes 'click' on $el $ev")
+          })
+          checked.removeAttr("checked")
+          rows.removeAttr("selected") // something sets them all to selected
+          checked.find("td").attr("background-color","#000000")
+          //checked.trigger("select")
+          //checked.triggerHandler( "select")
+
         }
         s"ExtTable.callback($$('#$componentId'))"
       }

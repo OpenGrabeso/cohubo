@@ -46,7 +46,7 @@ class PageView(
     val attribs = Seq[DisplayAttrib](
       TableFactory.TableAttrib("", (ar, p, nested) =>
         // checkbox will be created by the Bootstrap Table extension
-        div(nested(checkbox(p.subProp(_.selected)))).render
+        div(/*nested(checkbox(p.subProp(_.selected)))*/).render
       ),
       TableFactory.TableAttrib("Id", (ar, _, _) => ar.id.render),
       TableFactory.TableAttrib("Title", (ar, _, _) => ar.title.render),
