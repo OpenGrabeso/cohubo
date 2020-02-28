@@ -35,14 +35,16 @@ object TableFactory {
     }
   }.render
 
-  def rowFactory[ItemType: ModelPropertyCreator](attribs: Seq[TableAttrib[ItemType]]): (CastableProperty[ItemType], NestedInterceptor) => Element = (el,_) => tr(
+  def rowFactory[ItemType: ModelPropertyCreator](attribs: Seq[TableAttrib[ItemType]], compact: Boolean): (CastableProperty[ItemType], NestedInterceptor) => Element = (el,_) => tr(
+    if (compact) Seq[Modifier](s.tableCompact) else Seq.empty[Modifier],
     produceWithNested(el) { (ha, nested) =>
       attribs.flatMap { a =>
         // existing but empty shortName means the column should be hidden on narrow view
+        val aValue = a.value(ha, el.asModel, nested)
         if (a.shortName.contains("")) {
-          td(s.wideMedia, a.value(ha, el.asModel, nested)).render
+          td(s.wideMedia, aValue).render
         } else {
-          td(a.value(ha, el.asModel, nested)).render
+          td(aValue).render
         }
       }
     }

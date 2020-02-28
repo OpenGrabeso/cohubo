@@ -76,5 +76,9 @@ object SelectPageStyles extends CssBase {
       display.none
     )
   )
+  val tableCompact = style(
+    padding.`0`.important,
+    lineHeight(0.8 rem).important
+  )
 
 }

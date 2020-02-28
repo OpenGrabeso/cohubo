@@ -53,7 +53,7 @@ class PageView(
 
     val table = ExtTable(model.subSeq(_.articles), striped = true.toProperty, bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
       headerFactory = Some(TableFactory.headerFactory(attribs)),
-      rowFactory = TableFactory.rowFactory(attribs)
+      rowFactory = TableFactory.rowFactory(attribs, true)
     )
 
     div(
