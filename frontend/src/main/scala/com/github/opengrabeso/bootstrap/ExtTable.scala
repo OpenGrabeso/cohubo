@@ -33,7 +33,12 @@ final class ExtTable[ItemType, ElemType <: ReadableProperty[ItemType]] private(
       nestedInterceptor((BootstrapStyles.Table.responsive _).reactiveOptionApply(responsive)),
       table(
         id := componentId,
-        BootstrapStyles.Table.table,
+        //BootstrapStyles.Table.table,
+        attr("data-toggle") := "table",
+        attr("data-search") := "true",
+        attr("data-click-to-select") := "true",
+
+        //attr("data-columns") := "true",
         nestedInterceptor(BootstrapStyles.Table.dark.styleIf(dark)),
         nestedInterceptor(BootstrapStyles.Table.striped.styleIf(striped)),
         nestedInterceptor(BootstrapStyles.Table.bordered.styleIf(bordered)),
@@ -50,6 +55,9 @@ final class ExtTable[ItemType, ElemType <: ReadableProperty[ItemType]] private(
             }
           )
         )
+      ),
+      script(
+        "$('#" + componentId.toString + "').bootstrapTable()"
       )
     ).render
   }

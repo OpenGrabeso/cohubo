@@ -7,12 +7,12 @@ import common.model._
 import common.css._
 import io.udash._
 import io.udash.bootstrap.button.UdashButton
-import io.udash.bootstrap.table.UdashTable
 import io.udash.bootstrap.form.UdashForm
 import io.udash.css._
 import scalatags.JsDom.all._
 import io.udash.bootstrap._
 import BootstrapStyles._
+import com.github.opengrabeso.bootstrap._
 import org.scalajs.dom
 
 class PageView(
@@ -51,7 +51,7 @@ class PageView(
       TableFactory.TableAttrib("Title", (ar, _, _) => ar.title.render),
     )
 
-    val table = UdashTable(model.subSeq(_.articles), striped = true.toProperty, bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
+    val table = ExtTable(model.subSeq(_.articles), striped = true.toProperty, bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
       headerFactory = Some(TableFactory.headerFactory(attribs)),
       rowFactory = TableFactory.rowFactory(attribs)
     )
@@ -68,6 +68,7 @@ class PageView(
           div(
             bind(model.subProp(_.error).transform(_.map(ex => p(s"Error loading activities ${ex.toString}")).orNull)),
             div(
+              `class`:="bootstrap-table bootstrap4",
               s.selectTableContainer,
               table.render,
             ),
