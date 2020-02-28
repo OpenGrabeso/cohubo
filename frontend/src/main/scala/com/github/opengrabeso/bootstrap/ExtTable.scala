@@ -37,6 +37,7 @@ final class ExtTable[ItemType, ElemType <: ReadableProperty[ItemType]] private(
         attr("data-toggle") := "table",
         attr("data-search") := "true",
         attr("data-click-to-select") := "true",
+        attr("data-single-select") := "true",
 
         //attr("data-columns") := "true",
         nestedInterceptor(BootstrapStyles.Table.dark.styleIf(dark)),

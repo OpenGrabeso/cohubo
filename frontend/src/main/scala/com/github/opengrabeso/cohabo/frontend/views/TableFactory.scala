@@ -25,7 +25,13 @@ object TableFactory {
           val narrow = td(s.narrowMedia, b(a.shortName)).render
           Seq(wide, narrow)
         }
-      }.getOrElse(Seq(th(b(a.name)).render))
+      }.getOrElse(Seq(th(
+        if (a.name != "") b(a.name).render
+        else Seq[Modifier](
+          attr("data-field"):="state",
+          attr("data-checkbox"):="true"
+        )
+      ).render))
     }
   }.render
 

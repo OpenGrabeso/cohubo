@@ -7,7 +7,7 @@ import common.model._
 import common.css._
 import io.udash._
 import io.udash.bootstrap.button.UdashButton
-import io.udash.bootstrap.form.UdashForm
+import io.udash.bootstrap.form.{UdashForm, UdashInputGroup}
 import io.udash.css._
 import scalatags.JsDom.all._
 import io.udash.bootstrap._
@@ -68,7 +68,6 @@ class PageView(
           div(
             bind(model.subProp(_.error).transform(_.map(ex => p(s"Error loading activities ${ex.toString}")).orNull)),
             div(
-              `class`:="bootstrap-table bootstrap4",
               s.selectTableContainer,
               table.render,
             ),
