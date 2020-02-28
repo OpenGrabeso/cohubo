@@ -7,7 +7,7 @@ import io.udash.bootstrap.utils.{BootstrapStyles, UdashBootstrapComponent}
 import io.udash.component.ComponentId
 import io.udash.component.Components._
 import io.udash.properties.seq
-import io.udash.wrappers.jquery.JQuery
+import io.udash.wrappers.jquery.{JQuery, jQ}
 import org.scalajs.dom._
 import scalatags.JsDom.all._
 
@@ -65,15 +65,16 @@ final class ExtTable[ItemType, ElemType <: ReadableProperty[ItemType]] private(
           println(s"JS Callback for $t on $this")
           t.asInstanceOf[js.Dynamic].bootstrapTable()
           t.find("tr td:first-of-type").each{(td, i) =>
+            jQ(td).find("input").each { (in, _) =>
+              // for some unknown reason items are checked by default - make them not checked
+              // TODO: select one article and make it checked
+              // TODO: note it is still highligter, we should fire an event instead
+              in.removeAttribute("checked")
+            }
             println(s"  callback on $td $i")
           }
         }
-        //language=JavaScript
-        s"""
-        // I would like to implement this in Scala.js instead
-        var t = $$('#$componentId');
-        ExtTable.callback(t)
-        """
+        s"ExtTable.callback($$('#$componentId'))"
       }
     ).render
   }
