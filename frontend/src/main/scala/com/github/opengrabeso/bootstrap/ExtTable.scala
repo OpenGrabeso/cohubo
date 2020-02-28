@@ -63,37 +63,31 @@ final class ExtTable[ItemType, ElemType <: ReadableProperty[ItemType]] private(
       ),
       script {
         ExtTable.callback = { t =>
-          println(s"JS Callback for $t on $this")
           t.asInstanceOf[js.Dynamic].bootstrapTable()
           val rows = t.find("tr")
-          val checkboxes = rows.find("td:first-of-type input")
-          println(s"checkboxes ${checkboxes.length}")
-          rows.on("select", { (el, ev) =>
-            println(s"  rows 'select' on $el $ev")
-          }).on("click", { (el, ev) =>
-            println(s"  rows 'click' on $el $ev")
-          }).on("check", { (el, ev) =>
-            println(s"  rows 'check' on $el $ev")
-          })
-          rows.each {(ch, i) =>
-            println(s"  callback on $ch $i")
-            ch.addEventListener("check", (e: Event) => println(s"$e"))
-            ch.addEventListener("click", (e: Event) => println(s"$e"))
-            ch.addEventListener("select", (e: Event) => println(s"$e"))
-          }
+          val rowSelectTd = rows.find("td:first-of-type")
+          val checkboxes = rowSelectTd.find("input")
+          rows
+            //.on("select", { (el, ev) => println(s"  rows 'select' on $el ${ev.`type`}") })
+            .on("click", { (el, ev) =>
+              println("Row clicked")
+              jQ(el).find("td").removeAttr("style") }
+            )
+            //.on("check", { (el, ev) => println(s"  rows 'check' on $el ${ev.`type`}") })
+          //
           val selected = rows.filter("[selected]")
           val checked = checkboxes.filter("[checked]")
           println(s"selected ${selected.length}")
-          println(s"checked ${checked.length}")
-          selected.trigger("select")
-          checkboxes.on("click", {(el, ev) =>
-            println(s"  checkboxes 'click' on $el $ev")
-          })
           checked.removeAttr("checked")
-          rows.removeAttr("selected") // something sets them all to selected
-          checked.find("td").attr("background-color","#000000")
-          //checked.trigger("select")
-          //checked.triggerHandler( "select")
+
+          // something sets them all to selected - but unselect here does not help much
+          // that is why we set background-color explicitly
+          rows.removeAttr("selected")
+          rows.find("td").attr("style","background-color: white")
+          // checkbox needs to be present for click-to-select to work, but it can be hidden
+          rowSelectTd.find("label").hide()
+          // calling click here does not work unfortunately
+          //rows.first().trigger("click")
 
         }
         s"ExtTable.callback($$('#$componentId'))"
