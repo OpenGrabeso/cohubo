@@ -7,8 +7,11 @@ import io.udash.bootstrap.utils.{BootstrapStyles, UdashBootstrapComponent}
 import io.udash.component.ComponentId
 import io.udash.component.Components._
 import io.udash.properties.seq
+import io.udash.wrappers.jquery.JQuery
 import org.scalajs.dom._
 import scalatags.JsDom.all._
+
+import scala.scalajs.js
 
 final class ExtTable[ItemType, ElemType <: ReadableProperty[ItemType]] private(
   items: seq.ReadableSeqProperty[ItemType, ElemType],
@@ -57,13 +60,26 @@ final class ExtTable[ItemType, ElemType <: ReadableProperty[ItemType]] private(
           )
         )
       ),
-      script(
-        "$('#" + componentId.toString + "').bootstrapTable()"
-      )
+      script {
+        ExtTable.callback = { t =>
+          println(s"JS Callback for $t on $this")
+          t.asInstanceOf[js.Dynamic].bootstrapTable()
+          t.find("tr td:first-of-type").each{(td, i) =>
+            println(s"  callback on $td $i")
+          }
+        }
+        //language=JavaScript
+        s"""
+        // I would like to implement this in Scala.js instead
+        var t = $$('#$componentId');
+        ExtTable.callback(t)
+        """
+      }
     ).render
   }
 }
 
+@js.annotation.JSExportTopLevel("ExtTable")
 object ExtTable {
 
   /**
@@ -110,4 +126,8 @@ object ExtTable {
       items, responsive, dark, striped, bordered, borderless, hover, small, componentId
     )(captionFactory, headerFactory, rowFactory)
   }
+
+  @js.annotation.JSExport
+  var callback: js.Function1[JQuery, Unit] = _
+
 }
