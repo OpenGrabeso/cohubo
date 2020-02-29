@@ -49,7 +49,7 @@ class PageView(
     type DisplayAttrib = TableFactory.TableAttrib[ArticleRow]
     val attribs = Seq[DisplayAttrib](
       TableFactory.TableAttrib("", (ar, p, nested) =>
-        div(nested(checkbox(p.subProp(_.selected)))).render
+        div(s.hidden, nested(checkbox(p.subProp(_.selected)))).render
       ),
       TableFactory.TableAttrib("Id", (ar, _, _) => ar.id.render),
       TableFactory.TableAttrib("Title", (ar, _, _) => ar.title.render),

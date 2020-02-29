@@ -31,6 +31,7 @@ object TableFactory {
 
   def rowFactory[ItemType: ModelPropertyCreator](attribs: Seq[TableAttrib[ItemType]]): (CastableProperty[ItemType], NestedInterceptor) => Element = { (el,_) =>
     tr(
+      s.tr,
       produceWithNested(el) { (ha, nested) =>
         attribs.flatMap { a =>
           // existing but empty shortName means the column should be hidden on narrow view
@@ -49,7 +50,10 @@ object TableFactory {
         val tr = jQ(td).closest("tr")
         // TODO: some more reliable checkbox binding
         val checkbox = tr.find("input[type='checkbox']")
+        val wasSelected = tr.hasClass("selected")
         checkbox.trigger("click")
+        if (!wasSelected) tr.addClass("selected") else tr.removeClass("selected")
+        // TODO: make all the rest not selected
 
         false
       }
