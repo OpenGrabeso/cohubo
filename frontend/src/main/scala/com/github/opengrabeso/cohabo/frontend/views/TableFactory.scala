@@ -35,9 +35,9 @@ object TableFactory {
         attribs.flatMap { a =>
           // existing but empty shortName means the column should be hidden on narrow view
           if (a.shortName.contains("")) {
-            td(s.wideMedia, a.value(ha, el.asModel, nested)).render
+            td(s.td, s.wideMedia, a.value(ha, el.asModel, nested)).render
           } else {
-            td(a.value(ha, el.asModel, nested)).render
+            td(s.td, a.value(ha, el.asModel, nested)).render
           }
         }
       },
@@ -49,7 +49,6 @@ object TableFactory {
         val tr = jQ(td).closest("tr")
         // TODO: some more reliable checkbox binding
         val checkbox = tr.find("input[type='checkbox']")
-        println(s"Row clicked $td:$tr, checkbox $checkbox")
         checkbox.trigger("click")
 
         false
