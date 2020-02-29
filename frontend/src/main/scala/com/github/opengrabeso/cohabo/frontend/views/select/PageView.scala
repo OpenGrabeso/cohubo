@@ -13,7 +13,11 @@ import io.udash.css._
 import scalatags.JsDom.all._
 import io.udash.bootstrap._
 import BootstrapStyles._
+import io.udash.wrappers.jquery
+import io.udash.wrappers.jquery.jQ
 import org.scalajs.dom
+
+import scala.scalajs.js
 
 class PageView(
   model: ModelProperty[PageModel],
@@ -71,8 +75,9 @@ class PageView(
             bind(model.subProp(_.error).transform(_.map(ex => p(s"Error loading activities ${ex.toString}")).orNull)),
             div(
               s.selectTableContainer,
-              table.render,
-              script("$('th').resizable()").render
+              table.render
+            ).render.tap(d =>
+              jQ(d).find("th").asInstanceOf[js.Dynamic].resizable()
             ),
             UdashForm()(factory => Seq[Modifier](
               factory.input.formGroup()(
