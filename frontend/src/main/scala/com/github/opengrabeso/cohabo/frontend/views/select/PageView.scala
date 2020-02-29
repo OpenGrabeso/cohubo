@@ -89,8 +89,7 @@ class PageView(
                     )
                   )
                 ).render,
-                labelContent = Some(_ => "Article": Modifier),
-                helpText = Some(_ => "Drop any samples with HR above this limit as erratic": Modifier)
+                labelContent = Some(_ => "Article": Modifier)
               ).render,
             ))
           ).render
