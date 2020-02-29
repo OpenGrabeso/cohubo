@@ -70,6 +70,7 @@ class PageView(
             div(
               s.selectTableContainer,
               table.render,
+              script("$('th').resizable()").render
             ),
             UdashForm()(factory => Seq[Modifier](
               factory.input.formGroup()(
