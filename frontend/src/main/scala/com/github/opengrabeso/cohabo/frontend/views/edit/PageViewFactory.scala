@@ -2,7 +2,7 @@ package com.github.opengrabeso.cohabo
 package frontend
 package views.edit
 import common.model._
-import model._
+import dataModel._
 import routing.{EditPageState, RoutingState}
 import io.udash._
 
@@ -17,12 +17,12 @@ class PageViewFactory(
   import scala.concurrent.ExecutionContext.Implicits.global
 
   override def create(): (View, Presenter[EditPageState]) = {
-    val model = ModelProperty(PageModel(loading = true, articleId.id))
+    val model = ModelProperty(PageModel(loading = true, articleId))
 
 
     for {
       content <- Future { // TODO: async activity get
-        ArticleContent(articleId.id, s"Title $articleId", s"Content $articleId " * 50)
+        ArticleContent(articleId, s"Title $articleId", s"Content $articleId " * 50)
       }
     } {
       model.subProp(_.title).set(content.title)

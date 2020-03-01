@@ -10,7 +10,7 @@ import io.udash.bootstrap.button.{UdashButtonGroup, UdashButtonToolbar}
 import io.udash.bootstrap.form.UdashForm
 import io.udash.bootstrap.table.UdashTable
 import io.udash.css._
-import model._
+import dataModel._
 import scalatags.JsDom.all._
 import io.udash.bootstrap.utils.BootstrapStyles._
 import io.udash.component.ComponentId

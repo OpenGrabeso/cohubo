@@ -6,15 +6,13 @@ import java.time.ZonedDateTime
 import rest.EnhancedRestDataCompanion
 
 @SerialVersionUID(11L)
-case class ArticleContent(id: String, title: String, content: String) {
+case class ArticleContent(id: ArticleId, title: String, content: String) {
 
-  def link: String = {
-    s"https://www.github.com/???????/$id"
-  }
+  def link: String = id.link
 
   def shortName: String = {
     common.Formatting.shortNameString(title)
   }
 }
 
-object ArticleContent extends EnhancedRestDataCompanion[ArticleHeader]
+object ArticleContent extends EnhancedRestDataCompanion[ArticleContent]

@@ -9,7 +9,7 @@ import common.Util._
 
 import scala.concurrent.{ExecutionContext, Future}
 import UserContextService._
-import com.github.opengrabeso.cohabo.frontend.model._
+import com.github.opengrabeso.cohabo.frontend.dataModel._
 import org.scalajs.dom
 
 object UserContextService {
@@ -27,7 +27,7 @@ object UserContextService {
 
       Future.successful {
         LoadedActivities(
-          for (i <- 1 to 10) yield ArticleId(i.toString)
+          for (i <- 1 to 10; j <- None +: (1000 to 1002).map(Some.apply) ) yield ArticleId(i.toString, j.map(_.toString))
         )
       }
     }

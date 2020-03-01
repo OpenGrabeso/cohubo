@@ -3,18 +3,14 @@ package frontend
 package views
 package select
 
-import java.time.{ZoneOffset, ZonedDateTime}
-
+import dataModel._
 import common.model._
 import common.Util._
 import routing._
 import io.udash._
 
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.{ExecutionContext, Promise}
 import services.UserContextService
-
-import scala.scalajs.js
-import scala.util.{Failure, Success}
 
 /** Contains the business logic of this view. */
 class PagePresenter(
@@ -54,8 +50,13 @@ class PagePresenter(
     }
 
     for (UserContextService.LoadedActivities(stagedActivities) <- load) {
+      def idToModel(id: ArticleId) = ArticleIdModel(id.issue, id.comment)
 
-      model.subProp(_.articles).set(stagedActivities.map(id => ArticleRow(id.id, "??? " + id.id.toString, selected = false)))
+      model.subProp(_.articles).set(stagedActivities.map { id =>
+        // find a parent for each item
+        val parent = id.comment.map(_ => ArticleIdModel(id.issue, None))
+        dataModel.ArticleRowModel(idToModel(id), parent, "??? " + id.toString)
+      })
       model.subProp(_.loading).set(false)
     }
 

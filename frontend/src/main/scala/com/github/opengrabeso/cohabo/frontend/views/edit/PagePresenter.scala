@@ -3,7 +3,7 @@ package frontend
 package views
 package edit
 
-import model._
+import dataModel._
 import routing._
 import io.udash._
 import common.model._

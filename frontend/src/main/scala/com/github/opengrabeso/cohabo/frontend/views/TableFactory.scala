@@ -29,7 +29,7 @@ object TableFactory {
     }
   }.render
 
-  def rowFactory[ItemType: ModelPropertyCreator](id: ItemType => String, sel: Property[String], attribs: Seq[TableAttrib[ItemType]]): (CastableProperty[ItemType], NestedInterceptor) => Element = { (el,_) =>
+  def rowFactory[ItemType: ModelPropertyCreator, SelType](id: ItemType => SelType, sel: Property[Option[SelType]], attribs: Seq[TableAttrib[ItemType]]): (CastableProperty[ItemType], NestedInterceptor) => Element = { (el,_) =>
     tr(
       s.tr,
       produceWithNested(el) { (ha, nested) =>
@@ -51,11 +51,11 @@ object TableFactory {
         if (!wasSelected) {
           val selId = id(el.get)
           tr.addClass("selected")
-          sel.set(selId)
+          sel.set(Some(selId))
 
           // once the selection is changed from us, unselect us
-          def listenCallback(newId: String): Unit = {
-            if (newId == selId) sel.listenOnce(listenCallback) // listen again
+          def listenCallback(newId: Option[SelType]): Unit = {
+            if (newId.contains(selId)) sel.listenOnce(listenCallback) // listen again
             else {
               tr.removeClass("selected")
             }

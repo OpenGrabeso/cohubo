@@ -1,10 +1,10 @@
 package com.github.opengrabeso.cohabo
-package frontend.model
+package frontend.dataModel
 
 import common.model._
 import io.udash.HasModelPropertyCreator
 
-case class ArticleIdModel(id: String, title: String)
+case class ArticleIdModel(id: String, parent: Option[String])
 
 object ArticleIdModel extends HasModelPropertyCreator[ArticleIdModel]
 

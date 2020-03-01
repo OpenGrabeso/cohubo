@@ -3,7 +3,6 @@ package frontend
 package views
 package select
 
-import common.model._
 import common.css._
 import io.udash._
 import io.udash.bootstrap.button.UdashButton
@@ -13,9 +12,8 @@ import io.udash.css._
 import scalatags.JsDom.all._
 import io.udash.bootstrap._
 import BootstrapStyles._
-import io.udash.wrappers.jquery
+import frontend.dataModel._
 import io.udash.wrappers.jquery.jQ
-import org.scalajs.dom
 
 import scala.scalajs.js
 
@@ -28,15 +26,13 @@ class PageView(
   private val uploadButton = UdashButton()(_ => "Upload activity data...")
   private val settingsButton = UdashButton()(_ => "Settings")
 
-  def nothingSelected: ReadableProperty[Boolean] = {
-    model.subProp(_.articles).transform(!_.exists(_.selected))
-  }
+  def nothingSelected: ReadableProperty[Boolean] = model.subProp(_.selectedArticleId).transform(_.isDefined)
 
   private val sendToStrava = button(nothingSelected, "Send to Strava".toProperty)
   private val deleteActivity = button(nothingSelected, s"Delete from $appName".toProperty)
   private val mergeAndEdit = button(
     nothingSelected,
-    model.subProp(_.articles).transform(a => if (a.count(_.selected) > 1) "Merge and edit..." else "Edit...")
+    "Edit...".toProperty
   )
   private val uncheckAll = button(nothingSelected, "Uncheck all".toProperty)
 
@@ -46,9 +42,10 @@ class PageView(
   def getTemplate: Modifier = {
 
     // value is a callback
-    type DisplayAttrib = TableFactory.TableAttrib[ArticleRow]
+    type DisplayAttrib = TableFactory.TableAttrib[ArticleRowModel]
     val attribs = Seq[DisplayAttrib](
-      TableFactory.TableAttrib("Id", (ar, _, _) => ar.id.render),
+      TableFactory.TableAttrib("Id", (ar, _, _) => ar.id.toString.render),
+      TableFactory.TableAttrib("Parent", (ar, _, _) => ar.parentId.map(_.toString).getOrElse("").render),
       TableFactory.TableAttrib("Title", (ar, _, _) => ar.title.render),
       TableFactory.TableAttrib("Posted by", (ar, _, _) => "???".render),
       TableFactory.TableAttrib("Date", (ar, _, _) => "???".render),
@@ -56,7 +53,7 @@ class PageView(
 
     val table = UdashTable(model.subSeq(_.articles), bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
       headerFactory = Some(TableFactory.headerFactory(attribs)),
-      rowFactory = TableFactory.rowFactory(_.id, model.subProp(_.selectedArticleId), attribs)
+      rowFactory = TableFactory.rowFactory[ArticleRowModel, ArticleIdModel](_.id, model.subProp(_.selectedArticleId), attribs)
     )
 
     div(

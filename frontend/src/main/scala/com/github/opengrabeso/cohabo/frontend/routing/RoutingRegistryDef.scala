@@ -25,7 +25,7 @@ class RoutingRegistryDef extends RoutingRegistry[RoutingState] {
       if (prefix.nonEmpty) {
         val rest = s.drop(prefix.length + 1)
         val parts = rest.split("&")
-        Some((prefix, parts.flatMap(URIEncoded.unapply(_).map(ArticleId.apply)).head))
+        Some((prefix, parts.flatMap(URIEncoded.unapply(_).map(ArticleId.deserialize)).head))
       } else {
         None
       }

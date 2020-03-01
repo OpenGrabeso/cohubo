@@ -3,12 +3,11 @@ package frontend
 package views
 package select
 
+import com.github.opengrabeso.cohabo.frontend.dataModel._
 import io.udash._
-import common.model._
-import io.udash.utils.FileUploader.FileUploadModel
 
 /** The form's model structure. */
 case class PageModel(
-  loading: Boolean, articles: Seq[ArticleRow], selectedArticleId: String = "", articleContent: String = "", error: Option[Throwable] = None
+  loading: Boolean, articles: Seq[ArticleRowModel], selectedArticleId: Option[ArticleIdModel] = None, articleContent: String = "", error: Option[Throwable] = None
 )
 object PageModel extends HasModelPropertyCreator[PageModel]
