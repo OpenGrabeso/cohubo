@@ -13,7 +13,11 @@ import io.udash.css._
 import scalatags.JsDom.all._
 import io.udash.bootstrap._
 import BootstrapStyles._
+import io.udash.wrappers.jquery
+import io.udash.wrappers.jquery.jQ
 import org.scalajs.dom
+
+import scala.scalajs.js
 
 class PageView(
   model: ModelProperty[PageModel],
@@ -44,16 +48,15 @@ class PageView(
     // value is a callback
     type DisplayAttrib = TableFactory.TableAttrib[ArticleRow]
     val attribs = Seq[DisplayAttrib](
-      TableFactory.TableAttrib("", (ar, p, nested) =>
-        div(nested(checkbox(p.subProp(_.selected)))).render
-      ),
       TableFactory.TableAttrib("Id", (ar, _, _) => ar.id.render),
       TableFactory.TableAttrib("Title", (ar, _, _) => ar.title.render),
+      TableFactory.TableAttrib("Posted by", (ar, _, _) => "???".render),
+      TableFactory.TableAttrib("Date", (ar, _, _) => "???".render),
     )
 
-    val table = UdashTable(model.subSeq(_.articles), striped = true.toProperty, bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
+    val table = UdashTable(model.subSeq(_.articles), bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
       headerFactory = Some(TableFactory.headerFactory(attribs)),
-      rowFactory = TableFactory.rowFactory(attribs)
+      rowFactory = TableFactory.rowFactory(_.id, model.subProp(_.selectedArticleId), attribs)
     )
 
     div(
@@ -69,7 +72,9 @@ class PageView(
             bind(model.subProp(_.error).transform(_.map(ex => p(s"Error loading activities ${ex.toString}")).orNull)),
             div(
               s.selectTableContainer,
-              table.render,
+              table.render
+            ).render.tap(d =>
+              jQ(d).find("th").asInstanceOf[js.Dynamic].resizable()
             ),
             UdashForm()(factory => Seq[Modifier](
               factory.input.formGroup()(
@@ -81,8 +86,7 @@ class PageView(
                     )
                   )
                 ).render,
-                labelContent = Some(_ => "Article": Modifier),
-                helpText = Some(_ => "Drop any samples with HR above this limit as erratic": Modifier)
+                labelContent = Some(_ => "Article": Modifier)
               ).render,
             ))
           ).render

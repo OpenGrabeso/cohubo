@@ -9,6 +9,6 @@ import io.udash.utils.FileUploader.FileUploadModel
 
 /** The form's model structure. */
 case class PageModel(
-  loading: Boolean, articles: Seq[ArticleRow], articleContent: String = "", error: Option[Throwable] = None
+  loading: Boolean, articles: Seq[ArticleRow], selectedArticleId: String = "", articleContent: String = "", error: Option[Throwable] = None
 )
 object PageModel extends HasModelPropertyCreator[PageModel]

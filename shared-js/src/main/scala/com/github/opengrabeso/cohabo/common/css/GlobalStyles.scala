@@ -102,6 +102,10 @@ object GlobalStyles extends CssBase {
     // we want the tables to be quite compact
     unsafeRoot("table .form-group")(
       marginBottom.`0`
+    ),
+    unsafeRoot("table .input-group-text")(
+      paddingBottom.`0`,
+      paddingTop.`0`
     )
   )
 

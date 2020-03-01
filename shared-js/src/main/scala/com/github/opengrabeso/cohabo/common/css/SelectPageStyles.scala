@@ -35,6 +35,21 @@ object SelectPageStyles extends CssBase {
     overflow.auto
   )
 
+  val tr: CssStyle = style(
+    &.attrContains("class", "selected") (
+      backgroundColor(c"#ADD8E6") // lightblue
+    ),
+    &.hover.attrContains("class", "selected") (
+      backgroundColor(c"#A0D0E0")
+    )
+  )
+
+  val td: CssStyle = style(
+    lineHeight(1.0 rem),
+    paddingBottom.`0`.important,
+    paddingTop.`0`.important
+  )
+
   val uploading: CssStyle = style(
     backgroundColor.lightblue
   )
@@ -75,6 +90,10 @@ object SelectPageStyles extends CssBase {
     media.minWidth(minWide)(
       display.none
     )
+  )
+
+  val hidden = style(
+    display.none
   )
 
 }

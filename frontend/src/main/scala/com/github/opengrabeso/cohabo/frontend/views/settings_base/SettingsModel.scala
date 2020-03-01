@@ -7,6 +7,6 @@ import java.time.ZonedDateTime
 
 import io.udash._
 
-case class SettingsModel(loading: Boolean = true, settings: SettingsStorage = SettingsStorage(), currentTime: ZonedDateTime = ZonedDateTime.now())
+case class SettingsModel(loading: Boolean = true, settings: SettingsStorage = SettingsStorage())
 
 object SettingsModel extends HasModelPropertyCreator[SettingsModel]
