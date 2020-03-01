@@ -43,15 +43,15 @@ class PageView(
 
     // value is a callback
     type DisplayAttrib = TableFactory.TableAttrib[ArticleRowModel]
-    def widthWide(min: Int, percent: Int) = Some(s"min-width: $min%; width $percent%")
-    def width(min: Int, percent: Int, max: Int) = Some(s"min-width: $min%; width: $percent%; max-width: $max%")
+    def widthWide(min: Int, percent: Int): Option[String] = Some(s"min-width: $min%; width $percent%")
+    def width(min: Int, percent: Int, max: Int): Option[String] = Some(s"min-width: $min%; width: $percent%; max-width: $max%")
 
     val attribs = Seq[DisplayAttrib](
-      TableFactory.TableAttrib("Id", (ar, _, _) => Seq[Modifier](ar.id.toString.render), style = width(10, 10, 10)),
-      TableFactory.TableAttrib("Parent", (ar, _, _) => ar.parentId.map(_.toString).getOrElse("").render, style = width(10, 10, 10)),
+      TableFactory.TableAttrib("Id", (ar, _, _) => Seq[Modifier](ar.id.toString.render), style = width(5, 5, 10)),
+      TableFactory.TableAttrib("Parent", (ar, _, _) => ar.parentId.map(_.toString).getOrElse("").render, style = width(5, 5, 10)),
       TableFactory.TableAttrib("Article Title", (ar, _, _) => ar.title.render, style = widthWide(50, 50)),
-      TableFactory.TableAttrib("Posted by", (ar, _, _) => "???".render, style = width(10, 15, 20)),
-      TableFactory.TableAttrib("Date", (ar, _, _) => "???".render, style = width(10, 15, 20)),
+      TableFactory.TableAttrib("Posted by", (ar, _, _) => "Someone Clever".render, style = width(10, 15, 20)),
+      TableFactory.TableAttrib("Date", (ar, _, _) => "1987-10-10T20:30".render, style = width(10, 15, 20)),
     )
 
     val table = UdashTable(model.subSeq(_.articles), bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
@@ -72,9 +72,9 @@ class PageView(
             bind(model.subProp(_.error).transform(_.map(ex => p(s"Error loading activities ${ex.toString}")).orNull)),
             div(
               s.selectTableContainer,
-              table.render
-            ).render.tap(d =>
-              jQ(d).find("th").asInstanceOf[js.Dynamic].resizable()
+              table.render.tap { t =>
+                jQ(t).asInstanceOf[js.Dynamic].resizableColumns()
+              }
             ),
             UdashForm()(factory => Seq[Modifier](
               factory.input.formGroup()(
