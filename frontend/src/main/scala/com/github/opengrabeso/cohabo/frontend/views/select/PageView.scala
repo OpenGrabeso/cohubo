@@ -56,7 +56,7 @@ class PageView(
 
     val table = UdashTable(model.subSeq(_.articles), bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
       headerFactory = Some(TableFactory.headerFactory(attribs)),
-      rowFactory = TableFactory.rowFactory(p => p.asModel.subProp(_.selected), attribs)
+      rowFactory = TableFactory.rowFactory(_.id, model.subProp(_.selectedArticleId), attribs)
     )
 
     div(

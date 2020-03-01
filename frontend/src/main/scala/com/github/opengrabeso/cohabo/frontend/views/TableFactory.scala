@@ -29,7 +29,7 @@ object TableFactory {
     }
   }.render
 
-  def rowFactory[ItemType: ModelPropertyCreator](sel: CastableProperty[ItemType] => Property[Boolean], attribs: Seq[TableAttrib[ItemType]]): (CastableProperty[ItemType], NestedInterceptor) => Element = { (el,_) =>
+  def rowFactory[ItemType: ModelPropertyCreator](id: ItemType => String, sel: Property[String], attribs: Seq[TableAttrib[ItemType]]): (CastableProperty[ItemType], NestedInterceptor) => Element = { (el,_) =>
     tr(
       s.tr,
       produceWithNested(el) { (ha, nested) =>
@@ -43,19 +43,25 @@ object TableFactory {
         }
       },
       onclick :+= { e: Event =>
-        // find a checkbox and make it selected
         val td = e.target.asInstanceOf[Element]
         // e.target may be a td inside of tr, we need to find a tr parent in such case
 
         val tr = jQ(td).closest("tr")
-        // TODO: some more reliable checkbox binding
-        val checkbox = tr.find("input[type='checkbox']")
         val wasSelected = tr.hasClass("selected")
-        checkbox.trigger("click")
-        if (!wasSelected) tr.addClass("selected") else tr.removeClass("selected")
-        // TODO: make all the rest not selected
-        val selProp = sel(el)
-        selProp.set(!wasSelected)
+        if (!wasSelected) {
+          val selId = id(el.get)
+          tr.addClass("selected")
+          sel.set(selId)
+
+          // once the selection is changed from us, unselect us
+          def listenCallback(newId: String): Unit = {
+            if (newId == selId) sel.listenOnce(listenCallback) // listen again
+            else {
+              tr.removeClass("selected")
+            }
+          }
+          sel.listenOnce(listenCallback)
+        }
 
         false
       }

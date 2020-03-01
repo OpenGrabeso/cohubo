@@ -30,6 +30,20 @@ class PagePresenter(
 
    */
 
+  model.subProp(_.selectedArticleId).listen { id =>
+    model.subProp(_.articleContent).set("Loading...")
+    import scala.scalajs.js.timers._
+    val content = Promise[String]()
+    setTimeout(200){ // simulate async loading
+      content.success(s"Article content of $id")
+    }
+
+    content.future.map{ content =>
+      model.subProp(_.articleContent).set(content)
+    }
+
+  }
+
   def loadActivities() = {
     val load = userService.loadCached()
 
