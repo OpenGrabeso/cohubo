@@ -43,12 +43,15 @@ class PageView(
 
     // value is a callback
     type DisplayAttrib = TableFactory.TableAttrib[ArticleRowModel]
+    def widthWide(min: Int, percent: Int) = Some(s"min-width: $min%; width $percent%")
+    def width(min: Int, percent: Int, max: Int) = Some(s"min-width: $min%; width: $percent%; max-width: $max%")
+
     val attribs = Seq[DisplayAttrib](
-      TableFactory.TableAttrib("Id", (ar, _, _) => ar.id.toString.render),
-      TableFactory.TableAttrib("Parent", (ar, _, _) => ar.parentId.map(_.toString).getOrElse("").render),
-      TableFactory.TableAttrib("Title", (ar, _, _) => ar.title.render),
-      TableFactory.TableAttrib("Posted by", (ar, _, _) => "???".render),
-      TableFactory.TableAttrib("Date", (ar, _, _) => "???".render),
+      TableFactory.TableAttrib("Id", (ar, _, _) => Seq[Modifier](ar.id.toString.render), style = width(10, 10, 10)),
+      TableFactory.TableAttrib("Parent", (ar, _, _) => ar.parentId.map(_.toString).getOrElse("").render, style = width(10, 10, 10)),
+      TableFactory.TableAttrib("Article Title", (ar, _, _) => ar.title.render, style = widthWide(50, 50)),
+      TableFactory.TableAttrib("Posted by", (ar, _, _) => "???".render, style = width(10, 15, 20)),
+      TableFactory.TableAttrib("Date", (ar, _, _) => "???".render, style = width(10, 15, 20)),
     )
 
     val table = UdashTable(model.subSeq(_.articles), bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(

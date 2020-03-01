@@ -13,19 +13,24 @@ import scalatags.JsDom.all._
 object TableFactory {
   val s = SelectPageStyles
 
-  case class TableAttrib[ItemType](name: String, value: (ItemType, ModelProperty[ItemType], NestedInterceptor) => Seq[Node], shortName: Option[String] = None)
+  case class TableAttrib[ItemType](
+    name: String, value: (ItemType, ModelProperty[ItemType], NestedInterceptor) => Modifier,
+    style: Option[String] = None,
+    shortName: Option[String] = None
+  )
 
   def headerFactory[ItemType](attribs: Seq[TableAttrib[ItemType]]): NestedInterceptor => Modifier = _ => tr {
     attribs.flatMap { a =>
+      val st = a.style.map(style := _)
       a.shortName.map { shortName =>
-        val wide = td(s.wideMedia, b(a.name)).render
+        val wide = th(s.wideMedia, b(a.name), st).render
         if (shortName.isEmpty) {
           Seq(wide)
         } else {
-          val narrow = td(s.narrowMedia, b(a.shortName)).render
+          val narrow = th(st, s.narrowMedia, b(a.shortName)).render
           Seq(wide, narrow)
         }
-      }.getOrElse(Seq(th(b(a.name)).render))
+      }.getOrElse(Seq(th(st, b(a.name)).render))
     }
   }.render
 
