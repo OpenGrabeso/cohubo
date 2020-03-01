@@ -16,6 +16,7 @@ object TableFactory {
   case class TableAttrib[ItemType](
     name: String, value: (ItemType, ModelProperty[ItemType], NestedInterceptor) => Modifier,
     style: Option[String] = None,
+    modifier: Option[ItemType => Modifier] = None,
     shortName: Option[String] = None
   )
 
@@ -34,16 +35,20 @@ object TableFactory {
     }
   }.render
 
-  def rowFactory[ItemType: ModelPropertyCreator, SelType](id: ItemType => SelType, sel: Property[Option[SelType]], attribs: Seq[TableAttrib[ItemType]]): (CastableProperty[ItemType], NestedInterceptor) => Element = { (el,_) =>
+  def rowFactory[ItemType: ModelPropertyCreator, SelType](
+    id: ItemType => SelType,
+    indent: ItemType => Int,
+    sel: Property[Option[SelType]], attribs: Seq[TableAttrib[ItemType]]
+  ): (CastableProperty[ItemType], NestedInterceptor) => Element = { (el,_) =>
     tr(
       s.tr,
       produceWithNested(el) { (ha, nested) =>
         attribs.flatMap { a =>
           // existing but empty shortName means the column should be hidden on narrow view
           if (a.shortName.contains("")) {
-            td(s.td, s.wideMedia, a.value(ha, el.asModel, nested)).render
+            td(s.td, a.modifier.map(_(ha)), s.wideMedia, a.value(ha, el.asModel, nested)).render
           } else {
-            td(s.td, a.value(ha, el.asModel, nested)).render
+            td(s.td, a.modifier.map(_(ha)), a.value(ha, el.asModel, nested)).render
           }
         }
       },

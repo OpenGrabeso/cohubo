@@ -14,6 +14,7 @@ import io.udash.bootstrap._
 import BootstrapStyles._
 import frontend.dataModel._
 import io.udash.wrappers.jquery.jQ
+import org.scalajs.dom.Event
 
 import scala.scalajs.js
 
@@ -47,6 +48,18 @@ class PageView(
     def width(min: Int, percent: Int, max: Int): Option[String] = Some(s"min-width: $min%; width: $percent%; max-width: $max%")
 
     val attribs = Seq[DisplayAttrib](
+      TableFactory.TableAttrib("()", (ar, p, nested) =>
+        input(
+          tpe := "checkbox",
+          if (ar.children.isEmpty) Seq[Modifier](attr("disabled") := true) else Seq.empty[Modifier],
+          onclick :+= { (e: Event) =>
+            e.stopPropagation() // prevent any other processing, esp. row click selection
+            false
+          }
+        ).render,
+        style = width(5, 5, 10), // header (th) style
+        modifier = Some(ar => style := s"padding-left: ${ar.indent * 16}px") // item (td) style
+      ),
       TableFactory.TableAttrib("Id", (ar, _, _) => Seq[Modifier](ar.id.toString.render), style = width(5, 5, 10)),
       TableFactory.TableAttrib("Parent", (ar, _, _) => ar.parentId.map(_.toString).getOrElse("").render, style = width(5, 5, 10)),
       TableFactory.TableAttrib("Article Title", (ar, _, _) => ar.title.render, style = widthWide(50, 50)),
@@ -56,7 +69,7 @@ class PageView(
 
     val table = UdashTable(model.subSeq(_.articles), bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
       headerFactory = Some(TableFactory.headerFactory(attribs)),
-      rowFactory = TableFactory.rowFactory[ArticleRowModel, ArticleIdModel](_.id, model.subProp(_.selectedArticleId), attribs)
+      rowFactory = TableFactory.rowFactory[ArticleRowModel, ArticleIdModel](_.id, _.indent, model.subProp(_.selectedArticleId), attribs)
     )
 
     div(
