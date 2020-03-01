@@ -29,7 +29,7 @@ object TableFactory {
     }
   }.render
 
-  def rowFactory[ItemType: ModelPropertyCreator](attribs: Seq[TableAttrib[ItemType]]): (CastableProperty[ItemType], NestedInterceptor) => Element = { (el,_) =>
+  def rowFactory[ItemType: ModelPropertyCreator](sel: CastableProperty[ItemType] => Property[Boolean], attribs: Seq[TableAttrib[ItemType]]): (CastableProperty[ItemType], NestedInterceptor) => Element = { (el,_) =>
     tr(
       s.tr,
       produceWithNested(el) { (ha, nested) =>
@@ -54,6 +54,8 @@ object TableFactory {
         checkbox.trigger("click")
         if (!wasSelected) tr.addClass("selected") else tr.removeClass("selected")
         // TODO: make all the rest not selected
+        val selProp = sel(el)
+        selProp.set(!wasSelected)
 
         false
       }

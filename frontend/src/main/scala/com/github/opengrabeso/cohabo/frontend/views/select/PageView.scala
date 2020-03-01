@@ -48,9 +48,6 @@ class PageView(
     // value is a callback
     type DisplayAttrib = TableFactory.TableAttrib[ArticleRow]
     val attribs = Seq[DisplayAttrib](
-      TableFactory.TableAttrib("", (ar, p, nested) =>
-        div(s.hidden, nested(checkbox(p.subProp(_.selected)))).render
-      ),
       TableFactory.TableAttrib("Id", (ar, _, _) => ar.id.render),
       TableFactory.TableAttrib("Title", (ar, _, _) => ar.title.render),
       TableFactory.TableAttrib("Posted by", (ar, _, _) => "???".render),
@@ -59,7 +56,7 @@ class PageView(
 
     val table = UdashTable(model.subSeq(_.articles), bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
       headerFactory = Some(TableFactory.headerFactory(attribs)),
-      rowFactory = TableFactory.rowFactory(attribs)
+      rowFactory = TableFactory.rowFactory(p => p.asModel.subProp(_.selected), attribs)
     )
 
     div(
