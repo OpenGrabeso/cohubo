@@ -13,7 +13,8 @@ import scalatags.JsDom.all._
 import io.udash.bootstrap._
 import BootstrapStyles._
 import frontend.dataModel._
-import io.udash.wrappers.jquery.jQ
+import io.udash.wrappers.jquery.{JQuery, jQ}
+import org.scalajs.dom.{Element, Event}
 
 import scala.scalajs.js
 
@@ -48,15 +49,22 @@ class PageView(
 
     val attribs = Seq[DisplayAttrib](
       TableFactory.TableAttrib("Id", (ar, _, _) => Seq[Modifier](ar.id.toString.render), style = width(5, 5, 10)),
-      TableFactory.TableAttrib("Parent", (ar, _, _) => ar.parentId.map(_.toString).getOrElse("").render, style = width(5, 5, 10)),
-      TableFactory.TableAttrib("Article Title", (ar, _, _) => ar.title.render, style = widthWide(50, 50)),
-      TableFactory.TableAttrib("Posted by", (ar, _, _) => "Someone Clever".render, style = width(10, 15, 20)),
+      //TableFactory.TableAttrib("Parent", (ar, _, _) => ar.parentId.map(_.toString).getOrElse("").render, style = width(5, 5, 10), shortName = Some("")),
+      TableFactory.TableAttrib("Article Title", (ar, _, _) =>
+        div(
+          Option(i(`class`:="fold-control fas fa-angle-right rotate down")).filter(_ => ar.children.nonEmpty),
+          ar.title.render,
+        ).render,
+        style = widthWide(50, 50),
+        modifier = Some(ar => style := s"padding-left: ${ar.indent * 40}px") // item (td) style
+      ),
+      TableFactory.TableAttrib("Posted by", (ar, _, _) => "Someone Clever".render, style = width(10, 15, 20), shortName = Some("")),
       TableFactory.TableAttrib("Date", (ar, _, _) => "1987-10-10T20:30".render, style = width(10, 15, 20)),
     )
 
     val table = UdashTable(model.subSeq(_.articles), bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
       headerFactory = Some(TableFactory.headerFactory(attribs)),
-      rowFactory = TableFactory.rowFactory[ArticleRowModel, ArticleIdModel](_.id, model.subProp(_.selectedArticleId), attribs)
+      rowFactory = TableFactory.rowFactory[ArticleRowModel, ArticleIdModel](_.id, _.indent, model.subProp(_.selectedArticleId), attribs)
     )
 
     div(
@@ -73,7 +81,8 @@ class PageView(
             div(
               s.selectTableContainer,
               table.render.tap { t =>
-                jQ(t).asInstanceOf[js.Dynamic].resizableColumns()
+                val $ = jQ
+                $(t).asInstanceOf[js.Dynamic].resizableColumns()
               }
             ),
             UdashForm()(factory => Seq[Modifier](

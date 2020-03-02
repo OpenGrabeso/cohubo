@@ -7,7 +7,7 @@ import io.udash.bindings.modifiers.Binding.NestedInterceptor
 import org.scalajs.dom.{Element, Event, Node}
 import io.udash.css.CssView._
 import io.udash.properties.ModelPropertyCreator
-import io.udash.wrappers.jquery.jQ
+import io.udash.wrappers.jquery.{JQuery, jQ}
 import scalatags.JsDom.all._
 
 object TableFactory {
@@ -16,6 +16,7 @@ object TableFactory {
   case class TableAttrib[ItemType](
     name: String, value: (ItemType, ModelProperty[ItemType], NestedInterceptor) => Modifier,
     style: Option[String] = None,
+    modifier: Option[ItemType => Modifier] = None,
     shortName: Option[String] = None
   )
 
@@ -34,19 +35,29 @@ object TableFactory {
     }
   }.render
 
-  def rowFactory[ItemType: ModelPropertyCreator, SelType](id: ItemType => SelType, sel: Property[Option[SelType]], attribs: Seq[TableAttrib[ItemType]]): (CastableProperty[ItemType], NestedInterceptor) => Element = { (el,_) =>
-    tr(
+  def rowFactory[ItemType: ModelPropertyCreator, SelType](
+    id: ItemType => SelType,
+    indent: ItemType => Int,
+    sel: Property[Option[SelType]], attribs: Seq[TableAttrib[ItemType]]
+  ): (CastableProperty[ItemType], NestedInterceptor) => Element = { (el,_) =>
+    val level = indent(el.get)
+    val row = tr(
       s.tr,
       produceWithNested(el) { (ha, nested) =>
         attribs.flatMap { a =>
           // existing but empty shortName means the column should be hidden on narrow view
+          val tdItem = td(s.td, a.modifier.map(_ (ha)), a.value(ha, el.asModel, nested))
           if (a.shortName.contains("")) {
-            td(s.td, s.wideMedia, a.value(ha, el.asModel, nested)).render
+            tdItem(s.wideMedia).render
           } else {
-            td(s.td, a.value(ha, el.asModel, nested)).render
+            tdItem.render
           }
         }
       },
+
+      `class` := "table-fold",
+      attr("data-depth") := level,
+
       onclick :+= { e: Event =>
         val td = e.target.asInstanceOf[Element]
         // e.target may be a td inside of tr, we need to find a tr parent in such case
@@ -71,5 +82,38 @@ object TableFactory {
         false
       }
     ).render
+    jQ(row).find(".fold-control").on("click", { (control, event) =>
+      // from https://stackoverflow.com/a/49364929/16673
+      //println(tr.attr("data-depth"))
+      val tr = jQ(control).closest("tr")
+
+      // find all children (following items with greater level)
+      def findChildren(tr: JQuery) = {
+        def getDepth(d: Option[Any]) = d.map(_.asInstanceOf[Int]).getOrElse(0)
+        val depth = getDepth(tr.data("depth"))
+        tr.nextUntil(jQ("tr").filter((x: Element, _: Int, _: Element) => {
+          getDepth(jQ(x).data("depth")) <= depth
+        }))
+      }
+
+      val children = findChildren(jQ(tr))
+      //println(children.length)
+      val arrow = tr.find(".fold-control")
+      if (jQ(children).is(":visible")) {
+        jQ(tr).addClass("closed")
+        arrow.removeClass("down")
+        jQ(children).hide()
+      } else {
+        jQ(tr).removeClass("closed")
+        arrow.addClass("down")
+        jQ(children).show()
+        val ch = findChildren(jQ(".closed"))
+        jQ(ch).hide()
+      }
+
+
+
+    })
+    row
   }
 }

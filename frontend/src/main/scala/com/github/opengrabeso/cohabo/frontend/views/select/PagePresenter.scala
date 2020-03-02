@@ -49,13 +49,23 @@ class PagePresenter(
       model.subProp(_.articles).set(Nil)
     }
 
-    for (UserContextService.LoadedActivities(stagedActivities) <- load) {
+    for (UserContextService.LoadedActivities(allArticles) <- load) {
       def idToModel(id: ArticleId) = ArticleIdModel(id.issue, id.comment)
 
-      model.subProp(_.articles).set(stagedActivities.map { id =>
-        // find a parent for each item
-        val parent = id.comment.map(_ => ArticleIdModel(id.issue, None))
-        dataModel.ArticleRowModel(idToModel(id), parent, "??? " + id.toString)
+      // TODO: handle multilevel parent / children
+      val roots = allArticles.filter(_.comment.isEmpty).map(_.issue).distinct
+      val children = allArticles.groupBy(_.issue).mapValues(_.filter(_.comment.isDefined))
+      val parents = children.toSeq.flatMap { case (parent, ch) =>
+        ch.map(_ -> parent)
+      }.toMap
+
+      model.subProp(_.articles).set(roots.flatMap { id =>
+
+        val ch = children.get(id).toSeq.flatten.map(idToModel)
+        val p = ArticleIdModel(id, None)
+
+        ArticleRowModel(p, None, ch, 0, "??? " + id.toString) +:
+        ch.map(i => ArticleRowModel(i, Some(p), Seq.empty, 1, "??? " + i.toString))
       })
       model.subProp(_.loading).set(false)
     }
