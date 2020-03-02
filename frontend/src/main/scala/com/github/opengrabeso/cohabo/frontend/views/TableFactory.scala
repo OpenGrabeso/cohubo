@@ -41,7 +41,7 @@ object TableFactory {
     sel: Property[Option[SelType]], attribs: Seq[TableAttrib[ItemType]]
   ): (CastableProperty[ItemType], NestedInterceptor) => Element = { (el,_) =>
     val level = indent(el.get)
-    tr(
+    val row = tr(
       s.tr,
       produceWithNested(el) { (ha, nested) =>
         attribs.flatMap { a =>
@@ -79,34 +79,39 @@ object TableFactory {
           sel.listenOnce(listenCallback)
         }
 
-        // TODO: separate folding control (using the checkbox)
-
-        // from https://stackoverflow.com/a/49364929/16673
-        //println(tr.attr("data-depth"))
-
-        // find all children (following items with greater level)
-        def findChildren(tr: JQuery) = {
-          def getDepth(d: Option[Any]) = d.map(_.asInstanceOf[Int]).getOrElse(0)
-          val depth = getDepth(tr.data("depth"))
-          tr.nextUntil(jQ("tr").filter((x: Element, _: Int, _: Element) => {
-            getDepth(jQ(x).data("depth")) <= depth
-          }))
-        }
-
-        val children = findChildren(jQ(tr))
-        //println(children.length)
-
-        if (jQ(children).is(":visible")) {
-          jQ(tr).addClass("closed")
-          jQ(children).hide()
-        } else {
-          jQ(tr).removeClass("closed")
-          jQ(children).show()
-          val ch = findChildren(jQ(".closed"))
-          jQ(ch).hide()
-        }
         false
       }
     ).render
+    jQ(row).find("input[type=checkbox]").on("change", { (checkbox, event) =>
+      // from https://stackoverflow.com/a/49364929/16673
+      //println(tr.attr("data-depth"))
+      val tr = jQ(checkbox).closest("tr")
+
+      // find all children (following items with greater level)
+      def findChildren(tr: JQuery) = {
+        def getDepth(d: Option[Any]) = d.map(_.asInstanceOf[Int]).getOrElse(0)
+        val depth = getDepth(tr.data("depth"))
+        tr.nextUntil(jQ("tr").filter((x: Element, _: Int, _: Element) => {
+          getDepth(jQ(x).data("depth")) <= depth
+        }))
+      }
+
+      val children = findChildren(jQ(tr))
+      //println(children.length)
+
+      if (jQ(children).is(":visible")) {
+        jQ(tr).addClass("closed")
+        jQ(children).hide()
+      } else {
+        jQ(tr).removeClass("closed")
+        jQ(children).show()
+        val ch = findChildren(jQ(".closed"))
+        jQ(ch).hide()
+      }
+
+
+
+    })
+    row
   }
 }
