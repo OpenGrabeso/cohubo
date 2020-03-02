@@ -7,7 +7,7 @@ import io.udash.bindings.modifiers.Binding.NestedInterceptor
 import org.scalajs.dom.{Element, Event, Node}
 import io.udash.css.CssView._
 import io.udash.properties.ModelPropertyCreator
-import io.udash.wrappers.jquery.jQ
+import io.udash.wrappers.jquery.{JQuery, jQ}
 import scalatags.JsDom.all._
 
 object TableFactory {
@@ -40,6 +40,7 @@ object TableFactory {
     indent: ItemType => Int,
     sel: Property[Option[SelType]], attribs: Seq[TableAttrib[ItemType]]
   ): (CastableProperty[ItemType], NestedInterceptor) => Element = { (el,_) =>
+    val level = indent(el.get)
     tr(
       s.tr,
       produceWithNested(el) { (ha, nested) =>
@@ -53,6 +54,10 @@ object TableFactory {
           }
         }
       },
+
+      `class` := "table-fold",
+      attr("data-depth") := level,
+
       onclick :+= { e: Event =>
         val td = e.target.asInstanceOf[Element]
         // e.target may be a td inside of tr, we need to find a tr parent in such case
@@ -74,6 +79,32 @@ object TableFactory {
           sel.listenOnce(listenCallback)
         }
 
+        // TODO: separate folding control (using the checkbox)
+
+        // from https://stackoverflow.com/a/49364929/16673
+        //println(tr.attr("data-depth"))
+
+        // find all children (following items with greater level)
+        def findChildren(tr: JQuery) = {
+          def getDepth(d: Option[Any]) = d.map(_.asInstanceOf[Int]).getOrElse(0)
+          val depth = getDepth(tr.data("depth"))
+          tr.nextUntil(jQ("tr").filter((x: Element, _: Int, _: Element) => {
+            getDepth(jQ(x).data("depth")) <= depth
+          }))
+        }
+
+        val children = findChildren(jQ(tr))
+        //println(children.length)
+
+        if (jQ(children).is(":visible")) {
+          jQ(tr).addClass("closed")
+          jQ(children).hide()
+        } else {
+          jQ(tr).removeClass("closed")
+          jQ(children).show()
+          val ch = findChildren(jQ(".closed"))
+          jQ(ch).hide()
+        }
         false
       }
     ).render

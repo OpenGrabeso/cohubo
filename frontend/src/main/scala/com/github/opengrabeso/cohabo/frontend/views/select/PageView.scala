@@ -13,8 +13,8 @@ import scalatags.JsDom.all._
 import io.udash.bootstrap._
 import BootstrapStyles._
 import frontend.dataModel._
-import io.udash.wrappers.jquery.jQ
-import org.scalajs.dom.Event
+import io.udash.wrappers.jquery.{JQuery, jQ}
+import org.scalajs.dom.{Element, Event}
 
 import scala.scalajs.js
 
@@ -86,7 +86,8 @@ class PageView(
             div(
               s.selectTableContainer,
               table.render.tap { t =>
-                jQ(t).asInstanceOf[js.Dynamic].resizableColumns()
+                val $ = jQ
+                $(t).asInstanceOf[js.Dynamic].resizableColumns()
               }
             ),
             UdashForm()(factory => Seq[Modifier](
