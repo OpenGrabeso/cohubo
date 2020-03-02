@@ -45,10 +45,11 @@ object TableFactory {
       produceWithNested(el) { (ha, nested) =>
         attribs.flatMap { a =>
           // existing but empty shortName means the column should be hidden on narrow view
+          val tdItem = td(s.td, a.modifier.map(_ (ha)), a.value(ha, el.asModel, nested))
           if (a.shortName.contains("")) {
-            td(s.td, a.modifier.map(_(ha)), s.wideMedia, a.value(ha, el.asModel, nested)).render
+            tdItem(s.wideMedia).render
           } else {
-            td(s.td, a.modifier.map(_(ha)), a.value(ha, el.asModel, nested)).render
+            tdItem.render
           }
         }
       },
