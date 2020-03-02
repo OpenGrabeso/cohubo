@@ -48,16 +48,16 @@ class PageView(
     def width(min: Int, percent: Int, max: Int): Option[String] = Some(s"min-width: $min%; width: $percent%; max-width: $max%")
 
     val attribs = Seq[DisplayAttrib](
-      TableFactory.TableAttrib("()", (ar, p, nested) =>
-        div(
-          Option(i(`class`:="fold-control fas fa-angle-right rotate down")).filter(_ => ar.children.nonEmpty)
-        ).render,
-        style = width(5, 5, 10), // header (th) style
-        modifier = Some(ar => style := s"padding-left: ${ar.indent * 16}px") // item (td) style
-      ),
       TableFactory.TableAttrib("Id", (ar, _, _) => Seq[Modifier](ar.id.toString.render), style = width(5, 5, 10)),
-      TableFactory.TableAttrib("Parent", (ar, _, _) => ar.parentId.map(_.toString).getOrElse("").render, style = width(5, 5, 10), shortName = Some("")),
-      TableFactory.TableAttrib("Article Title", (ar, _, _) => ar.title.render, style = widthWide(50, 50)),
+      //TableFactory.TableAttrib("Parent", (ar, _, _) => ar.parentId.map(_.toString).getOrElse("").render, style = width(5, 5, 10), shortName = Some("")),
+      TableFactory.TableAttrib("Article Title", (ar, _, _) =>
+        div(
+          Option(i(`class`:="fold-control fas fa-angle-right rotate down")).filter(_ => ar.children.nonEmpty),
+          ar.title.render,
+        ).render,
+        style = widthWide(50, 50),
+        modifier = Some(ar => style := s"padding-left: ${ar.indent * 40}px") // item (td) style
+      ),
       TableFactory.TableAttrib("Posted by", (ar, _, _) => "Someone Clever".render, style = width(10, 15, 20), shortName = Some("")),
       TableFactory.TableAttrib("Date", (ar, _, _) => "1987-10-10T20:30".render, style = width(10, 15, 20)),
     )
