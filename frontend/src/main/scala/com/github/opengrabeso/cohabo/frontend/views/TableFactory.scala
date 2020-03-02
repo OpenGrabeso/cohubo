@@ -82,10 +82,10 @@ object TableFactory {
         false
       }
     ).render
-    jQ(row).find("input[type=checkbox]").on("change", { (checkbox, event) =>
+    jQ(row).find(".fold-control").on("click", { (control, event) =>
       // from https://stackoverflow.com/a/49364929/16673
       //println(tr.attr("data-depth"))
-      val tr = jQ(checkbox).closest("tr")
+      val tr = jQ(control).closest("tr")
 
       // find all children (following items with greater level)
       def findChildren(tr: JQuery) = {
@@ -98,12 +98,14 @@ object TableFactory {
 
       val children = findChildren(jQ(tr))
       //println(children.length)
-
+      val arrow = tr.find(".fold-control")
       if (jQ(children).is(":visible")) {
         jQ(tr).addClass("closed")
+        arrow.removeClass("down")
         jQ(children).hide()
       } else {
         jQ(tr).removeClass("closed")
+        arrow.addClass("down")
         jQ(children).show()
         val ch = findChildren(jQ(".closed"))
         jQ(ch).hide()

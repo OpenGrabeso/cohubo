@@ -49,13 +49,8 @@ class PageView(
 
     val attribs = Seq[DisplayAttrib](
       TableFactory.TableAttrib("()", (ar, p, nested) =>
-        input(
-          tpe := "checkbox",
-          if (ar.children.isEmpty) Seq[Modifier](attr("disabled") := true) else Seq.empty[Modifier],
-          onclick :+= { (e: Event) =>
-            e.stopPropagation() // prevent any other processing, esp. row click selection
-            false
-          }
+        div(
+          Option(i(`class`:="fold-control fas fa-angle-right rotate down")).filter(_ => ar.children.nonEmpty)
         ).render,
         style = width(5, 5, 10), // header (th) style
         modifier = Some(ar => style := s"padding-left: ${ar.indent * 16}px") // item (td) style

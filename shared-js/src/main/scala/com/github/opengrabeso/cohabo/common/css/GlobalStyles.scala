@@ -117,4 +117,9 @@ object GlobalStyles extends CssBase {
     )
   )
 
+  style(
+    unsafeRoot("table .rotate.down")(
+      transform := "rotate(90deg)"
+    )
+  )
 }
