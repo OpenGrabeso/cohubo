@@ -92,7 +92,7 @@ class PagePresenter(
             p, None, comments.nonEmpty, 0, id.title, id.body, id.user.displayName, id.updated_at
           ) +: comments.zipWithIndex.map { case (i, index) =>
             val articleId = ArticleIdModel(org, repo, id.number, Some((index + 1, i.id)))
-            ArticleRowModel(articleId, None, false, 1, bodyAbstract(i.body), i.body, i.user.displayName, i.updated_at)
+            ArticleRowModel(articleId, None, false, index + 1, bodyAbstract(i.body), i.body, i.user.displayName, i.updated_at)
           }
         })
         model.subProp(_.loading).set(false)
