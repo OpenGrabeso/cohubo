@@ -2,6 +2,8 @@ package com.github.opengrabeso.cohabo
 package frontend
 package views
 
+import com.github.opengrabeso.cohabo.frontend.dataModel.SettingsModel
+import rest.AuthorizedAPI
 import routing._
 import io.udash._
 import io.udash.bootstrap._
@@ -28,29 +30,28 @@ object Root {
   )(implicit ec: ExecutionContext) extends Presenter[RootState.type] {
 
     // start the login
-    login()
+    init()
 
     override def handleState(state: RootState.type): Unit = {}
 
-    def login() = {
-      val globalUserId = "A"
-      val globalAuthCode = "code"
-      val sessionId = "session"
-      val ctx = userContextService.login(globalUserId, globalAuthCode, sessionId)
-      userContextService.userName.foreach(_.foreach { name =>
-        model.subProp(_.userName).set(name)
-      })
-      model.subProp(_.userId).set(ctx.userId)
+    def init(): Unit = {
+      // TODO: avoid using model for loading, use SettingsModel directly
+      val tempSettings = new settings_base.SettingsPresenter {}
+      val settingsModel = ModelProperty(SettingsModel())
+      tempSettings.load(settingsModel)
+      userContextService.properties.set(settingsModel.get)
+      userContextService.properties.subProp(_.user).listen { userLogin =>
+        model.subProp(_.userName).set(userLogin.fullName)
+        model.subProp(_.userId).set(userLogin.login)
+      }
     }
 
     def logout() = {
       if (model.subProp(_.userId).get != null) {
         println("Start logout")
-        val oldName = userContextService.userName
-        val oldId = userContextService.userId
         userContextService.logout().andThen {
           case Success(_) =>
-            println(s"Logout done for $oldName ($oldId)")
+            println(s"Logout done")
             model.subProp(_.userName).set(null)
             model.subProp(_.userId).set(null)
             MainJS.deleteCookie("authCode")
@@ -102,7 +103,7 @@ object Root {
           div(
             "User:",
             produce(userId) { s =>
-              a(href := s"https://github.com/$s", bind(name)).render,
+              a(href := s"https://github.com/$s", bind(name)).render
             }
           ),
           div(
@@ -166,7 +167,7 @@ object Root {
     import scala.concurrent.ExecutionContext.Implicits.global
 
     override def create(): (View, Presenter[RootState.type]) = {
-      val model = ModelProperty(PageModel(null, userService.userId.orNull))
+      val model = ModelProperty(PageModel(null, null))
       val presenter = new PagePresenter(model, userService, application)
 
       val view = new View(model, presenter)

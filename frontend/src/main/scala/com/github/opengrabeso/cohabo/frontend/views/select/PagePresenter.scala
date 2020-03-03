@@ -41,7 +41,7 @@ class PagePresenter(
   }
 
   def loadActivities() = {
-    val load = userService.loadCached()
+    val load = userService.loadIssues()
 
     if (!load.isCompleted) {
       // if not completed immediately, show as pending

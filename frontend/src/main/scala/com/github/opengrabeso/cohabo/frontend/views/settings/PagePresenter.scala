@@ -5,6 +5,7 @@ package settings
 
 import routing._
 import io.udash._
+import org.scalajs.dom
 
 import scala.concurrent.ExecutionContext
 
@@ -15,13 +16,18 @@ class PagePresenter(
   application: Application[RoutingState]
 )(implicit ec: ExecutionContext) extends Presenter[SettingsPageState.type] with settings_base.SettingsPresenter {
 
-  init(model.subModel(_.s), userContextService)
+  val subModel = model.subModel(_.s)
+  load(subModel)
 
   /** We don't need any initialization, so it's empty. */
   override def handleState(state: SettingsPageState.type): Unit = {
   }
 
-  def gotoSelect(): Unit = {
+  def submit(): Unit = {
+    store(subModel)
+    // setting the token will initiate the login
+    println("Set userContextService.properties token")
+    userContextService.properties.subProp(_.token).set(subModel.subProp(_.token).get)
     application.goTo(SelectPageState)
   }
 }
