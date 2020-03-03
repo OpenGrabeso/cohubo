@@ -6,6 +6,7 @@ import java.time.ZonedDateTime
 import rest.EnhancedRestDataCompanion
 
 case class Comment(
+  id: Long,
   url: String,
   html_url: String,
   body: String,

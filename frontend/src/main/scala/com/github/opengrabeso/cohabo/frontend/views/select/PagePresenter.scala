@@ -30,17 +30,15 @@ class PagePresenter(
    */
 
   model.subProp(_.selectedArticleId).listen { id =>
-    model.subProp(_.articleContent).set("Loading...")
-    import scala.scalajs.js.timers._
-    val content = Promise[String]()
-    setTimeout(200){ // simulate async loading
-      content.success(s"Article content of $id")
-    }
+    val sel = model.subProp(_.articles).get.find(id contains _.id)
+    val content = sel.map(_.body).getOrElse("Empty article")
 
-    content.future.map{ content =>
-      model.subProp(_.articleContent).set(content)
-    }
+    model.subProp(_.articleContent).set(content)
+  }
 
+  def bodyAbstract(text: String): String = {
+    // TODO: smarter abstracts
+    text.take(80)
   }
 
   def loadActivities() = {
@@ -78,21 +76,13 @@ class PagePresenter(
 
       for (issues <- load) {
         // TODO: handle multilevel parent / children
-        //println(issues)
-        /*
-        val roots = allArticles.filter(_.comment.isEmpty).map(_.issue).distinct
-        val children = allArticles.groupBy(_.issue).mapValues(_.filter(_.comment.isDefined))
-        val parents = children.toSeq.flatMap { case (parent, ch) =>
-          ch.map(_ -> parent)
-        }.toMap
-        */
 
         model.subProp(_.articles).set(issues.toSeq.flatMap { case (id, comments) =>
 
-          val p = ArticleIdModel(id.number.toString, None)
+          val p = ArticleIdModel(id.id, id.number)
 
-          ArticleRowModel(p, None, comments.nonEmpty, 0, id.title, id.user.displayName, id.updated_at) +:
-            comments.map(i => ArticleRowModel(p, Some(p), false, 1, i.body, i.user.displayName, i.updated_at))
+          ArticleRowModel(p, None, comments.nonEmpty, 0, id.title, id.body, id.user.displayName, id.updated_at) +:
+            comments.map(i => ArticleRowModel(ArticleIdModel(i.id, id.number), None, false, 1, bodyAbstract(i.body), i.body, i.user.displayName, i.updated_at))
         })
         model.subProp(_.loading).set(false)
       }

@@ -8,6 +8,7 @@ case class ArticleRowModel(
   hasChildren: Boolean,
   indent: Int,
   title: String,
+  body: String,
   createdBy: String,
   updatedAt: String
 )
