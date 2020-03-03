@@ -52,7 +52,7 @@ class PageView(
       //TableFactory.TableAttrib("Parent", (ar, _, _) => ar.parentId.map(_.toString).getOrElse("").render, style = width(5, 5, 10), shortName = Some("")),
       TableFactory.TableAttrib("Article Title", (ar, _, _) =>
         div(
-          Option(i(`class`:="fold-control fas fa-angle-right rotate down")).filter(_ => ar.children.nonEmpty),
+          Option(i(`class`:="fold-control fas fa-angle-right rotate down")).filter(_ => ar.hasChildren),
           ar.title.render,
         ).render,
         style = widthWide(50, 50),

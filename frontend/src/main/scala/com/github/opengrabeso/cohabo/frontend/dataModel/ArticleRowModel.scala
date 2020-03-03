@@ -5,7 +5,7 @@ import io.udash.HasModelPropertyCreator
 case class ArticleRowModel(
   id: ArticleIdModel,
   parentId: Option[ArticleIdModel],
-  children: Seq[ArticleIdModel],
+  hasChildren: Boolean,
   indent: Int,
   title: String,
   createdBy: String,

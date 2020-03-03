@@ -10,7 +10,7 @@ import common.Util._
 import routing._
 import io.udash._
 
-import scala.concurrent.{ExecutionContext, Promise}
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import services.UserContextService
 
 import scala.util.Success
@@ -50,10 +50,25 @@ class PagePresenter(
 
     sourceParameters.listen { case ((user, org), repo) =>
       val load = userService.call { api =>
-        val issues = api.repos(org, repo).issues()
-        issues.transform( is =>
-          is.tap(println)
-        )
+        val repoAPI = api.repos(org, repo)
+        val issues = repoAPI.issues()
+        issues.flatMap { is =>
+          // issue requests one by one
+          // TODO: some parallel requester
+          def requestNext(todo: List[Issue], done: Map[Issue, Seq[Comment]]): Future[Map[Issue, Seq[Comment]]] = {
+            todo match {
+              case head :: tail =>
+                repoAPI.issuesAPI(head.number).comments.map { cs =>
+                  done + (head -> cs)
+                }.flatMap { d =>
+                  requestNext(tail, d)
+                }
+              case _ =>
+                Future.successful(done)
+            }
+          }
+          requestNext(is.toList, Map.empty)
+        }
       }
       if (!load.isCompleted) {
         // if not completed immediately, show as pending
@@ -63,6 +78,7 @@ class PagePresenter(
 
       for (issues <- load) {
         // TODO: handle multilevel parent / children
+        //println(issues)
         /*
         val roots = allArticles.filter(_.comment.isEmpty).map(_.issue).distinct
         val children = allArticles.groupBy(_.issue).mapValues(_.filter(_.comment.isDefined))
@@ -71,13 +87,12 @@ class PagePresenter(
         }.toMap
         */
 
-        model.subProp(_.articles).set(issues.flatMap { id =>
+        model.subProp(_.articles).set(issues.toSeq.flatMap { case (id, comments) =>
 
-          val ch = Seq.empty // children.get(id).toSeq.flatten.map(idToModel)
           val p = ArticleIdModel(id.number.toString, None)
 
-          ArticleRowModel(p, None, ch, 0, id.title, id.user.displayName, id.updated_at) +:
-            ch.map(i => ArticleRowModel(i, Some(p), Seq.empty, 1, id.title, id.user.displayName, id.updated_at))
+          ArticleRowModel(p, None, comments.nonEmpty, 0, id.title, id.user.displayName, id.updated_at) +:
+            comments.map(i => ArticleRowModel(p, Some(p), false, 1, i.body, i.user.displayName, i.updated_at))
         })
         model.subProp(_.loading).set(false)
       }
