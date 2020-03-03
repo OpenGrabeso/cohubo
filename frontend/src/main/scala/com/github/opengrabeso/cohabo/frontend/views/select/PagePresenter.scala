@@ -37,8 +37,9 @@ class PagePresenter(
   }
 
   def bodyAbstract(text: String): String = {
+    val dropQuotes = text.linesIterator.filterNot(_.startsWith(">")).filterNot(_.isEmpty)
     // TODO: smarter abstracts
-    text.take(80)
+    dropQuotes.toSeq.head.take(120)
   }
 
   def loadActivities() = {
@@ -79,10 +80,14 @@ class PagePresenter(
 
         model.subProp(_.articles).set(issues.toSeq.flatMap { case (id, comments) =>
 
-          val p = ArticleIdModel(id.id, id.number)
+          val p = ArticleIdModel(org, repo, id.number, None)
 
-          ArticleRowModel(p, None, comments.nonEmpty, 0, id.title, id.body, id.user.displayName, id.updated_at) +:
-            comments.map(i => ArticleRowModel(ArticleIdModel(i.id, id.number), None, false, 1, bodyAbstract(i.body), i.body, i.user.displayName, i.updated_at))
+          ArticleRowModel(
+            p, None, comments.nonEmpty, 0, id.title, id.body, id.user.displayName, id.updated_at
+          ) +: comments.zipWithIndex.map { case (i, index) =>
+            val articleId = ArticleIdModel(org, repo, id.number, Some((index + 1, i.id)))
+            ArticleRowModel(articleId, None, false, 1, bodyAbstract(i.body), i.body, i.user.displayName, i.updated_at)
+          }
         })
         model.subProp(_.loading).set(false)
       }
