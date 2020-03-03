@@ -3,6 +3,7 @@ package frontend
 package views
 package select
 
+import com.sun.net.httpserver.Authenticator.Success
 import dataModel._
 import common.model._
 import common.Util._
@@ -11,6 +12,8 @@ import io.udash._
 
 import scala.concurrent.{ExecutionContext, Promise}
 import services.UserContextService
+
+import scala.util.Success
 
 /** Contains the business logic of this view. */
 class PagePresenter(
@@ -41,33 +44,45 @@ class PagePresenter(
   }
 
   def loadActivities() = {
-    val load = userService.loadIssues()
 
-    if (!load.isCompleted) {
-      // if not completed immediately, show as pending
-      model.subProp(_.loading).set(true)
-      model.subProp(_.articles).set(Nil)
-    }
+    val props = userService.properties
+    val sourceParameters = props.subProp(_.user).combine(props.subProp(_.organization))(_ -> _).combine(props.subProp(_.repository))(_ -> _)
 
-    for (UserContextService.LoadedActivities(allArticles) <- load) {
-      def idToModel(id: ArticleId) = ArticleIdModel(id.issue, id.comment)
+    sourceParameters.listen { case ((user, org), repo) =>
+      val load = userService.call { api =>
+        val issues = api.repos(org, repo).issues()
+        issues.transform( is =>
+          is.tap(println)
+        )
+      }
+      if (!load.isCompleted) {
+        // if not completed immediately, show as pending
+        model.subProp(_.loading).set(true)
+        model.subProp(_.articles).set(Nil)
+      }
 
-      // TODO: handle multilevel parent / children
-      val roots = allArticles.filter(_.comment.isEmpty).map(_.issue).distinct
-      val children = allArticles.groupBy(_.issue).mapValues(_.filter(_.comment.isDefined))
-      val parents = children.toSeq.flatMap { case (parent, ch) =>
-        ch.map(_ -> parent)
-      }.toMap
+      for (issues <- load) {
+        def idToModel(id: ArticleId) = ArticleIdModel(id.issue, id.comment)
 
-      model.subProp(_.articles).set(roots.flatMap { id =>
+        // TODO: handle multilevel parent / children
+        /*
+        val roots = allArticles.filter(_.comment.isEmpty).map(_.issue).distinct
+        val children = allArticles.groupBy(_.issue).mapValues(_.filter(_.comment.isDefined))
+        val parents = children.toSeq.flatMap { case (parent, ch) =>
+          ch.map(_ -> parent)
+        }.toMap
+        */
 
-        val ch = children.get(id).toSeq.flatten.map(idToModel)
-        val p = ArticleIdModel(id, None)
+        model.subProp(_.articles).set(issues.flatMap { id =>
 
-        ArticleRowModel(p, None, ch, 0, "??? " + id.toString) +:
-        ch.map(i => ArticleRowModel(i, Some(p), Seq.empty, 1, "??? " + i.toString))
-      })
-      model.subProp(_.loading).set(false)
+          val ch = Seq.empty // children.get(id).toSeq.flatten.map(idToModel)
+          val p = ArticleIdModel(id.id.toString, None)
+
+          ArticleRowModel(p, None, ch, 0, id.title) +:
+            ch.map(i => ArticleRowModel(i, Some(p), Seq.empty, 1, "??? " + i.toString))
+        })
+        model.subProp(_.loading).set(false)
+      }
     }
 
   }

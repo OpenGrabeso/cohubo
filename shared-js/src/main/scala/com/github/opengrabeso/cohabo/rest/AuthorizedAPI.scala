@@ -9,6 +9,8 @@ import scala.concurrent.Future
 trait AuthorizedAPI {
   @GET
   def user: Future[User]
+
+  def repos(owner: String, repo: String): RepositoryAPI
 }
 
 object AuthorizedAPI extends RestApiCompanion[EnhancedRestImplicits,AuthorizedAPI](EnhancedRestImplicits)

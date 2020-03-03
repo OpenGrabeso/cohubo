@@ -51,7 +51,9 @@ class UserContextService(rpc: rest.RestAPI)(implicit ec: ExecutionContext) {
     Future.failed(new UnsupportedOperationException)
   }
 
-  def user: Option[Future[User]] = userData.map(_.api.user)
+  def call[T](f: AuthorizedAPI => Future[T]) = {
+    userData.map(d => f(d.api)).getOrElse(Future.failed(new NoSuchElementException()))
+  }
 
   def loadIssues(): Future[LoadedActivities] = {
     userData.map(_.loadCached()).getOrElse(Future.failed(new NoSuchElementException()))
