@@ -24,7 +24,7 @@ class PageView(
 
   private val submitButton = UdashButton(componentId = ComponentId("about"))(_ => "Submit")
 
-  buttonOnClick(submitButton){presenter.gotoSelect()}
+  buttonOnClick(submitButton){presenter.submit()}
 
   def getTemplate: Modifier = {
 

@@ -1,8 +1,6 @@
 package com.github.opengrabeso.cohabo
 package common.model
 
-import java.time.ZonedDateTime
-
 import rest.EnhancedRestDataCompanion
 
 @SerialVersionUID(11L)

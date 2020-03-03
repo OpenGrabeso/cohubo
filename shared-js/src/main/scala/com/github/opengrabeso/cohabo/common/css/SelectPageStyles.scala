@@ -50,6 +50,10 @@ object SelectPageStyles extends CssBase {
     paddingTop.`0`.important
   )
 
+  val titleStyle = style(
+    marginRight(8 px)
+  )
+
   val uploading: CssStyle = style(
     backgroundColor.lightblue
   )

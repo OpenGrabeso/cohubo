@@ -5,6 +5,7 @@ package settings
 
 import java.time.ZonedDateTime
 
+import com.github.opengrabeso.cohabo.frontend.dataModel.SettingsModel
 import routing.{RoutingState, SettingsPageState}
 import io.udash._
 
@@ -18,7 +19,7 @@ class PageViewFactory(
   import scala.concurrent.ExecutionContext.Implicits.global
 
   override def create(): (View, Presenter[SettingsPageState.type]) = {
-    val model = ModelProperty(PageModel(settings_base.SettingsModel()))
+    val model = ModelProperty(PageModel(SettingsModel(null, null, null)))
 
     loadSettings(model.subModel(_.s), userService)
 

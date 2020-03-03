@@ -3,14 +3,17 @@ package frontend
 package views
 package select
 
+import com.sun.net.httpserver.Authenticator.Success
 import dataModel._
 import common.model._
 import common.Util._
 import routing._
 import io.udash._
 
-import scala.concurrent.{ExecutionContext, Promise}
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import services.UserContextService
+
+import scala.util.{Failure, Success}
 
 /** Contains the business logic of this view. */
 class PagePresenter(
@@ -27,47 +30,73 @@ class PagePresenter(
    */
 
   model.subProp(_.selectedArticleId).listen { id =>
-    model.subProp(_.articleContent).set("Loading...")
-    import scala.scalajs.js.timers._
-    val content = Promise[String]()
-    setTimeout(200){ // simulate async loading
-      content.success(s"Article content of $id")
-    }
+    val sel = model.subProp(_.articles).get.find(id contains _.id)
+    val content = sel.map(_.body).getOrElse("Empty article")
 
-    content.future.map{ content =>
-      model.subProp(_.articleContent).set(content)
-    }
+    model.subProp(_.articleContent).set(content)
+  }
 
+  def bodyAbstract(text: String): String = {
+    val dropQuotes = text.linesIterator.filterNot(_.startsWith(">")).filterNot(_.isEmpty)
+    // TODO: smarter abstracts
+    dropQuotes.toSeq.head.take(120)
   }
 
   def loadActivities() = {
-    val load = userService.loadCached()
 
-    if (!load.isCompleted) {
-      // if not completed immediately, show as pending
-      model.subProp(_.loading).set(true)
-      model.subProp(_.articles).set(Nil)
-    }
+    val props = userService.properties
+    val sourceParameters = props.subProp(_.user).combine(props.subProp(_.organization))(_ -> _).combine(props.subProp(_.repository))(_ -> _)
 
-    for (UserContextService.LoadedActivities(allArticles) <- load) {
-      def idToModel(id: ArticleId) = ArticleIdModel(id.issue, id.comment)
+    sourceParameters.listen { case ((user, org), repo) =>
+      val load = userService.call { api =>
+        val repoAPI = api.repos(org, repo)
+        val issues = repoAPI.issues()
+        issues.flatMap { is =>
+          // issue requests one by one
+          // TODO: some parallel requester
+          def requestNext(todo: List[Issue], done: Map[Issue, Seq[Comment]]): Future[Map[Issue, Seq[Comment]]] = {
+            todo match {
+              case head :: tail =>
+                repoAPI.issuesAPI(head.number).comments.map { cs =>
+                  done + (head -> cs)
+                }.flatMap { d =>
+                  requestNext(tail, d)
+                }
+              case _ =>
+                Future.successful(done)
+            }
+          }
+          requestNext(is.toList, Map.empty)
+        }.transform {
+          case Failure(ex) =>
+            ex.printStackTrace()
+            Failure(ex)
+          case x =>
+            x
+        }
+      }
+      if (!load.isCompleted) {
+        // if not completed immediately, show as pending
+        model.subProp(_.loading).set(true)
+        model.subProp(_.articles).set(Nil)
+      }
 
-      // TODO: handle multilevel parent / children
-      val roots = allArticles.filter(_.comment.isEmpty).map(_.issue).distinct
-      val children = allArticles.groupBy(_.issue).mapValues(_.filter(_.comment.isDefined))
-      val parents = children.toSeq.flatMap { case (parent, ch) =>
-        ch.map(_ -> parent)
-      }.toMap
+      for (issues <- load) {
+        // TODO: handle multilevel parent / children
 
-      model.subProp(_.articles).set(roots.flatMap { id =>
+        model.subProp(_.articles).set(issues.toSeq.flatMap { case (id, comments) =>
 
-        val ch = children.get(id).toSeq.flatten.map(idToModel)
-        val p = ArticleIdModel(id, None)
+          val p = ArticleIdModel(org, repo, id.number, None)
 
-        ArticleRowModel(p, None, ch, 0, "??? " + id.toString) +:
-        ch.map(i => ArticleRowModel(i, Some(p), Seq.empty, 1, "??? " + i.toString))
-      })
-      model.subProp(_.loading).set(false)
+          ArticleRowModel(
+            p, None, comments.nonEmpty, 0, id.title, id.body, id.user.displayName, id.updated_at
+          ) +: comments.zipWithIndex.map { case (i, index) =>
+            val articleId = ArticleIdModel(org, repo, id.number, Some((index + 1, i.id)))
+            ArticleRowModel(articleId, None, false, 1, bodyAbstract(i.body), i.body, i.user.displayName, i.updated_at)
+          }
+        })
+        model.subProp(_.loading).set(false)
+      }
     }
 
   }

@@ -3,6 +3,7 @@ package frontend
 package views
 package settings
 
+import dataModel._
 import routing._
 import io.udash._
 
@@ -15,13 +16,18 @@ class PagePresenter(
   application: Application[RoutingState]
 )(implicit ec: ExecutionContext) extends Presenter[SettingsPageState.type] with settings_base.SettingsPresenter {
 
-  init(model.subModel(_.s), userContextService)
+  val subModel = model.subModel(_.s)
+  subModel.set(SettingsModel.load)
 
   /** We don't need any initialization, so it's empty. */
   override def handleState(state: SettingsPageState.type): Unit = {
   }
 
-  def gotoSelect(): Unit = {
+  def submit(): Unit = {
+    SettingsModel.store(subModel.get)
+    // setting the token will initiate the login
+    println("Set userContextService.properties token")
+    userContextService.properties.subProp(_.token).set(subModel.subProp(_.token).get)
     application.goTo(SelectPageState)
   }
 }

@@ -40,6 +40,20 @@ class PageView(
   buttonOnClick(settingsButton) {presenter.gotoSettings()}
   buttonOnClick(uploadButton) {presenter.uploadNewActivity()}
 
+  def issueLink(id: ArticleIdModel) = {
+    id.id.map { commentId =>
+      a(
+        href := s"https://www.github.com/${id.owner}/${id.repo}/issues/${id.issueNumber}#issuecomment-${commentId._2}",
+        s"#${id.issueNumber} (${commentId._1})"
+      )
+    }.getOrElse {
+      a(
+        href := s"https://www.github.com/${id.owner}/${id.repo}/issues/${id.issueNumber}",
+        s"#${id.issueNumber}"
+      )
+    }
+  }
+
   def getTemplate: Modifier = {
 
     // value is a callback
@@ -48,18 +62,19 @@ class PageView(
     def width(min: Int, percent: Int, max: Int): Option[String] = Some(s"min-width: $min%; width: $percent%; max-width: $max%")
 
     val attribs = Seq[DisplayAttrib](
-      TableFactory.TableAttrib("Id", (ar, _, _) => Seq[Modifier](ar.id.toString.render), style = width(5, 5, 10)),
+      TableFactory.TableAttrib("#", (ar, _, _) => Seq[Modifier](issueLink(ar.id)), style = width(5, 5, 10)),
       //TableFactory.TableAttrib("Parent", (ar, _, _) => ar.parentId.map(_.toString).getOrElse("").render, style = width(5, 5, 10), shortName = Some("")),
       TableFactory.TableAttrib("Article Title", (ar, _, _) =>
         div(
-          Option(i(`class`:="fold-control fas fa-angle-right rotate down")).filter(_ => ar.children.nonEmpty),
+          Option(i(`class`:="fold-control fas fa-angle-right rotate down")).filter(_ => ar.hasChildren),
+          span(s.titleStyle),
           ar.title.render,
         ).render,
         style = widthWide(50, 50),
-        modifier = Some(ar => style := s"padding-left: ${ar.indent * 40}px") // item (td) style
+        modifier = Some(ar => style := s"padding-left: ${8 + ar.indent * 32}px") // item (td) style
       ),
-      TableFactory.TableAttrib("Posted by", (ar, _, _) => "Someone Clever".render, style = width(10, 15, 20), shortName = Some("")),
-      TableFactory.TableAttrib("Date", (ar, _, _) => "1987-10-10T20:30".render, style = width(10, 15, 20)),
+      TableFactory.TableAttrib("Posted by", (ar, _, _) => ar.createdBy.render, style = width(10, 15, 20), shortName = Some("")),
+      TableFactory.TableAttrib("Date", (ar, _, _) => formatDateTime(ar.updatedAt.toJSDate).render, style = width(10, 15, 20)),
     )
 
     val table = UdashTable(model.subSeq(_.articles), bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(

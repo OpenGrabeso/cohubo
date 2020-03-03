@@ -2,71 +2,46 @@ package com.github.opengrabeso.cohabo
 package frontend
 package services
 
-import java.time.{ZoneOffset, ZonedDateTime}
-
 import common.model._
 import common.Util._
 
 import scala.concurrent.{ExecutionContext, Future}
 import UserContextService._
+import com.github.opengrabeso.cohabo.frontend.dataModel
 import com.github.opengrabeso.cohabo.frontend.dataModel._
+import com.github.opengrabeso.cohabo.rest.AuthorizedAPI
+import io.udash.properties.model.ModelProperty
 import org.scalajs.dom
 
 object UserContextService {
   final val normalCount = 15
 
-  case class LoadedActivities(staged: Seq[ArticleId])
+  class UserContextData(token: String, rpc: rest.RestAPI)(implicit ec: ExecutionContext) {
 
-  class UserContextData(userId: String, val sessionId: String, authCode: String, rpc: rest.RestAPI)(implicit ec: ExecutionContext) {
-    var loaded = Option.empty[(Boolean, Future[LoadedActivities])]
-    var context = UserContext(userId, authCode)
-
-    def userAPI: rest.UserRestAPI = rpc.userAPI(context.userId, context.authCode, sessionId)
-
-    private def doLoadActivities(): Future[LoadedActivities] = {
-
-      Future.successful {
-        LoadedActivities(
-          for (i <- 1 to 10; j <- None +: (1000 to 1002).map(Some.apply) ) yield ArticleId(i.toString, j.map(_.toString))
-        )
-      }
-    }
-
-    def loadCached(): Future[LoadedActivities] = {
-      if (loaded.isEmpty) {
-        doLoadActivities()
-      } else {
-        loaded.get._2
-      }
-    }
+    def api: AuthorizedAPI = rpc.authorized("Bearer " + token)
   }
 }
 
 class UserContextService(rpc: rest.RestAPI)(implicit ec: ExecutionContext) {
 
+  val properties = ModelProperty(dataModel.SettingsModel())
+
   private var userData: Option[UserContextData] = None
 
-  def login(userId: String, authCode: String, sessionId: String): UserContext = {
-    println(s"Login user $userId session $sessionId")
-    val ctx = new UserContextData(userId, sessionId, authCode, rpc)
+  properties.subProp(_.token).listen {token =>
+    val ctx = new UserContextData(token, rpc)
+    ctx.api.user.foreach { u =>
+      println(s"Login - new user ${u.login}:${u.name}")
+      properties.subProp(_.user).set(UserLoginModel(u.login, u.name))
+    }
     userData = Some(ctx)
-    ctx.context
-  }
-  def logout(): Future[UserContext] = {
-    userData.flatMap { ctx =>
-      api.map(_.logout.map(_ => ctx.context))
-    }.getOrElse(Future.failed(new UnsupportedOperationException))
   }
 
-  def userName: Option[Future[String]] = api.map(_.name)
-  def userId: Option[String] = userData.map(_.context.userId)
-
-  def loadCached(): Future[LoadedActivities] = {
-    userData.get.loadCached()
+  def logout(): Future[Unit] = {
+    Future.failed(new UnsupportedOperationException)
   }
 
-  def api: Option[rest.UserRestAPI] = userData.map { data =>
-    //println(s"Call userAPI user ${data.context.userId} session ${data.sessionId}")
-    rpc.userAPI(data.context.userId, data.context.authCode, data.sessionId)
+  def call[T](f: AuthorizedAPI => Future[T]) = {
+    userData.map(d => f(d.api)).getOrElse(Future.failed(new NoSuchElementException()))
   }
 }

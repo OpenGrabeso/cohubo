@@ -4,8 +4,13 @@ package frontend.dataModel
 import common.model._
 import io.udash.HasModelPropertyCreator
 
-case class ArticleIdModel(id: String, parent: Option[String]) {
-  override def toString = s"$id:${parent.getOrElse("")}"
+case class ArticleIdModel(owner: String, repo: String, issueNumber: Long, id: Option[(Int, Long)]) {
+  override def toString =
+    id.map { case (index, _) =>
+      s"#$issueNumber($index)"
+    }.getOrElse {
+      s"#$issueNumber($id)"
+    }
 }
 
 object ArticleIdModel extends HasModelPropertyCreator[ArticleIdModel]
