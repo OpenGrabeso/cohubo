@@ -16,19 +16,9 @@ import org.scalajs.dom
 object UserContextService {
   final val normalCount = 15
 
-  case class LoadedActivities(staged: Seq[ArticleId])
-
   class UserContextData(token: String, rpc: rest.RestAPI)(implicit ec: ExecutionContext) {
 
     def api: AuthorizedAPI = rpc.authorized("Bearer " + token)
-
-    def loadCached(): Future[LoadedActivities] = {
-      Future.successful {
-        LoadedActivities(
-          for (i <- 1 to 10; j <- None +: (1000 to 1002).map(Some.apply) ) yield ArticleId(i.toString, j.map(_.toString))
-        )
-      }
-    }
   }
 }
 
@@ -53,9 +43,5 @@ class UserContextService(rpc: rest.RestAPI)(implicit ec: ExecutionContext) {
 
   def call[T](f: AuthorizedAPI => Future[T]) = {
     userData.map(d => f(d.api)).getOrElse(Future.failed(new NoSuchElementException()))
-  }
-
-  def loadIssues(): Future[LoadedActivities] = {
-    userData.map(_.loadCached()).getOrElse(Future.failed(new NoSuchElementException()))
   }
 }

@@ -62,8 +62,6 @@ class PagePresenter(
       }
 
       for (issues <- load) {
-        def idToModel(id: ArticleId) = ArticleIdModel(id.issue, id.comment)
-
         // TODO: handle multilevel parent / children
         /*
         val roots = allArticles.filter(_.comment.isEmpty).map(_.issue).distinct
@@ -76,10 +74,10 @@ class PagePresenter(
         model.subProp(_.articles).set(issues.flatMap { id =>
 
           val ch = Seq.empty // children.get(id).toSeq.flatten.map(idToModel)
-          val p = ArticleIdModel(id.id.toString, None)
+          val p = ArticleIdModel(id.number.toString, None)
 
-          ArticleRowModel(p, None, ch, 0, id.title) +:
-            ch.map(i => ArticleRowModel(i, Some(p), Seq.empty, 1, "??? " + i.toString))
+          ArticleRowModel(p, None, ch, 0, id.title, id.user.displayName, id.updated_at) +:
+            ch.map(i => ArticleRowModel(i, Some(p), Seq.empty, 1, id.title, id.user.displayName, id.updated_at))
         })
         model.subProp(_.loading).set(false)
       }

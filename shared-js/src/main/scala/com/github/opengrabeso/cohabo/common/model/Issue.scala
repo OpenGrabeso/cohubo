@@ -7,6 +7,7 @@ import rest.EnhancedRestDataCompanion
 
 case class Issue(
   id: Long,
+  number: Long,
   title: String,
   body: String,
   user: User,
