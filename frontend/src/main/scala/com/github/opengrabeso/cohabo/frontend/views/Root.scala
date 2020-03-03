@@ -35,11 +35,8 @@ object Root {
     override def handleState(state: RootState.type): Unit = {}
 
     def init(): Unit = {
-      // TODO: avoid using model for loading, use SettingsModel directly
-      val tempSettings = new settings_base.SettingsPresenter {}
-      val settingsModel = ModelProperty(SettingsModel())
-      tempSettings.load(settingsModel)
-      userContextService.properties.set(settingsModel.get)
+      val settingsModel = SettingsModel.load
+      userContextService.properties.set(settingsModel)
       userContextService.properties.subProp(_.user).listen { userLogin =>
         model.subProp(_.userName).set(userLogin.fullName)
         model.subProp(_.userId).set(userLogin.login)
