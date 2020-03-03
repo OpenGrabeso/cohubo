@@ -13,7 +13,7 @@ import io.udash._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import services.UserContextService
 
-import scala.util.Success
+import scala.util.{Failure, Success}
 
 /** Contains the business logic of this view. */
 class PagePresenter(
@@ -67,6 +67,12 @@ class PagePresenter(
             }
           }
           requestNext(is.toList, Map.empty)
+        }.transform {
+          case Failure(ex) =>
+            ex.printStackTrace()
+            Failure(ex)
+          case x =>
+            x
         }
       }
       if (!load.isCompleted) {

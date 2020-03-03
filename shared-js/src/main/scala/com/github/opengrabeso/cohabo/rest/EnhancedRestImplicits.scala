@@ -4,14 +4,22 @@ package rest
 import java.time.ZonedDateTime
 
 import com.avsystem.commons.meta.MacroInstances
-import com.avsystem.commons.serialization.{GenCodec, GenKeyCodec, HasGenCodecWithDeps}
+import com.avsystem.commons.serialization.{GenCodec, GenKeyCodec, HasGenCodecWithDeps, Input, Output}
 import io.udash.rest._
 import io.udash.rest.openapi.{RestSchema, RestStructure}
 
 trait EnhancedRestImplicits extends DefaultRestImplicits {
-  import EnhancedRestImplicits._
 
-  implicit val zonedDateTimeCodec: GenCodec[ZonedDateTime] = GenCodec.fromApplyUnapplyProvider(ZonedDateTimeAU)
+  implicit val zonedDateTimeCodec: GenCodec[ZonedDateTime] = new GenCodec[ZonedDateTime] {
+    override def read(input: Input) = {
+      val str = input.readSimple().readString()
+      ZonedDateTime.parse(str)
+    }
+    override def write(output: Output, value: ZonedDateTime) = {
+      val str = value.toString
+      output.writeSimple().writeString(str)
+    }
+  }
   implicit val zonedDateTimeKeyCodec: GenKeyCodec[ZonedDateTime] = GenKeyCodec.create(ZonedDateTime.parse,_.toString)
 }
 

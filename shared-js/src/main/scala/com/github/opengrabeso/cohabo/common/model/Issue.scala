@@ -12,8 +12,8 @@ case class Issue(
   body: String,
   user: User,
   comments: Long,
-  created_at: String,
-  updated_at: String
+  created_at: ZonedDateTime,
+  updated_at: ZonedDateTime
 )
 
 object Issue extends EnhancedRestDataCompanion[Issue]

@@ -1,5 +1,7 @@
 package com.github.opengrabeso.cohabo.frontend.dataModel
 
+import java.time.ZonedDateTime
+
 import io.udash.HasModelPropertyCreator
 
 case class ArticleRowModel(
@@ -10,7 +12,7 @@ case class ArticleRowModel(
   title: String,
   body: String,
   createdBy: String,
-  updatedAt: String
+  updatedAt: ZonedDateTime
 )
 
 object ArticleRowModel extends HasModelPropertyCreator[ArticleRowModel]

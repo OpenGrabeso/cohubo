@@ -11,8 +11,8 @@ case class Comment(
   html_url: String,
   body: String,
   user: User,
-  created_at: String,
-  updated_at: String
+  created_at: ZonedDateTime,
+  updated_at: ZonedDateTime
 )
 
 object Comment extends EnhancedRestDataCompanion[Comment]

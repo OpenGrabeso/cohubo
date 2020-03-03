@@ -74,7 +74,7 @@ class PageView(
         modifier = Some(ar => style := s"padding-left: ${8 + ar.indent * 32}px") // item (td) style
       ),
       TableFactory.TableAttrib("Posted by", (ar, _, _) => ar.createdBy.render, style = width(10, 15, 20), shortName = Some("")),
-      TableFactory.TableAttrib("Date", (ar, _, _) => ar.updatedAt.render, style = width(10, 15, 20)),
+      TableFactory.TableAttrib("Date", (ar, _, _) => formatDateTime(ar.updatedAt.toJSDate).render, style = width(10, 15, 20)),
     )
 
     val table = UdashTable(model.subSeq(_.articles), bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
