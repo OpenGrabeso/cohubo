@@ -67,6 +67,7 @@ object SelectPageStyles extends CssBase {
 
   val articleContentTextArea: CssStyle = style(
     height(30 vh),
+    overflow.auto,
     minHeight(20 vh),
     maxHeight(50 vh)
   )

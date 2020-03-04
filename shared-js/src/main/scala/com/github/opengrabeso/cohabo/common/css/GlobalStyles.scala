@@ -12,33 +12,6 @@ object GlobalStyles extends CssBase {
     float.right
   )
 
-  val messagesWindow: CssStyle = style(
-    height :=! "calc(100vh - 220px)",
-    overflowY.auto
-  )
-
-  val msgDate: CssStyle = style(
-    marginLeft(5 px),
-    fontSize(0.7 em),
-    color.gray
-  )
-
-  val msgContainer: CssStyle = style(
-    unsafeChild(s".${msgDate.className}")(
-      display.none
-    ),
-
-    &.hover(
-      unsafeChild(s".${msgDate.className}")(
-        display.initial
-      )
-    )
-  )
-
-  val stravaImg: CssStyle = style(
-    maxHeight.apply(46 px)
-  )
-
   val footerText: CssStyle = style(
     color.darkblue
   )
@@ -106,14 +79,6 @@ object GlobalStyles extends CssBase {
     unsafeRoot("table .input-group-text")(
       paddingBottom.`0`,
       paddingTop.`0`
-    )
-  )
-
-  style(
-    unsafeRoot("#edit-table .custom-select")(
-      paddingTop.`0`,
-      paddingBottom.`0`,
-      height.inherit
     )
   )
 
