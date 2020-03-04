@@ -11,6 +11,7 @@ import io.udash.bootstrap.button.UdashButton
 import io.udash.component.ComponentId
 import io.udash.css._
 import common.css._
+import io.udash.bootstrap.utils.BootstrapStyles._
 import org.scalajs.dom
 import org.scalajs.dom.raw.HTMLElement
 
@@ -86,10 +87,10 @@ object Root {
 
       Seq(
         div(
-          //GlobalStyles.header,
           id := "header",
           div(
             a(
+              Spacing.margin(size = SpacingSize.Small),
               href := "/", appName,
               onclick :+= {_: dom.Event =>
                 presenter.gotoMain()
@@ -98,9 +99,13 @@ object Root {
             )
           ),
           div(
+            Spacing.margin(size = SpacingSize.Small),
             "User:",
             produce(userId) { s =>
-              a(href := s"https://github.com/$s", bind(name)).render
+              a(
+                Spacing.margin(size = SpacingSize.Small),
+                href := s"https://github.com/$s", bind(name)
+              ).render
             }
           ),
           div(
@@ -115,7 +120,7 @@ object Root {
 
     val footer: Seq[HTMLElement] = Seq(
       div(
-        //GlobalStyles.footer,
+        Spacing.margin(size = SpacingSize.Small),
         id := "footer",
         /*
         a(
@@ -148,7 +153,6 @@ object Root {
       // loads Bootstrap and FontAwesome styles from CDN
       UdashBootstrap.loadBootstrapStyles(),
       UdashBootstrap.loadFontAwesome(),
-
       BootstrapStyles.container,
       header,
       childViewContainer,

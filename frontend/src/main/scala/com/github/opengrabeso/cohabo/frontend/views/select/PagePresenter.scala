@@ -9,6 +9,7 @@ import common.model._
 import common.Util._
 import routing._
 import io.udash._
+import io.udash.rest.raw.HttpErrorException
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import services.UserContextService
@@ -23,13 +24,6 @@ class PagePresenter(
   application: Application[RoutingState],
   userService: services.UserContextService
 )(implicit ec: ExecutionContext) extends Presenter[SelectPageState.type] {
-
-  /*
-  model.subProp(_.showAll).listen { p =>
-    loadActivities(p)
-  }
-
-   */
 
   model.subProp(_.selectedArticleId).listen { id =>
     val sel = model.subProp(_.articles).get.find(id contains _.id)
@@ -52,6 +46,10 @@ class PagePresenter(
     text.linesIterator.filter(_.startsWith(">")).map(_.drop(1).trim).filter(_.nonEmpty).toSeq
   }
 
+  def repoValid(valid: Boolean) = {
+    model.subProp(_.repoError).set(!valid)
+  }
+
   def loadActivities() = {
 
     val props = userService.properties
@@ -62,6 +60,8 @@ class PagePresenter(
         val repoAPI = api.repos(org, repo)
         val issues = repoAPI.issues()
         issues.flatMap { is =>
+          model.subProp(_.loading).set(true)
+          model.subProp(_.articles).set(Nil)
           // issue requests one by one
           // TODO: some parallel requester
           def requestNext(todo: List[Issue], done: Map[Issue, Seq[Comment]]): Future[Map[Issue, Seq[Comment]]] = {
@@ -78,17 +78,20 @@ class PagePresenter(
           }
           requestNext(is.toList, Map.empty)
         }.transform {
+          case Failure(ex@HttpErrorException(code, _, _)) =>
+            if (code != 404) {
+              println("Error loading issues from $org/$repo: $ex")
+            }
+            repoValid(false)
+            Failure(ex)
           case Failure(ex) =>
-            ex.printStackTrace()
+            repoValid(false)
+            println("Error loading issues from $org/$repo: $ex")
             Failure(ex)
           case x =>
+            repoValid(true)
             x
         }
-      }
-      if (!load.isCompleted) {
-        // if not completed immediately, show as pending
-        model.subProp(_.loading).set(true)
-        model.subProp(_.articles).set(Nil)
       }
 
       for (issues <- load) {

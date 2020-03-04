@@ -14,31 +14,22 @@ import io.udash.bootstrap._
 import BootstrapStyles._
 import frontend.dataModel._
 import io.udash.wrappers.jquery.{JQuery, jQ}
-import org.scalajs.dom.{Element, Event}
+import org.scalajs.dom.{Element, Event, Node}
 
 import scala.scalajs.js
+import scala.concurrent.duration.{span => _, _}
 
 class PageView(
   model: ModelProperty[PageModel],
   presenter: PagePresenter,
+  globals: ModelProperty[SettingsModel]
 ) extends FinalView with CssView with PageUtils with TimeFormatting {
   val s = SelectPageStyles
 
-  private val uploadButton = UdashButton()(_ => "Upload activity data...")
   private val settingsButton = UdashButton()(_ => "Settings")
 
-  def nothingSelected: ReadableProperty[Boolean] = model.subProp(_.selectedArticleId).transform(_.isDefined)
-
-  private val sendToStrava = button(nothingSelected, "Send to Strava".toProperty)
-  private val deleteActivity = button(nothingSelected, s"Delete from $appName".toProperty)
-  private val mergeAndEdit = button(
-    nothingSelected,
-    "Edit...".toProperty
-  )
-  private val uncheckAll = button(nothingSelected, "Uncheck all".toProperty)
 
   buttonOnClick(settingsButton) {presenter.gotoSettings()}
-  buttonOnClick(uploadButton) {presenter.uploadNewActivity()}
 
   def issueLink(id: ArticleIdModel) = {
     id.id.map { commentId =>
@@ -82,10 +73,39 @@ class PageView(
       rowFactory = TableFactory.rowFactory[ArticleRowModel, ArticleIdModel](_.id, _.indent, model.subProp(_.selectedArticleId), attribs)
     )
 
+    val repoUrl = globals.subProp(_.organization).combine(globals.subProp(_.repository))(_ -> _)
     div(
       s.container,
       div(Grid.row)(
-        div(Grid.col)(settingsButton.render),
+        Spacing.margin(size = SpacingSize.Small),
+        settingsButton.render,
+        TextInput(globals.subProp(_.organization), debounce = 500.millis)(),
+        TextInput(globals.subProp(_.repository), debounce = 500.millis)(),
+        showIfElse(model.subProp(_.repoError))(
+          p("???").render,
+          div(
+            produce(repoUrl) { case (r, o) =>
+              Seq[Node](
+                a(
+                  Spacing.margin(size = SpacingSize.Small),
+                  href := s"https://www.github.com/$r/$o",
+                  s"$r/$o"
+                ).render,
+                a(
+                  Spacing.margin(size = SpacingSize.Small),
+                  href := s"https://www.github.com/$r/$o/issues",
+                  s"Issues"
+                ).render,
+                a(
+                  Spacing.margin(size = SpacingSize.Small),
+                  href := s"https://www.github.com/$r/$o/milestones",
+                  s"Milestones"
+                ).render
+
+              )
+            }
+          ).render
+        )
       ),
 
       div(
@@ -116,12 +136,6 @@ class PageView(
           ).render
 
         )
-      ),
-      div(
-        sendToStrava.render,
-        mergeAndEdit.render,
-        deleteActivity.render,
-        uncheckAll.render
       )
     )
   }
