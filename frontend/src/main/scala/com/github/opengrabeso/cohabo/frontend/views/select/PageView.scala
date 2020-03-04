@@ -126,19 +126,19 @@ class PageView(
                 $(t).asInstanceOf[js.Dynamic].resizableColumns()
               }
             ),
-            UdashForm()(factory => Seq[Modifier](
-              factory.input.formGroup()(
-                input = _ => factory.input.textArea(model.subProp(_.articleContent))(
-                  Some(_ =>
-                    Seq[Modifier](
-                      s.articleContentTextArea
-                      //rows := 12
-                    )
-                  )
-                ).render,
-                labelContent = Some(_ => "Article": Modifier)
-              ).render,
-            ))
+            div(id:="article-content").render.tap { ac =>
+              model.subProp(_.articleContent).listen { content =>
+                // TODO: markdown transformation
+                ac.asInstanceOf[js.Dynamic].innerHTML = content
+              }
+            }
+            /*
+            produce(model.subProp(_.articleContent))(content =>
+              Seq(
+                raw(content)
+              )
+            )
+            */
           ).render
 
         )

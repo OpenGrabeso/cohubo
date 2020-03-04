@@ -28,8 +28,14 @@ class PagePresenter(
   model.subProp(_.selectedArticleId).listen { id =>
     val sel = model.subProp(_.articles).get.find(id contains _.id)
     val content = sel.map(_.body).getOrElse("Empty article")
-
-    model.subProp(_.articleContent).set(content)
+    val props = userService.properties.get
+    val context = props.organization + "/" + props.repository
+    val renderMarkdown = userService.call(_.markdown.markdown(content, "gfm", context))
+    renderMarkdown.map { html =>
+      model.subProp(_.articleContent).set(html.data)
+    }.failed.foreach { ex =>
+      model.subProp(_.articleContent).set(s"Markdown error $ex")
+    }
   }
 
   def removeQuotes(text: String): Iterator[String] = {

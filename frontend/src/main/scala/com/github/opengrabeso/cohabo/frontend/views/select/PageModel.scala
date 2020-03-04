@@ -12,7 +12,8 @@ case class PageModel(
   repoError: Boolean = false,
   articles: Seq[ArticleRowModel] = Seq.empty,
   selectedArticleId: Option[ArticleIdModel] = None,
-  articleContent: String = "", error: Option[Throwable] = None
+  articleContent: String = "",
+  error: Option[Throwable] = None
 )
 
 object PageModel extends HasModelPropertyCreator[PageModel]

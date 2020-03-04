@@ -11,6 +11,9 @@ trait AuthorizedAPI {
   def user: Future[User]
 
   def repos(owner: String, repo: String): RepositoryAPI
+
+  @Prefix("")
+  def markdown: MarkdownAPI
 }
 
 object AuthorizedAPI extends RestApiCompanion[EnhancedRestImplicits,AuthorizedAPI](EnhancedRestImplicits)
