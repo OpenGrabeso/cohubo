@@ -44,8 +44,8 @@ class PagePresenter(
     dropQuotes.toSeq.head.take(120)
   }
 
-  def extractQuotes(text: String): Set[String] = {
-    text.linesIterator.filter(_.startsWith(">")).map(_.trim).filter(_.nonEmpty).toSet
+  def extractQuotes(text: String): Seq[String] = {
+    text.linesIterator.filter(_.startsWith(">")).map(_.drop(1).trim).filter(_.nonEmpty).toSeq
   }
 
   def loadActivities() = {
@@ -89,6 +89,8 @@ class PagePresenter(
 
       for (issues <- load) {
 
+        val log = false
+
         val allIssues = issues.toSeq.flatMap { case (id, comments) =>
 
           val p = ArticleIdModel(org, repo, id.number, None)
@@ -101,30 +103,49 @@ class PagePresenter(
 
           val fromEnd = issueWithComments.reverse
 
+          def findByQuote(quote: String, previousFromEnd: List[ArticleRowModel]) = {
+            previousFromEnd.filter(_.body.contains(quote))
+          }
+
           @tailrec
           def processLast(todo: List[ArticleRowModel], doneChildren: List[(ArticleRowModel, ArticleRowModel)]): List[(ArticleRowModel, ArticleRowModel)] = {
             todo match {
               case head :: tail =>
                 // take last article, find its parent in the original order (check quotes TODO: check references)
                 val quotes = extractQuotes(head.body)
-                // TODO: find by a quote
-                // when nothing is found, take previous article
-                processLast(tail, tail.headOption.map(_ -> head).toList ++ doneChildren)
+                if (log) println(s"quotes ${quotes.toArray.mkString("[",",","]")}")
+                val byQuote = quotes.map(findByQuote(_, tail)).filter(_.nonEmpty)
+                if (byQuote.nonEmpty) {
+                  if (log) println(s"byQuote ${byQuote.map(_.map(_.id)).toVector}")
+                  // try to find an intersection (article containing all quotes)
+                  val allQuotes = byQuote.tail.foldLeft(byQuote.head) { (all, withQuote) =>
+                    all.intersect(withQuote)
+                  }
+                  // if there is no common intersection, use just the first quote
+                  val fallback = if (allQuotes.isEmpty) byQuote.head.headOption.toSeq else allQuotes
+                  val parent = if (fallback.nonEmpty) fallback.headOption else tail.headOption
+                  processLast(tail, parent.map(_ -> head).toList ++ doneChildren)
+                } else {
+                  // when nothing is found, take previous article
+                  processLast(tail, tail.headOption.map(_ -> head).toList ++ doneChildren)
+                }
 
               case _ =>
                 doneChildren
             }
           }
+          if (log) println(s"fromEnd ${fromEnd.map(_.body)}")
           val childrenOf = processLast(fromEnd.toList, Nil).groupBy(_._1).mapValues(_.map(_._2))
-          // depth-first traverse whole tree
-          println(childrenOf)
-
+          if (log) println(s"root $issue")
+          if (log) println(s"childrenOf ${childrenOf.map{case (k,v) => k.id -> v.map(_.id)}}")
           def traverseDepthFirst(i: ArticleRowModel, level: Int): List[ArticleRowModel] = {
+            if (log) println("  " * level + i.body)
             val children = childrenOf.get(i).toList.flatten
             i.copy(indent = level, hasChildren = children.nonEmpty) :: children.flatMap(traverseDepthFirst(_, level + 1))
           }
-          // start
-          traverseDepthFirst(issue, 0)
+          traverseDepthFirst(issue, 0).tap { h =>
+            if (log) println(s"Hierarchy ${h.map(_.id)}")
+          }
         }
 
 
