@@ -98,7 +98,7 @@ class PagePresenter(
 
         val log = false
 
-        val allIssues = issues.toSeq.flatMap { case (id, comments) =>
+        val allIssues = issues.toSeq.sortBy(_._1.updated_at).reverse.flatMap { case (id, comments) =>
 
           val p = ArticleIdModel(org, repo, id.number, None)
 

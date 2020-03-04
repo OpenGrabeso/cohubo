@@ -35,7 +35,7 @@ class PageView(
     id.id.map { commentId =>
       a(
         href := s"https://www.github.com/${id.owner}/${id.repo}/issues/${id.issueNumber}#issuecomment-${commentId._2}",
-        s"#${id.issueNumber} (${commentId._1})"
+        s"(${commentId._1})"
       )
     }.getOrElse {
       a(
@@ -53,7 +53,12 @@ class PageView(
     def width(min: Int, percent: Int, max: Int): Option[String] = Some(s"min-width: $min%; width: $percent%; max-width: $max%")
 
     val attribs = Seq[DisplayAttrib](
-      TableFactory.TableAttrib("#", (ar, _, _) => Seq[Modifier](issueLink(ar.id)), style = width(5, 5, 10)),
+      TableFactory.TableAttrib("#", (ar, _, _) =>
+        div(
+          ar.id.id.map(_ => style := "margin-left: 20px"),
+          issueLink(ar.id)
+        ).render, style = width(5, 5, 10)
+      ),
       //TableFactory.TableAttrib("Parent", (ar, _, _) => ar.parentId.map(_.toString).getOrElse("").render, style = width(5, 5, 10), shortName = Some("")),
       TableFactory.TableAttrib("Article Title", (ar, _, _) =>
         div(
