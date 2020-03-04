@@ -38,8 +38,12 @@ class PagePresenter(
     model.subProp(_.articleContent).set(content)
   }
 
+  def removeQuotes(text: String): Iterator[String] = {
+    text.linesIterator.filterNot(_.startsWith(">")).filterNot(_.isEmpty)
+  }
+
   def bodyAbstract(text: String): String = {
-    val dropQuotes = text.linesIterator.filterNot(_.startsWith(">")).filterNot(_.isEmpty)
+    val dropQuotes = removeQuotes(text)
     // TODO: smarter abstracts
     dropQuotes.toSeq.head.take(120)
   }
@@ -104,7 +108,10 @@ class PagePresenter(
           val fromEnd = issueWithComments.reverse
 
           def findByQuote(quote: String, previousFromEnd: List[ArticleRowModel]) = {
-            previousFromEnd.filter(_.body.contains(quote))
+            previousFromEnd.filter { i =>
+              val withoutQuotes = removeQuotes(i.body)
+              withoutQuotes.exists(_.contains(quote))
+            }
           }
 
           @tailrec
