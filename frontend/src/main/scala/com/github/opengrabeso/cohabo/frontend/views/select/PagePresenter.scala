@@ -13,6 +13,7 @@ import io.udash._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import services.UserContextService
 
+import scala.annotation.tailrec
 import scala.collection.immutable.TreeSet
 import scala.util.{Failure, Success}
 
@@ -88,17 +89,46 @@ class PagePresenter(
 
       for (issues <- load) {
 
-        val hierarchy = issues.toSeq.flatMap{ case (id, comments) =>
+        val allIssues = issues.toSeq.flatMap { case (id, comments) =>
 
           val p = ArticleIdModel(org, repo, id.number, None)
 
-          ArticleRowModel(p, comments.nonEmpty, 0, id.title, id.body, id.user.displayName, id.updated_at) +: comments.zipWithIndex.map { case (i, index) =>
+          val issue = ArticleRowModel(p, false, 0, id.title, id.body, id.user.displayName, id.updated_at)
+          val issueWithComments = issue +: comments.zipWithIndex.map { case (i, index) =>
             val articleId = ArticleIdModel(org, repo, id.number, Some((index + 1, i.id)))
-            ArticleRowModel(articleId, false, index + 1, bodyAbstract(i.body), i.body, i.user.displayName, i.updated_at)
+            ArticleRowModel(articleId, false, 0, bodyAbstract(i.body), i.body, i.user.displayName, i.updated_at)
           }
+
+          val fromEnd = issueWithComments.reverse
+
+          @tailrec
+          def processLast(todo: List[ArticleRowModel], doneChildren: List[(ArticleRowModel, ArticleRowModel)]): List[(ArticleRowModel, ArticleRowModel)] = {
+            todo match {
+              case head :: tail =>
+                // take last article, find its parent in the original order (check quotes TODO: check references)
+                val quotes = extractQuotes(head.body)
+                // TODO: find by a quote
+                // when nothing is found, take previous article
+                processLast(tail, tail.headOption.map(_ -> head).toList ++ doneChildren)
+
+              case _ =>
+                doneChildren
+            }
+          }
+          val childrenOf = processLast(fromEnd.toList, Nil).groupBy(_._1).mapValues(_.map(_._2))
+          // depth-first traverse whole tree
+          println(childrenOf)
+
+          def traverseDepthFirst(i: ArticleRowModel, level: Int): List[ArticleRowModel] = {
+            val children = childrenOf.get(i).toList.flatten
+            i.copy(indent = level, hasChildren = children.nonEmpty) :: children.flatMap(traverseDepthFirst(_, level + 1))
+          }
+          // start
+          traverseDepthFirst(issue, 0)
         }
 
-        model.subProp(_.articles).set(hierarchy)
+
+        model.subProp(_.articles).set(allIssues)
 
         model.subProp(_.loading).set(false)
       }
