@@ -12,6 +12,7 @@ case class Issue(
   body: String,
   user: User,
   comments: Long,
+  milestone: Milestone,
   created_at: ZonedDateTime,
   updated_at: ZonedDateTime
 )

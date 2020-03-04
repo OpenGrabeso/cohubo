@@ -102,10 +102,10 @@ class PagePresenter(
 
           val p = ArticleIdModel(org, repo, id.number, None)
 
-          val issue = ArticleRowModel(p, false, 0, id.title, id.body, id.user.displayName, id.updated_at)
+          val issue = ArticleRowModel(p, false, 0, id.title, id.body, Option(id.milestone).map(_.title), id.user.displayName, id.updated_at)
           val issueWithComments = issue +: comments.zipWithIndex.map { case (i, index) =>
             val articleId = ArticleIdModel(org, repo, id.number, Some((index + 1, i.id)))
-            ArticleRowModel(articleId, false, 0, bodyAbstract(i.body), i.body, i.user.displayName, i.updated_at)
+            ArticleRowModel(articleId, false, 0, bodyAbstract(i.body), i.body, None, i.user.displayName, i.updated_at)
           }
 
           val fromEnd = issueWithComments.reverse

@@ -69,6 +69,7 @@ class PageView(
         style = widthWide(50, 50),
         modifier = Some(ar => style := s"padding-left: ${8 + ar.indent * 16}px") // item (td) style
       ),
+      TableFactory.TableAttrib("Milestone", (ar, _, _) => ar.milestone.getOrElse("").render, style = width(10, 15, 20), shortName = Some("")),
       TableFactory.TableAttrib("Posted by", (ar, _, _) => ar.createdBy.render, style = width(10, 15, 20), shortName = Some("")),
       TableFactory.TableAttrib("Date", (ar, _, _) => formatDateTime(ar.updatedAt.toJSDate).render, style = width(10, 15, 20)),
     )

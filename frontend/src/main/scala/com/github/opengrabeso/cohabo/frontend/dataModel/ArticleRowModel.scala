@@ -10,6 +10,7 @@ case class ArticleRowModel(
   indent: Int,
   title: String,
   body: String,
+  milestone: Option[String],
   createdBy: String,
   updatedAt: ZonedDateTime
 )
