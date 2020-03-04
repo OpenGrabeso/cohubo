@@ -13,6 +13,7 @@ import io.udash._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import services.UserContextService
 
+import scala.collection.immutable.TreeSet
 import scala.util.{Failure, Success}
 
 /** Contains the business logic of this view. */
@@ -40,6 +41,10 @@ class PagePresenter(
     val dropQuotes = text.linesIterator.filterNot(_.startsWith(">")).filterNot(_.isEmpty)
     // TODO: smarter abstracts
     dropQuotes.toSeq.head.take(120)
+  }
+
+  def extractQuotes(text: String): Set[String] = {
+    text.linesIterator.filter(_.startsWith(">")).map(_.trim).filter(_.nonEmpty).toSet
   }
 
   def loadActivities() = {
@@ -82,19 +87,19 @@ class PagePresenter(
       }
 
       for (issues <- load) {
-        // TODO: handle multilevel parent / children
 
-        model.subProp(_.articles).set(issues.toSeq.flatMap { case (id, comments) =>
+        val hierarchy = issues.toSeq.flatMap{ case (id, comments) =>
 
           val p = ArticleIdModel(org, repo, id.number, None)
 
-          ArticleRowModel(
-            p, None, comments.nonEmpty, 0, id.title, id.body, id.user.displayName, id.updated_at
-          ) +: comments.zipWithIndex.map { case (i, index) =>
+          ArticleRowModel(p, comments.nonEmpty, 0, id.title, id.body, id.user.displayName, id.updated_at) +: comments.zipWithIndex.map { case (i, index) =>
             val articleId = ArticleIdModel(org, repo, id.number, Some((index + 1, i.id)))
-            ArticleRowModel(articleId, None, false, index + 1, bodyAbstract(i.body), i.body, i.user.displayName, i.updated_at)
+            ArticleRowModel(articleId, false, index + 1, bodyAbstract(i.body), i.body, i.user.displayName, i.updated_at)
           }
-        })
+        }
+
+        model.subProp(_.articles).set(hierarchy)
+
         model.subProp(_.loading).set(false)
       }
     }
