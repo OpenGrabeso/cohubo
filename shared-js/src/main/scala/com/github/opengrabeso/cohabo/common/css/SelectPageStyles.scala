@@ -47,7 +47,12 @@ object SelectPageStyles extends CssBase {
   val selectTableContainer: CssStyle = style(
     passFlex,
     maxHeight(40 vh),
-    overflow.auto
+    overflow.auto,
+    // see https://stackoverflow.com/a/56998444/16673
+    unsafeChild("thead tr th") (
+      position.sticky.important,
+      top(0 px).important
+    )
   )
 
   val tr: CssStyle = style(
