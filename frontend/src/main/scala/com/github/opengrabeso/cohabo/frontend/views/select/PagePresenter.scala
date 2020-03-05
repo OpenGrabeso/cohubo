@@ -48,6 +48,11 @@ class PagePresenter(
         model.subProp(_.selectedArticleParent).set(None)
         model.subProp(_.articleContent).set("")
     }
+
+    userService.call(_.rate_limit).foreach { limits =>
+      val c = limits.resources.core
+      userService.properties.subProp(_.rateLimits).set(Some(c.limit, c.remaining, c.reset))
+    }
   }
 
   def removeQuotes(text: String): Iterator[String] = {

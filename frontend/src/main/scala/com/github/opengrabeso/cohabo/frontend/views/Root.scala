@@ -65,7 +65,11 @@ object Root {
   }
 
 
-  class View(model: ModelProperty[PageModel], presenter: PagePresenter) extends ContainerView with CssView {
+  class View(
+    model: ModelProperty[PageModel],
+    globals: ModelProperty[SettingsModel],
+    presenter: PagePresenter
+  ) extends ContainerView with CssView {
 
     import scalatags.JsDom.all._
 
@@ -106,6 +110,14 @@ object Root {
                 Spacing.margin(size = SpacingSize.Small),
                 href := s"https://github.com/$s", bind(name)
               ).render
+            }
+          ),
+          div(
+            produce(globals.subProp(_.rateLimits)) {
+              case Some((limit, remaining, reset)) =>
+                s"Remaining $remaining of $limit".render
+              case None =>
+                "".render
             }
           ),
           div(
@@ -171,7 +183,7 @@ object Root {
       val model = ModelProperty(PageModel(null, null))
       val presenter = new PagePresenter(model, userService, application)
 
-      val view = new View(model, presenter)
+      val view = new View(model, userService.properties, presenter)
       (view, presenter)
     }
   }

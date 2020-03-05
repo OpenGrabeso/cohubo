@@ -14,6 +14,9 @@ trait AuthorizedAPI {
 
   @Prefix("")
   def markdown: MarkdownAPI
+
+  @GET
+  def rate_limit: Future[RateLimits]
 }
 
 object AuthorizedAPI extends RestApiCompanion[EnhancedRestImplicits,AuthorizedAPI](EnhancedRestImplicits)
