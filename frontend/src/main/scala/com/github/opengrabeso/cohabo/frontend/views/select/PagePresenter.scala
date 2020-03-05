@@ -45,7 +45,7 @@ class PagePresenter(
   def bodyAbstract(text: String): String = {
     val dropQuotes = removeQuotes(text)
     // TODO: smarter abstracts
-    dropQuotes.toSeq.head.take(120)
+    dropQuotes.toSeq.head.take(80)
   }
 
   def extractQuotes(text: String): Seq[String] = {
@@ -67,16 +67,30 @@ class PagePresenter(
         val load = userService.call { api =>
           val repoAPI = api.repos(org, repo)
           val issues = repoAPI.issues()
+
           issues.flatMap { is =>
-            model.subProp(_.loading).set(true)
-            model.subProp(_.articles).set(Nil)
+
+            val issuesOrdered = is.sortBy(_.updated_at).reverse
+
+            // preview the issues
+            val preview = issuesOrdered.map { id =>
+
+              val p = ArticleIdModel(org, repo, id.number, None)
+              val issue = ArticleRowModel(p, id.comments > 0, true, 0, id.title, id.body, Option(id.milestone).map(_.title), id.user.displayName, id.updated_at)
+              // consider adding some comments placeholder?
+              issue
+            }
+
+            model.subProp(_.articles).set(preview)
+            model.subProp(_.loading).set(false)
+
             // issue requests one by one
             // TODO: some parallel requester
-            def requestNext(todo: List[Issue], done: Map[Issue, Seq[Comment]]): Future[Map[Issue, Seq[Comment]]] = {
+            def requestNext(todo: List[Issue], done: List[(Issue, Seq[Comment])]): Future[List[(Issue, Seq[Comment])]] = {
               todo match {
                 case head :: tail =>
                   repoAPI.issuesAPI(head.number).comments.map { cs =>
-                    done + (head -> cs)
+                    (head -> cs) :: done
                   }.flatMap { d =>
                     requestNext(tail, d)
                   }
@@ -84,7 +98,7 @@ class PagePresenter(
                   Future.successful(done)
               }
             }
-            requestNext(is.toList, Map.empty)
+            requestNext(issuesOrdered.toList, Nil).map(_.reverse)
           }.transform {
             case Failure(ex@HttpErrorException(code, _, _)) =>
               if (code != 404) {
@@ -105,17 +119,16 @@ class PagePresenter(
         }
 
         for (issues <- load) {
-
           val log = false
 
-          val allIssues = issues.toSeq.sortBy(_._1.updated_at).reverse.flatMap { case (id, comments) =>
+          val allIssues = issues.flatMap { case (id, comments) =>
 
             val p = ArticleIdModel(org, repo, id.number, None)
 
-            val issue = ArticleRowModel(p, false, 0, id.title, id.body, Option(id.milestone).map(_.title), id.user.displayName, id.updated_at)
+            val issue = ArticleRowModel(p, false, false, 0, id.title, id.body, Option(id.milestone).map(_.title), id.user.displayName, id.updated_at)
             val issueWithComments = issue +: comments.zipWithIndex.map { case (i, index) =>
               val articleId = ArticleIdModel(org, repo, id.number, Some((index + 1, i.id)))
-              ArticleRowModel(articleId, false, 0, bodyAbstract(i.body), i.body, None, i.user.displayName, i.updated_at)
+              ArticleRowModel(articleId, false, false, 0, bodyAbstract(i.body), i.body, None, i.user.displayName, i.updated_at)
             }
 
             val fromEnd = issueWithComments.reverse
@@ -169,7 +182,7 @@ class PagePresenter(
           }
 
 
-          model.subProp(_.articles).set(allIssues)
+          model.subProp(_.articles).set(allIssues.toSeq)
 
           model.subProp(_.loading).set(false)
         }

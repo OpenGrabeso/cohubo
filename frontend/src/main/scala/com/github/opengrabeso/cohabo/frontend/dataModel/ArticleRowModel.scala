@@ -7,6 +7,7 @@ import io.udash.HasModelPropertyCreator
 case class ArticleRowModel(
   id: ArticleIdModel,
   hasChildren: Boolean,
+  preview: Boolean, // preview means full content (comments) is not fully loaded yet
   indent: Int,
   title: String,
   body: String,
@@ -16,3 +17,4 @@ case class ArticleRowModel(
 )
 
 object ArticleRowModel extends HasModelPropertyCreator[ArticleRowModel]
+
