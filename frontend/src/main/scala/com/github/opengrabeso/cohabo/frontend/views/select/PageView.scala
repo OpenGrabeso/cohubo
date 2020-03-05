@@ -126,22 +126,15 @@ class PageView(
                 $(t).asInstanceOf[js.Dynamic].resizableColumns()
               }
             ),
+            hr(),
             div(
               s.articleContentTextArea,
-              div(id:="article-content").render.tap { ac =>
+              div(`class`:="article-content").render.tap { ac =>
                 model.subProp(_.articleContent).listen { content =>
-                  // TODO: markdown transformation
                   ac.asInstanceOf[js.Dynamic].innerHTML = content
                 }
               }
             )
-            /*
-            produce(model.subProp(_.articleContent))(content =>
-              Seq(
-                raw(content)
-              )
-            )
-            */
           ).render
 
         )

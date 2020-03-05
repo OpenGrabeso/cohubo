@@ -63,15 +63,15 @@ object GlobalStyles extends CssBase {
     flexDirection.row
   )
 
-  style(
+  val header = style(
     unsafeRoot("#header") (headerFooterCommon)
   )
 
-  style(
+  val footer = style(
     unsafeRoot("#footer") (headerFooterCommon)
   )
 
-  style(
+  val table = style(
     // we want the tables to be quite compact
     unsafeRoot("table .form-group")(
       marginBottom.`0`
@@ -82,9 +82,4 @@ object GlobalStyles extends CssBase {
     )
   )
 
-  style(
-    unsafeRoot("table .rotate.down")(
-      transform := "rotate(90deg)"
-    )
-  )
 }

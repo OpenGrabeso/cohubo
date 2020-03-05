@@ -101,4 +101,30 @@ object SelectPageStyles extends CssBase {
     display.none
   )
 
+  val articleClose = style(
+    unsafeRoot("table .rotate.down")(
+      transform := "rotate(90deg)"
+    )
+  )
+
+  val articleMarkdown = style(
+    // inspired by GitHub css
+    unsafeRoot(".article-content") (
+      unsafeChild("pre") (
+        padding(16 px),
+        overflow.auto,
+        fontSize(85 %%),
+        lineHeight(1.45),
+        backgroundColor(c"#f6f8fa"),
+        borderRadius(3 px)
+      ),
+      unsafeChild("blockquote") (
+        padding(`0`, 1 em),
+        color(c"#6a737d"),
+        borderLeft(.25 em, solid, c"#dfe2e5")
+      )
+
+    )
+  )
+
 }
