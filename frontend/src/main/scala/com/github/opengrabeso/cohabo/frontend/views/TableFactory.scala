@@ -100,12 +100,11 @@ object TableFactory {
       //println(children.length)
       val arrow = tr.find(".fold-control")
       if (jQ(children).is(":visible")) {
-        jQ(tr).addClass("closed")
-        arrow.removeClass("down")
+        jQ(arrow).html("\u02c3")
         jQ(children).hide()
       } else {
+        jQ(arrow).html("\u02c5")
         jQ(tr).removeClass("closed")
-        arrow.addClass("down")
         jQ(children).show()
         val ch = findChildren(jQ(".closed"))
         jQ(ch).hide()

@@ -62,7 +62,10 @@ class PageView(
       //TableFactory.TableAttrib("Parent", (ar, _, _) => ar.parentId.map(_.toString).getOrElse("").render, style = width(5, 5, 10), shortName = Some("")),
       TableFactory.TableAttrib("Article Title", (ar, _, _) =>
         div(
-          Option(i(`class`:="fold-control fas fa-angle-right rotate" + (if (ar.preview) "" else " down"))).filter(_ => ar.hasChildren),
+          // unicode characters rather than FontAwesome images, as those interacted badly with sticky table header
+          if (ar.hasChildren && ar.preview) span(`class`:="no-fold", "\u2299")
+          else if (ar.hasChildren) span(`class`:="fold-control", if (ar.preview) "\u02c3" else "\u02c5")
+          else span(`class`:="no-fold", "\u22A1"),
           span(s.titleStyle),
           ar.title.render,
         ).render,

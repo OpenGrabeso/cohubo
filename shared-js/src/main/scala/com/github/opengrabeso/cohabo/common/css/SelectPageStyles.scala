@@ -48,11 +48,24 @@ object SelectPageStyles extends CssBase {
     passFlex,
     maxHeight(40 vh),
     overflow.auto,
+    border(2 px, solid, darkgray),
     // see https://stackoverflow.com/a/56998444/16673
     unsafeChild("thead tr th") (
       position.sticky.important,
-      top(0 px).important
+      top(0 px).important,
+      backgroundColor(c"#f0f0f0"),
+      borderLeft(1 px, dotted, rgba(200, 209, 224, 0.6)),
+      borderBottom(1 px, solid, c"#e8e8e8"),
+      borderTop(2 px, solid, c"#f0f0f0")
+    ),
+    unsafeChild(".fold-control") (
+      color.darkgray,
+      fontWeight._900
+    ),
+    unsafeChild(".no-fold") (
+      color.darkgray,
     )
+
   )
 
   val tr: CssStyle = style(
