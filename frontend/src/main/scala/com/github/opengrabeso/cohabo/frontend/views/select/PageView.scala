@@ -127,6 +127,15 @@ class PageView(
               }
             ),
             hr(),
+            produce(model.subProp(_.selectedArticleParent)) {
+              case Some(row) =>
+                div(s.selectedArticle,
+                  h4(`class`:="title", span(row.title), span(`class`:= "link", issueLink(row.id))),
+                  div(span(`class`:= "createdBy", row.createdBy))
+                ).render
+              case None =>
+                div().render
+            },
             div(
               s.articleContentTextArea,
               div(`class`:="article-content").render.tap { ac =>

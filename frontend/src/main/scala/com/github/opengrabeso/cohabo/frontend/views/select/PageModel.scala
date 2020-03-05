@@ -12,6 +12,8 @@ case class PageModel(
   repoError: Boolean = false,
   articles: Seq[ArticleRowModel] = Seq.empty,
   selectedArticleId: Option[ArticleIdModel] = None,
+  selectedArticleParent: Option[ArticleRowModel] = None,
+  selectedArticle: Option[ArticleRowModel] = None,
   articleContent: String = "",
   error: Option[Throwable] = None
 )

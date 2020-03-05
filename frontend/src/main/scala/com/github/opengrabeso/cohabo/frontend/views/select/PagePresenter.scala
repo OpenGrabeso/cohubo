@@ -27,14 +27,26 @@ class PagePresenter(
 
   model.subProp(_.selectedArticleId).listen { id =>
     val sel = model.subProp(_.articles).get.find(id contains _.id)
-    val content = sel.map(_.body).getOrElse("Empty article")
-    val props = userService.properties.get
-    val context = props.organization + "/" + props.repository
-    val renderMarkdown = userService.call(_.markdown.markdown(content, "gfm", context))
-    renderMarkdown.map { html =>
-      model.subProp(_.articleContent).set(html.data)
-    }.failed.foreach { ex =>
-      model.subProp(_.articleContent).set(s"Markdown error $ex")
+    val selParent = model.subProp(_.articles).get.find(id.map(_.copy(id = None)) contains _.id)
+    println(sel + " " + selParent + " from " + id)
+    (sel, selParent) match {
+      case (Some(s), Some(p)) =>
+        model.subProp(_.selectedArticle).set(Some(s))
+        model.subProp(_.selectedArticleParent).set(Some(p))
+        model.subProp(_.articleContent).set("...")
+        val content = s.body
+        val props = userService.properties.get
+        val context = props.organization + "/" + props.repository
+        val renderMarkdown = userService.call(_.markdown.markdown(content, "gfm", context))
+        renderMarkdown.map { html =>
+          model.subProp(_.articleContent).set(html.data)
+        }.failed.foreach { ex =>
+          model.subProp(_.articleContent).set(s"Markdown error $ex")
+        }
+      case _ =>
+        model.subProp(_.selectedArticle).set(None)
+        model.subProp(_.selectedArticleParent).set(None)
+        model.subProp(_.articleContent).set("")
     }
   }
 

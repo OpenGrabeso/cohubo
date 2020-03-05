@@ -65,12 +65,6 @@ object SelectPageStyles extends CssBase {
     maxWidth(500 px)
   )
 
-  val articleContentTextArea: CssStyle = style(
-    height(30 vh),
-    overflow.auto,
-    minHeight(20 vh),
-    maxHeight(50 vh)
-  )
   val inputDesc: CssStyle = style (
     // ignored, overridden by default Bootstrap styles, need to use different method (Bootstrap theming?}
     backgroundColor.transparent,
@@ -127,4 +121,27 @@ object SelectPageStyles extends CssBase {
     )
   )
 
+  val articleContentTextArea: CssStyle = style(
+    height(30 vh),
+    overflow.auto,
+    minHeight(20 vh),
+    maxHeight(50 vh),
+    borderStyle.solid,
+    borderWidth(1 px),
+    borderColor(c"#8080c0")
+  )
+
+  val selectedArticle = style(
+    unsafeChild(".title") (
+      margin(0 px)
+    ),
+    unsafeChild(".link") (
+      margin(8 px)
+    ),
+    unsafeChild(".createdBy") (
+      color(c"#808080"),
+      fontWeight.bold,
+      margin(0 px)
+    )
+  )
 }
