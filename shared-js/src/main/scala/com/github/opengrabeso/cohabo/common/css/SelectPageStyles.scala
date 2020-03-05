@@ -25,13 +25,28 @@ object SelectPageStyles extends CssBase {
     borderWidth(1 px)
   )
 
+  val passFlex = mixin(
+    flexGrow(1),
+    display.flex,
+    flexDirection.column
+  )
+
+  val useFlex1 = style(
+    passFlex
+  )
+  val useFlex0 = style(
+    flexGrow(0)
+  )
+
   val container: CssStyle = style(
+    passFlex,
     margin.auto,
     containerBorder,
   )
 
   val selectTableContainer: CssStyle = style(
-    maxHeight(50 vh),
+    passFlex,
+    maxHeight(40 vh),
     overflow.auto
   )
 
@@ -64,19 +79,6 @@ object SelectPageStyles extends CssBase {
   val limitWidth: CssStyle = style(
     maxWidth(500 px)
   )
-
-  val inputDesc: CssStyle = style (
-    // ignored, overridden by default Bootstrap styles, need to use different method (Bootstrap theming?}
-    backgroundColor.transparent,
-    border.none
-  )
-
-  val inputName : CssStyle = style (
-    // ignored, overridden by default Bootstrap styles, need to use different method (Bootstrap theming?}
-    backgroundColor.transparent,
-    border.none
-  )
-
 
   private val minWide = 1000 px
 
@@ -122,10 +124,9 @@ object SelectPageStyles extends CssBase {
   )
 
   val articleContentTextArea: CssStyle = style(
-    height(30 vh),
     overflow.auto,
     minHeight(20 vh),
-    maxHeight(50 vh),
+    maxHeight(30 vh),
     borderStyle.solid,
     borderWidth(1 px),
     borderColor(c"#8080c0")

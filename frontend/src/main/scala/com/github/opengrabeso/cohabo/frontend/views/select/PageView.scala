@@ -115,34 +115,39 @@ class PageView(
       ),
 
       div(
+        s.useFlex1,
         showIfElse(model.subProp(_.loading))(
           p("Loading...").render,
           div(
+            s.useFlex1,
             bind(model.subProp(_.error).transform(_.map(ex => p(s"Error loading activities ${ex.toString}")).orNull)),
             div(
               s.selectTableContainer,
               table.render.tap { t =>
-                val $ = jQ
-                $(t).asInstanceOf[js.Dynamic].resizableColumns()
+                jQ(t).attr("style", "display: flex; flex-direction: column; flex: 0")
+                jQ(t).asInstanceOf[js.Dynamic].resizableColumns()
               }
             ),
             hr(),
-            produce(model.subProp(_.selectedArticleParent)) {
-              case Some(row) =>
-                div(s.selectedArticle,
-                  h4(`class`:="title", span(row.title), span(`class`:= "link", issueLink(row.id))),
-                  div(span(`class`:= "createdBy", row.createdBy))
-                ).render
-              case None =>
-                div().render
-            },
             div(
-              s.articleContentTextArea,
-              div(`class`:="article-content").render.tap { ac =>
-                model.subProp(_.articleContent).listen { content =>
-                  ac.asInstanceOf[js.Dynamic].innerHTML = content
+              s.useFlex0,
+              produce(model.subProp(_.selectedArticleParent)) {
+                case Some(row) =>
+                  div(s.selectedArticle,
+                    h4(`class`:="title", span(row.title), span(`class`:= "link", issueLink(row.id))),
+                    div(span(`class`:= "createdBy", row.createdBy))
+                  ).render
+                case None =>
+                  div().render
+              },
+              div(
+                s.articleContentTextArea,
+                div(`class`:="article-content").render.tap { ac =>
+                  model.subProp(_.articleContent).listen { content =>
+                    ac.asInstanceOf[js.Dynamic].innerHTML = content
+                  }
                 }
-              }
+              )
             )
           ).render
 
