@@ -3,7 +3,6 @@ package frontend
 package views
 package select
 
-import com.sun.net.httpserver.Authenticator.Success
 import dataModel._
 import common.model._
 import common.Util._
@@ -11,12 +10,10 @@ import routing._
 import io.udash._
 import io.udash.rest.raw.HttpErrorException
 
-import scala.concurrent.{ExecutionContext, Future, Promise}
-import services.UserContextService
+import scala.concurrent.{ExecutionContext, Future}
 
 import scala.annotation.tailrec
-import scala.collection.immutable.TreeSet
-import scala.util.{Failure, Success}
+import scala.util.Failure
 
 /** Contains the business logic of this view. */
 class PagePresenter(
@@ -56,7 +53,13 @@ class PagePresenter(
   }
 
   def removeQuotes(text: String): Iterator[String] = {
-    text.linesIterator.filterNot(_.startsWith(">")).filterNot(_.isEmpty)
+    val Mention = "(?:@[^ ]+ )+(.*)".r
+    text.linesIterator.filterNot(_.startsWith(">")).map {
+      case Mention(rest) =>
+        rest
+      case s =>
+        s
+    }.filterNot(_.isEmpty)
   }
 
   def bodyAbstract(text: String): String = {
@@ -199,7 +202,7 @@ class PagePresenter(
           }
 
 
-          model.subProp(_.articles).set(allIssues.toSeq)
+          model.subProp(_.articles).set(allIssues)
 
           model.subProp(_.loading).set(false)
         }
