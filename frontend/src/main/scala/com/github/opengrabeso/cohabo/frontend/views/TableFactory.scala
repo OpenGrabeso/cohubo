@@ -108,14 +108,12 @@ object TableFactory {
         arrow.html("\u02c5") // v
         tr.find(".fold-control").addClass("fold-open")
         tr.removeClass("closed")
-        println(s"Show ${children.length} ${children.get.map(e => jQ(e).attr("class")).mkString(",")}")
         children.show()
 
         val childrenClosed = children.filter((e: Element, _: Int, _: Element) => jQ(e).find(".fold-open").length == 0)
 
         childrenClosed.get.foreach { close =>
           val hide = findChildren(jQ(close))
-          println(s"Hide ${hide.length}")
           hide.hide()
         }
       }

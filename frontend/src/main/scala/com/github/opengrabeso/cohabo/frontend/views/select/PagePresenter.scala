@@ -28,7 +28,7 @@ class PagePresenter(
   model.subProp(_.selectedArticleId).listen { id =>
     val sel = model.subProp(_.articles).get.find(id contains _.id)
     val selParent = model.subProp(_.articles).get.find(id.map(_.copy(id = None)) contains _.id)
-    println(sel + " " + selParent + " from " + id)
+    //println(sel + " " + selParent + " from " + id)
     (sel, selParent) match {
       case (Some(s), Some(p)) =>
         model.subProp(_.selectedArticle).set(Some(s))
