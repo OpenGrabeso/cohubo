@@ -87,6 +87,7 @@ object TableFactory {
       //println(tr.attr("data-depth"))
       val tr = jQ(control).closest("tr")
 
+      def getDepth(d: Option[Any]) = d.map(_.asInstanceOf[Int]).getOrElse(0)
       // find all children (following items with greater level)
       def findChildren(tr: JQuery) = {
         def getDepth(d: Option[Any]) = d.map(_.asInstanceOf[Int]).getOrElse(0)
@@ -96,21 +97,28 @@ object TableFactory {
         }))
       }
 
-      val children = findChildren(jQ(tr))
+      val children = findChildren(tr)
       //println(children.length)
       val arrow = tr.find(".fold-control")
-      if (jQ(children).is(":visible")) {
-        jQ(arrow).html("\u02c3")
-        jQ(children).hide()
+      if (children.is(":visible")) {
+        arrow.html("\u02c3") // >
+        tr.find(".fold-control").removeClass("fold-open")
+        children.hide()
       } else {
-        jQ(arrow).html("\u02c5")
-        jQ(tr).removeClass("closed")
-        jQ(children).show()
-        val ch = findChildren(jQ(".closed"))
-        jQ(ch).hide()
+        arrow.html("\u02c5") // v
+        tr.find(".fold-control").addClass("fold-open")
+        tr.removeClass("closed")
+        println(s"Show ${children.length} ${children.get.map(e => jQ(e).attr("class")).mkString(",")}")
+        children.show()
+
+        val childrenClosed = children.filter((e: Element, _: Int, _: Element) => jQ(e).find(".fold-open").length == 0)
+
+        childrenClosed.get.foreach { close =>
+          val hide = findChildren(jQ(close))
+          println(s"Hide ${hide.length}")
+          hide.hide()
+        }
       }
-
-
 
     })
     row
