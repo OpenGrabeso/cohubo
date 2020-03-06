@@ -42,7 +42,7 @@ object TableFactory {
   ): (CastableProperty[ItemType], NestedInterceptor) => Element = { (el,_) =>
     val level = indent(el.get)
     val row = tr(
-      s.tr,
+      `class` := s.tr.className + " table-fold",
       produceWithNested(el) { (ha, nested) =>
         attribs.flatMap { a =>
           // existing but empty shortName means the column should be hidden on narrow view
@@ -55,7 +55,6 @@ object TableFactory {
         }
       },
 
-      `class` := "table-fold",
       attr("data-depth") := level,
 
       onclick :+= { e: Event =>
