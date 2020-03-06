@@ -8,6 +8,14 @@ import io.udash._
 
 /** The form's model structure. */
 case class PageModel(
-  loading: Boolean, articles: Seq[ArticleRowModel], selectedArticleId: Option[ArticleIdModel] = None, articleContent: String = "", error: Option[Throwable] = None
+  loading: Boolean,
+  repoError: Boolean = false,
+  articles: Seq[ArticleRowModel] = Seq.empty,
+  selectedArticleId: Option[ArticleIdModel] = None,
+  selectedArticleParent: Option[ArticleRowModel] = None,
+  selectedArticle: Option[ArticleRowModel] = None,
+  articleContent: String = "",
+  error: Option[Throwable] = None
 )
+
 object PageModel extends HasModelPropertyCreator[PageModel]

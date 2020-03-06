@@ -25,8 +25,6 @@ class PagePresenter(
 
   def submit(): Unit = {
     SettingsModel.store(subModel.get)
-    // setting the token will initiate the login
-    println("Set userContextService.properties token")
     userContextService.properties.subProp(_.token).set(subModel.subProp(_.token).get)
     application.goTo(SelectPageState)
   }

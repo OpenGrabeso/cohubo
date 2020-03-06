@@ -14,11 +14,14 @@ class PageViewFactory(
 
 
   override def create(): (View, Presenter[SelectPageState.type]) = {
-    val model = ModelProperty(PageModel(true, Seq()))
+    val model = ModelProperty(PageModel(loading = true))
 
     val presenter = new PagePresenter(model, application, userService)
+
+    val view = new PageView(model, presenter, userService.properties)
+
     presenter.loadActivities()
-    val view = new PageView(model, presenter)
+
     (view, presenter)
   }
 }

@@ -14,7 +14,6 @@ trait RestAPI {
 
   @Prefix("")
   def authorized(@Header("Authorization") bearer: String): AuthorizedAPI
-
 }
 
 object RestAPI extends RestApiCompanion[EnhancedRestImplicits,RestAPI](EnhancedRestImplicits)

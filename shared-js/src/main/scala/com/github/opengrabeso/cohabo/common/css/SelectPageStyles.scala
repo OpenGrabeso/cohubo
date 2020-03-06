@@ -25,14 +25,47 @@ object SelectPageStyles extends CssBase {
     borderWidth(1 px)
   )
 
+  val passFlex = mixin(
+    flexGrow(1),
+    display.flex,
+    flexDirection.column
+  )
+
+  val useFlex1 = style(
+    passFlex
+  )
+  val useFlex0 = style(
+    flexGrow(0)
+  )
+
   val container: CssStyle = style(
+    passFlex,
     margin.auto,
     containerBorder,
   )
 
   val selectTableContainer: CssStyle = style(
-    maxHeight(50 vh),
-    overflow.auto
+    passFlex,
+    maxHeight(40 vh),
+    overflow.auto,
+    border(2 px, solid, darkgray),
+    // see https://stackoverflow.com/a/56998444/16673
+    unsafeChild("thead tr th") (
+      position.sticky.important,
+      top(0 px).important,
+      backgroundColor(c"#f0f0f0"),
+      borderLeft(1 px, dotted, rgba(200, 209, 224, 0.6)),
+      borderBottom(1 px, solid, c"#e8e8e8"),
+      borderTop(2 px, solid, c"#f0f0f0")
+    ),
+    unsafeChild(".fold-control") (
+      color.darkgray,
+      fontWeight._900
+    ),
+    unsafeChild(".no-fold") (
+      color.lightgray,
+    )
+
   )
 
   val tr: CssStyle = style(
@@ -44,11 +77,21 @@ object SelectPageStyles extends CssBase {
     )
   )
 
-  val td: CssStyle = style(
+  val cell = mixin(
     lineHeight(1.0 rem),
     paddingBottom.`0`.important,
-    paddingTop.`0`.important
+    paddingTop.`0`.important,
+    maxWidth(20 px), // allow free resizing
+    unsafeChild("div") (
+      // divs inside of table cells should never wrap, they should silently overflow
+      whiteSpace.nowrap,
+      overflow.hidden
+    )
   )
+
+  val td: CssStyle = style(cell)
+  val th: CssStyle = style(cell)
+
 
   val titleStyle = style(
     marginRight(8 px)
@@ -64,24 +107,6 @@ object SelectPageStyles extends CssBase {
   val limitWidth: CssStyle = style(
     maxWidth(500 px)
   )
-
-  val articleContentTextArea: CssStyle = style(
-    height(30 vh),
-    minHeight(20 vh),
-    maxHeight(50 vh)
-  )
-  val inputDesc: CssStyle = style (
-    // ignored, overridden by default Bootstrap styles, need to use different method (Bootstrap theming?}
-    backgroundColor.transparent,
-    border.none
-  )
-
-  val inputName : CssStyle = style (
-    // ignored, overridden by default Bootstrap styles, need to use different method (Bootstrap theming?}
-    backgroundColor.transparent,
-    border.none
-  )
-
 
   private val minWide = 1000 px
 
@@ -100,4 +125,52 @@ object SelectPageStyles extends CssBase {
     display.none
   )
 
+  val articleClose = style(
+    unsafeRoot("table .rotate.down")(
+      transform := "rotate(90deg)"
+    )
+  )
+
+  val articleMarkdown = style(
+    // inspired by GitHub css
+    unsafeRoot(".article-content") (
+      unsafeChild("pre") (
+        padding(16 px),
+        overflow.auto,
+        fontSize(85 %%),
+        lineHeight(1.45),
+        backgroundColor(c"#f6f8fa"),
+        borderRadius(3 px)
+      ),
+      unsafeChild("blockquote") (
+        padding(`0`, 1 em),
+        color(c"#6a737d"),
+        borderLeft(.25 em, solid, c"#dfe2e5")
+      )
+
+    )
+  )
+
+  val articleContentTextArea: CssStyle = style(
+    overflow.auto,
+    minHeight(20 vh),
+    maxHeight(30 vh),
+    borderStyle.solid,
+    borderWidth(1 px),
+    borderColor(c"#8080c0")
+  )
+
+  val selectedArticle = style(
+    unsafeChild(".title") (
+      margin(0 px)
+    ),
+    unsafeChild(".link") (
+      margin(8 px)
+    ),
+    unsafeChild(".createdBy") (
+      color(c"#808080"),
+      fontWeight.bold,
+      margin(0 px)
+    )
+  )
 }

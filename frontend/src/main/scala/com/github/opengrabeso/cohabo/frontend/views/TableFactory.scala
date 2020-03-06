@@ -24,14 +24,14 @@ object TableFactory {
     attribs.flatMap { a =>
       val st = a.style.map(style := _)
       a.shortName.map { shortName =>
-        val wide = th(s.wideMedia, b(a.name), st).render
+        val wide = th(s.th, s.wideMedia, div(a.name), st).render
         if (shortName.isEmpty) {
           Seq(wide)
         } else {
-          val narrow = th(st, s.narrowMedia, b(a.shortName)).render
+          val narrow = th(s.th, st, s.narrowMedia, div(a.shortName)).render
           Seq(wide, narrow)
         }
-      }.getOrElse(Seq(th(st, b(a.name)).render))
+      }.getOrElse(Seq(th(s.th, st, div(a.name)).render))
     }
   }.render
 
@@ -87,6 +87,7 @@ object TableFactory {
       //println(tr.attr("data-depth"))
       val tr = jQ(control).closest("tr")
 
+      def getDepth(d: Option[Any]) = d.map(_.asInstanceOf[Int]).getOrElse(0)
       // find all children (following items with greater level)
       def findChildren(tr: JQuery) = {
         def getDepth(d: Option[Any]) = d.map(_.asInstanceOf[Int]).getOrElse(0)
@@ -96,22 +97,26 @@ object TableFactory {
         }))
       }
 
-      val children = findChildren(jQ(tr))
+      val children = findChildren(tr)
       //println(children.length)
       val arrow = tr.find(".fold-control")
-      if (jQ(children).is(":visible")) {
-        jQ(tr).addClass("closed")
-        arrow.removeClass("down")
-        jQ(children).hide()
+      if (children.is(":visible")) {
+        arrow.html("\u02c3") // >
+        tr.find(".fold-control").removeClass("fold-open")
+        children.hide()
       } else {
-        jQ(tr).removeClass("closed")
-        arrow.addClass("down")
-        jQ(children).show()
-        val ch = findChildren(jQ(".closed"))
-        jQ(ch).hide()
+        arrow.html("\u02c5") // v
+        tr.find(".fold-control").addClass("fold-open")
+        tr.removeClass("closed")
+        children.show()
+
+        val childrenClosed = children.filter((e: Element, _: Int, _: Element) => jQ(e).find(".fold-open").length == 0)
+
+        childrenClosed.get.foreach { close =>
+          val hide = findChildren(jQ(close))
+          hide.hide()
+        }
       }
-
-
 
     })
     row

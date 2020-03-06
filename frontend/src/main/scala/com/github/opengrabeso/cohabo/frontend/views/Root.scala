@@ -11,6 +11,7 @@ import io.udash.bootstrap.button.UdashButton
 import io.udash.component.ComponentId
 import io.udash.css._
 import common.css._
+import io.udash.bootstrap.utils.BootstrapStyles._
 import org.scalajs.dom
 import org.scalajs.dom.raw.HTMLElement
 
@@ -64,7 +65,11 @@ object Root {
   }
 
 
-  class View(model: ModelProperty[PageModel], presenter: PagePresenter) extends ContainerView with CssView {
+  class View(
+    model: ModelProperty[PageModel],
+    globals: ModelProperty[SettingsModel],
+    presenter: PagePresenter
+  ) extends ContainerView with CssView {
 
     import scalatags.JsDom.all._
 
@@ -86,10 +91,10 @@ object Root {
 
       Seq(
         div(
-          //GlobalStyles.header,
           id := "header",
           div(
             a(
+              Spacing.margin(size = SpacingSize.Small),
               href := "/", appName,
               onclick :+= {_: dom.Event =>
                 presenter.gotoMain()
@@ -98,9 +103,21 @@ object Root {
             )
           ),
           div(
+            Spacing.margin(size = SpacingSize.Small),
             "User:",
             produce(userId) { s =>
-              a(href := s"https://github.com/$s", bind(name)).render
+              a(
+                Spacing.margin(size = SpacingSize.Small),
+                href := s"https://github.com/$s", bind(name)
+              ).render
+            }
+          ),
+          div(
+            produce(globals.subProp(_.rateLimits)) {
+              case Some((limit, remaining, reset)) =>
+                s"Remaining $remaining of $limit".render
+              case None =>
+                "".render
             }
           ),
           div(
@@ -115,7 +132,7 @@ object Root {
 
     val footer: Seq[HTMLElement] = Seq(
       div(
-        //GlobalStyles.footer,
+        Spacing.margin(size = SpacingSize.Small),
         id := "footer",
         /*
         a(
@@ -148,7 +165,6 @@ object Root {
       // loads Bootstrap and FontAwesome styles from CDN
       UdashBootstrap.loadBootstrapStyles(),
       UdashBootstrap.loadFontAwesome(),
-
       BootstrapStyles.container,
       header,
       childViewContainer,
@@ -167,7 +183,7 @@ object Root {
       val model = ModelProperty(PageModel(null, null))
       val presenter = new PagePresenter(model, userService, application)
 
-      val view = new View(model, presenter)
+      val view = new View(model, userService.properties, presenter)
       (view, presenter)
     }
   }

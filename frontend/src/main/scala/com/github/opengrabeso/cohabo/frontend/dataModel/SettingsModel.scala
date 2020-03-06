@@ -3,7 +3,11 @@ package com.github.opengrabeso.cohabo.frontend.dataModel
 import io.udash.HasModelPropertyCreator
 import org.scalajs.dom
 
-case class SettingsModel(token: String = null, organization: String = null, repository: String = null, user: UserLoginModel = UserLoginModel())
+case class SettingsModel(
+  token: String = null, organization: String = null, repository: String = null,
+  user: UserLoginModel = UserLoginModel(),
+  rateLimits: Option[(Long, Long, Long)] = None
+)
 
 object SettingsModel extends HasModelPropertyCreator[SettingsModel] {
   val ls = dom.window.localStorage
