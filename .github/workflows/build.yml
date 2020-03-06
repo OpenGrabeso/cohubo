@@ -1,6 +1,9 @@
 name: Build (SBT)
 
-on: [push]
+on:
+  push:
+    branches-ignore:
+      master # we run deploy-gh-pages on master, no need to run just a build
 
 jobs:
   build:
