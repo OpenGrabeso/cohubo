@@ -96,7 +96,7 @@ lazy val frontend = project.settings(
     //mainClass in Compile := Some("com.github.opengrabeso.cohabo.MainJS"),
     jsDependencies += ProvidedJS / "jQuery.resizableColumns.min.js",
 
-    (fastOptJS in Compile) := (fastOptJS in Compile).dependsOn(generateIndexTask("index-fast.html","fastOpt")).value,
+    (fastOptJS in Compile) := (fastOptJS in Compile).dependsOn(generateIndexTask("index-fast.html","fastopt")).value,
     (fullOptJS in Compile) := (fullOptJS in Compile).dependsOn(generateIndexTask("index.html","opt")).value
   ).enablePlugins(ScalaJSPlugin)
     .dependsOn(sharedJs_JS)
