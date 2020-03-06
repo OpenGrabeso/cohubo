@@ -80,7 +80,14 @@ object SelectPageStyles extends CssBase {
   val td: CssStyle = style(
     lineHeight(1.0 rem),
     paddingBottom.`0`.important,
-    paddingTop.`0`.important
+    paddingTop.`0`.important,
+    unsafeChild("div") (
+      // divs inside of table cells should never wrap, they should silently overflow
+      whiteSpace.nowrap,
+      overflow.hidden,
+      // but they need to pretend they are not wide, so that the table can be resized
+      maxWidth(10 px)
+    )
   )
 
   val titleStyle = style(
