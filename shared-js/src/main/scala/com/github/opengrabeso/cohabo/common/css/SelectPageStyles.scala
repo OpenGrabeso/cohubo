@@ -63,7 +63,7 @@ object SelectPageStyles extends CssBase {
       fontWeight._900
     ),
     unsafeChild(".no-fold") (
-      color.darkgray,
+      color.lightgray,
     )
 
   )
@@ -77,18 +77,21 @@ object SelectPageStyles extends CssBase {
     )
   )
 
-  val td: CssStyle = style(
+  val cell = mixin(
     lineHeight(1.0 rem),
     paddingBottom.`0`.important,
     paddingTop.`0`.important,
+    maxWidth(20 px), // allow free resizing
     unsafeChild("div") (
       // divs inside of table cells should never wrap, they should silently overflow
       whiteSpace.nowrap,
-      overflow.hidden,
-      // but they need to pretend they are not wide, so that the table can be resized
-      maxWidth(10 px)
+      overflow.hidden
     )
   )
+
+  val td: CssStyle = style(cell)
+  val th: CssStyle = style(cell)
+
 
   val titleStyle = style(
     marginRight(8 px)

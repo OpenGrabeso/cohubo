@@ -24,14 +24,14 @@ object TableFactory {
     attribs.flatMap { a =>
       val st = a.style.map(style := _)
       a.shortName.map { shortName =>
-        val wide = th(s.wideMedia, b(a.name), st).render
+        val wide = th(s.th, s.wideMedia, div(a.name), st).render
         if (shortName.isEmpty) {
           Seq(wide)
         } else {
-          val narrow = th(st, s.narrowMedia, b(a.shortName)).render
+          val narrow = th(s.th, st, s.narrowMedia, div(a.shortName)).render
           Seq(wide, narrow)
         }
-      }.getOrElse(Seq(th(st, b(a.name)).render))
+      }.getOrElse(Seq(th(s.th, st, div(a.name)).render))
     }
   }.render
 

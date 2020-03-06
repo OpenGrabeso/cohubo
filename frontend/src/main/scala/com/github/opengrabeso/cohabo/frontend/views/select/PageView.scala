@@ -66,7 +66,6 @@ class PageView(
           if (ar.hasChildren && ar.preview) span(`class`:="no-fold", "\u2299")
           else if (ar.hasChildren) span(`class`:="fold-control", if (ar.preview) "\u02c3" else "\u02c5")
           else span(`class`:="no-fold", "\u22A1"),
-          span(s.titleStyle),
           ar.title.render,
         ).render,
         style = widthWide(50, 50),
