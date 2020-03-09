@@ -119,7 +119,7 @@ class PageView(
           p("Loading...").render,
           div(
             s.useFlex1,
-            bind(model.subProp(_.error).transform(_.map(ex => p(s"Error loading activities ${ex.toString}")).orNull)),
+            bind(model.subProp(_.error).transform(_.map(ex => p(s"Error loading issues ${ex.toString}")).orNull)),
             div(
               s.selectTableContainer,
               table.render.tap { t =>

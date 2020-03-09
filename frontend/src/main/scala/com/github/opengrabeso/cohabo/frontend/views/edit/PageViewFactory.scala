@@ -21,7 +21,7 @@ class PageViewFactory(
 
 
     for {
-      content <- Future { // TODO: async activity get
+      content <- Future {
         ArticleContent(articleId, s"Title $articleId", s"Content $articleId " * 50)
       }
     } {
