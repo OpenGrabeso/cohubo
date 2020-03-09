@@ -37,7 +37,7 @@ object IssuesWithHeaders {
 
   implicit def asResponse(implicit fromBody: AsReal[HttpBody, Seq[Issue]]): AsReal[RestResponse, IssuesWithHeaders] = AsReal.create {
     resp =>
-      IssuesWithHeaders(fromBody.asReal(resp.body), linkHeaders(resp.headers("Link").value))
+      IssuesWithHeaders(fromBody.asReal(resp.body), linkHeaders(resp.headers("link").value))
   }
   // note: if OpenAPI is required, we should implement restResponses
 }

@@ -27,7 +27,7 @@ class PageView(
   val s = SelectPageStyles
 
   private val settingsButton = UdashButton()(_ => "Settings")
-  private val nextPageButton = UdashButton()(_ => "Load more issues")
+  private val nextPageButton = button(model.subProp(_.pagingUrls).transform(_.isEmpty), "Load more issues".toProperty)
 
   buttonOnClick(settingsButton) {presenter.gotoSettings()}
   buttonOnClick(nextPageButton) {presenter.loadMore()}

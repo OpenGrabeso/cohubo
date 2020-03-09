@@ -3,7 +3,7 @@ package frontend
 package views
 package select
 
-import com.github.opengrabeso.cohabo.rest.IssuesWithHeaders
+import rest.{IssuesWithHeaders, RestAPIClient}
 import dataModel._
 import common.model._
 import common.Util._
@@ -21,6 +21,8 @@ class PagePresenter(
   application: Application[RoutingState],
   userService: services.UserContextService
 )(implicit ec: ExecutionContext) extends Presenter[SelectPageState.type] {
+  def props = userService.properties
+  val sourceParameters = props.subProp(_.token).combine(props.subProp(_.organization))(_ -> _).combine(props.subProp(_.repository))(_ -> _)
 
   model.subProp(_.selectedArticleId).listen { id =>
     val sel = model.subProp(_.articles).get.find(id contains _.id)
@@ -81,10 +83,21 @@ class PagePresenter(
     userService.call(_.repos(org, repo).issues())
   }
 
-  def loadArticlesPage(org: String, repo: String, mode: String): Unit = {
-    val loadA = initArticles(org, repo)
+  def pageArticles(org: String, repo: String, token: String, link: String): Future[IssuesWithHeaders] = {
+    RestAPIClient.requestIssues(link, userService.properties.subProp(_.token).get)
+  }
 
-    val load = loadA.flatMap{ isH =>
+  def loadArticlesPage(token: String, org: String, repo: String, mode: String): Unit = {
+    val loadA = mode match {
+      case "next" =>
+        val link = model.subProp(_.pagingUrls).get(mode)
+        pageArticles(org, repo, token, link)
+      case _ =>
+        initArticles(org, repo)
+    }
+
+    val load = loadA.flatMap {isH =>
+      println(s"Set paging as ${isH.paging}")
       model.subProp(_.pagingUrls).set(isH.paging)
 
       val is = isH.issues
@@ -100,7 +113,10 @@ class PagePresenter(
         issue
       }
 
-      model.subProp(_.articles).set(preview)
+
+      model.subProp(_.articles).tap { a =>
+        a.set(a.get ++ preview)
+      }
       model.subProp(_.loading).set(false)
 
       // issue requests one by one
@@ -123,13 +139,13 @@ class PagePresenter(
     }.transform {
       case Failure(ex@HttpErrorException(code, _, _)) =>
         if (code != 404) {
-          println("Error loading issues from $org/$repo: $ex")
+          println(s"Error loading issues from $org/$repo: $ex")
         }
         repoValid(false)
         Failure(ex)
       case Failure(ex) =>
         repoValid(false)
-        println("Error loading issues from $org/$repo: $ex")
+        println(s"Error loading issues from $org/$repo: $ex")
         Failure(ex)
       case x =>
         // settings valid, store them
@@ -201,8 +217,10 @@ class PagePresenter(
         }
       }
 
-
-      model.subProp(_.articles).set(allIssues)
+      val loadedNumbers = issues.map(_._1.number).toSet
+      model.subProp(_.articles).tap { a =>
+        a.set(a.get.filterNot(r => loadedNumbers.contains(r.id.issueNumber)) ++ allIssues)
+      }
 
       model.subProp(_.loading).set(false)
     }
@@ -210,14 +228,12 @@ class PagePresenter(
   }
 
   def loadArticles(): Unit = {
-
-    val props = userService.properties
-    val sourceParameters = props.subProp(_.token).combine(props.subProp(_.organization))(_ -> _).combine(props.subProp(_.repository))(_ -> _)
-
     // install the handler
     sourceParameters.listen(
       { case ((token, org), repo) =>
-        loadArticlesPage(org, repo, "init")
+        model.subProp(_.loading).set(true)
+        model.subProp(_.articles).set(Seq.empty)
+        loadArticlesPage(token, org, repo, "init")
       }, initUpdate = true
     )
   }
@@ -225,7 +241,8 @@ class PagePresenter(
   override def handleState(state: SelectPageState.type): Unit = {}
 
   def loadMore(): Unit = {
-
+    val ((token, owner), repo) = sourceParameters.get
+    loadArticlesPage(token, owner, repo, "next")
   }
 
   def gotoSettings(): Unit = {
