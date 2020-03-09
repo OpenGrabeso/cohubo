@@ -3,6 +3,7 @@ package frontend
 package views
 package select
 
+import com.github.opengrabeso.cohabo.rest.IssuesWithHeaders
 import dataModel._
 import common.model._
 import common.Util._
@@ -11,7 +12,6 @@ import io.udash._
 import io.udash.rest.raw.HttpErrorException
 
 import scala.concurrent.{ExecutionContext, Future}
-
 import scala.annotation.tailrec
 import scala.util.Failure
 
@@ -77,63 +77,65 @@ class PagePresenter(
   }
 
 
+  def initArticles(org: String, repo: String): Future[IssuesWithHeaders] = {
+    userService.call(_.repos(org, repo).issues())
+  }
+
   def loadArticlesPage(org: String, repo: String, mode: String): Unit = {
-    val load = userService.call { api =>
-      val repoAPI = api.repos(org, repo)
+    val loadA = initArticles(org, repo)
 
-      val issues = repoAPI.issues()
+    val load = loadA.flatMap{ isH =>
+      model.subProp(_.pagingUrls).set(isH.paging)
 
-      issues.flatMap { isH =>
-        model.subProp(_.pagingUrls).set(isH.paging)
+      val is = isH.issues
 
-        val is = isH.issues
+      val issuesOrdered = is.sortBy(_.updated_at).reverse
 
-        val issuesOrdered = is.sortBy(_.updated_at).reverse
+      // preview the issues
+      val preview = issuesOrdered.map { id =>
 
-        // preview the issues
-        val preview = issuesOrdered.map { id =>
+        val p = ArticleIdModel(org, repo, id.number, None)
+        val issue = ArticleRowModel(p, id.comments > 0, true, 0, id.title, id.body, Option(id.milestone).map(_.title), id.user.displayName, id.updated_at)
+        // consider adding some comments placeholder?
+        issue
+      }
 
-          val p = ArticleIdModel(org, repo, id.number, None)
-          val issue = ArticleRowModel(p, id.comments > 0, true, 0, id.title, id.body, Option(id.milestone).map(_.title), id.user.displayName, id.updated_at)
-          // consider adding some comments placeholder?
-          issue
-        }
+      model.subProp(_.articles).set(preview)
+      model.subProp(_.loading).set(false)
 
-        model.subProp(_.articles).set(preview)
-        model.subProp(_.loading).set(false)
-
-        // issue requests one by one
-        // TODO: some parallel or lazy requester
-        def requestNext(todo: List[Issue], done: List[(Issue, Seq[Comment])]): Future[List[(Issue, Seq[Comment])]] = {
-          todo match {
-            case head :: tail =>
-              repoAPI.issuesAPI(head.number).comments.map { cs =>
+      // issue requests one by one
+      // TODO: some parallel or lazy requester
+      def requestNext(todo: List[Issue], done: List[(Issue, Seq[Comment])]): Future[List[(Issue, Seq[Comment])]] = {
+        todo match {
+          case head :: tail =>
+            userService.call { api =>
+              api.repos(org, repo).issuesAPI(head.number).comments.map { cs =>
                 (head -> cs) :: done
               }.flatMap { d =>
                 requestNext(tail, d)
               }
-            case _ =>
-              Future.successful(done)
-          }
+            }
+          case _ =>
+            Future.successful(done)
         }
-        requestNext(issuesOrdered.toList, Nil).map(_.reverse)
-      }.transform {
-        case Failure(ex@HttpErrorException(code, _, _)) =>
-          if (code != 404) {
-            println("Error loading issues from $org/$repo: $ex")
-          }
-          repoValid(false)
-          Failure(ex)
-        case Failure(ex) =>
-          repoValid(false)
-          println("Error loading issues from $org/$repo: $ex")
-          Failure(ex)
-        case x =>
-          // settings valid, store them
-          SettingsModel.store(userService.properties.get)
-          repoValid(true)
-          x
       }
+      requestNext(issuesOrdered.toList, Nil).map(_.reverse)
+    }.transform {
+      case Failure(ex@HttpErrorException(code, _, _)) =>
+        if (code != 404) {
+          println("Error loading issues from $org/$repo: $ex")
+        }
+        repoValid(false)
+        Failure(ex)
+      case Failure(ex) =>
+        repoValid(false)
+        println("Error loading issues from $org/$repo: $ex")
+        Failure(ex)
+      case x =>
+        // settings valid, store them
+        SettingsModel.store(userService.properties.get)
+        repoValid(true)
+        x
     }
 
     for (issues <- load) {

@@ -12,5 +12,5 @@ trait MarkdownAPI {
   def markdown(@CustomBody text: String, @transientDefault mode: String = "markdown", context: String = ""): Future[TextData]
 }
 
-object MarkdownAPI extends RestApiCompanion[EnhancedRestImplicits,MarkdownAPI](EnhancedRestImplicits)
+object MarkdownAPI extends RestClientApiCompanion[EnhancedRestImplicits,MarkdownAPI](EnhancedRestImplicits)
 

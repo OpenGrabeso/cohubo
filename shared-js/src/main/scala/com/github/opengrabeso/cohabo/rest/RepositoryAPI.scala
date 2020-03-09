@@ -34,8 +34,7 @@ object IssuesWithHeaders {
   }
 
 
-  implicit val asResponse: AsRawReal[RestResponse, IssuesWithHeaders] = AsRawReal.create(
-    _ => throw new NotImplementedError(), // we are not implementing the server, no need to be able to compose the response
+  implicit val asResponse: AsReal[RestResponse, IssuesWithHeaders] = AsReal.create(
     resp => fromString(resp.body.readText(), resp.headers("Link").value)
   )
   // note: if OpenAPI is required, we should implement restResponses
@@ -50,4 +49,4 @@ trait RepositoryAPI {
   def issuesAPI(number: Long): IssuesAPI
 }
 
-object RepositoryAPI extends RestApiCompanion[EnhancedRestImplicits,RepositoryAPI](EnhancedRestImplicits)
+object RepositoryAPI extends RestClientApiCompanion[EnhancedRestImplicits,RepositoryAPI](EnhancedRestImplicits)

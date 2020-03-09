@@ -12,4 +12,4 @@ trait IssuesAPI {
   def comments: Future[Seq[Comment]]
 }
 
-object IssuesAPI extends RestApiCompanion[EnhancedRestImplicits,IssuesAPI](EnhancedRestImplicits)
+object IssuesAPI extends RestClientApiCompanion[EnhancedRestImplicits,IssuesAPI](EnhancedRestImplicits)
