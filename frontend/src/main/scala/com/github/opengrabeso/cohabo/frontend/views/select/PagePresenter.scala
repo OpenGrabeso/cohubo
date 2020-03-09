@@ -72,11 +72,11 @@ class PagePresenter(
     text.linesIterator.filter(_.startsWith(">")).map(_.drop(1).trim).filter(_.nonEmpty).toSeq
   }
 
-  def repoValid(valid: Boolean) = {
+  def repoValid(valid: Boolean): Unit = {
     model.subProp(_.repoError).set(!valid)
   }
 
-  def loadArticles() = {
+  def loadArticles(): Unit = {
 
     val props = userService.properties
     val sourceParameters = props.subProp(_.token).combine(props.subProp(_.organization))(_ -> _).combine(props.subProp(_.repository))(_ -> _)
@@ -88,7 +88,9 @@ class PagePresenter(
           val repoAPI = api.repos(org, repo)
           val issues = repoAPI.issues()
 
-          issues.flatMap { is =>
+          issues.flatMap { isH =>
+            val is = isH.issues
+            println("Paging: " + isH.paging)
 
             val issuesOrdered = is.sortBy(_.updated_at).reverse
 
@@ -211,6 +213,10 @@ class PagePresenter(
   }
 
   override def handleState(state: SelectPageState.type): Unit = {}
+
+  def loadMore(): Unit = {
+
+  }
 
   def gotoSettings(): Unit = {
     application.goTo(SettingsPageState)

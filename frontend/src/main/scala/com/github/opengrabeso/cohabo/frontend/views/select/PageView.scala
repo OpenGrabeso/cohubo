@@ -27,9 +27,10 @@ class PageView(
   val s = SelectPageStyles
 
   private val settingsButton = UdashButton()(_ => "Settings")
-
+  private val nextPageButton = UdashButton()(_ => "Load more issues")
 
   buttonOnClick(settingsButton) {presenter.gotoSettings()}
+  buttonOnClick(nextPageButton) {presenter.loadMore()}
 
   def issueLink(id: ArticleIdModel) = {
     id.id.map { commentId =>
@@ -127,6 +128,8 @@ class PageView(
                 jQ(t).asInstanceOf[js.Dynamic].resizableColumns()
               }
             ),
+            hr(),
+            nextPageButton,
             hr(),
             div(
               s.useFlex0,
