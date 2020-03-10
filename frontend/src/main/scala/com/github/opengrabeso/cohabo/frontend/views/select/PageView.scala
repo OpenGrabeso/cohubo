@@ -63,9 +63,10 @@ class PageView(
       //TableFactory.TableAttrib("Parent", (ar, _, _) => ar.parentId.map(_.toString).getOrElse("").render, style = width(5, 5, 10), shortName = Some("")),
       TableFactory.TableAttrib("Article Title", (ar, _, _) =>
         // unicode characters rather than FontAwesome images, as those interacted badly with sticky table header
-        if (ar.hasChildren && ar.preview) div(span(`class`:="no-fold fold-open", "\u2299"), ar.title.render) // (.)
-        else if (ar.hasChildren) div(span(`class`:="fold-control fold-open", "\u02c5"), ar.title.render) // >
-        else div(span(`class`:= "no-fold fold-open", "\u22A1"), ar.title.render), // |.|
+        if (ar.hasChildren && ar.preview) div(span(`class` := "no-fold fold-open", "\u2299"), ar.title.render) // (.)
+        else if (ar.hasChildren && ar.indent > 0) div(span(`class` := "fold-control fold-open", "\u02c5"), ar.title.render) // v
+        else if (ar.hasChildren) div(span(`class` := "fold-control", "\u02c3"), ar.title.render) // >
+        else div(span(`class` := "no-fold fold-open", "\u22A1"), ar.title.render), // |.|
         style = widthWide(50, 50),
         modifier = Some(ar => style := s"padding-left: ${8 + ar.indent * 16}px") // item (td) style
       ),
