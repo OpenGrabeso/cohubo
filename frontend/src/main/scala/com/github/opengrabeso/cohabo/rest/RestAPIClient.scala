@@ -25,7 +25,7 @@ object RestAPIClient {
         case Left(err) =>
           throw new RestException(err)
         case Right(resp) =>
-          IssuesWithHeaders.fromString(resp, r.headers.toMap.getOrElse("link", ""))
+          IssuesWithHeaders.fromString(resp, r.headers.toMap.get("link"))
       }
     }
   }

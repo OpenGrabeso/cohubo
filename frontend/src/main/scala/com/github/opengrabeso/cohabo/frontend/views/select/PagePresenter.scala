@@ -13,7 +13,7 @@ import io.udash.rest.raw.HttpErrorException
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.annotation.tailrec
-import scala.util.Failure
+import scala.util.{Failure, Success}
 
 /** Contains the business logic of this view. */
 class PagePresenter(
@@ -93,7 +93,22 @@ class PagePresenter(
         val link = model.subProp(_.pagingUrls).get(mode)
         pageArticles(org, repo, token, link)
       case _ =>
-        initArticles(org, repo)
+        initArticles(org, repo).tap(_.onComplete {
+          case Failure(ex@HttpErrorException(code, _, _)) =>
+            if (code != 404) {
+              println(s"Error loading issues from $org/$repo: $ex")
+            }
+            repoValid(false)
+            Failure(ex)
+          case Failure(ex) =>
+            repoValid(false)
+            println(s"Error loading issues from $org/$repo: $ex")
+            Failure(ex)
+          case x =>
+            // settings valid, store them
+            SettingsModel.store(userService.properties.get)
+            repoValid(true)
+        })
     }
 
     loadIssue.foreach {issuesWithHeaders =>

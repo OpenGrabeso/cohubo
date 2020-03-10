@@ -15,18 +15,20 @@ case class IssuesWithHeaders(issues: Seq[Issue], paging: Map[String, String])
 
 object IssuesWithHeaders {
 
-  def linkHeaders(linkHeader: String): Map[String, String] = {
+  def linkHeaders(linkHeader: Option[String]): Map[String, String] = {
     // https://developer.github.com/v3/guides/traversing-with-pagination/
     /*
     Link: <https://api.github.com/search/code?q=addClass+user%3Amozilla&per_page=50&page=2>; rel="next",
     <https://api.github.com/search/code?q=addClass+user%3Amozilla&per_page=50&page=20>; rel="last"
     */
-    val extract = """<([^>]*)>; *rel="([^"]*)"""".r
-    extract.findAllMatchIn(linkHeader).map { m =>
-      m.group(2) -> m.group(1)
-    }.toMap
+    linkHeader.map { l =>
+      val extract = """<([^>]*)>; *rel="([^"]*)"""".r
+      extract.findAllMatchIn(l).map { m =>
+        m.group(2) -> m.group(1)
+      }.toMap
+    }.getOrElse(Map.empty)
   }
-  def fromString(text: String, linkHeader: String): IssuesWithHeaders = {
+  def fromString(text: String, linkHeader: Option[String]): IssuesWithHeaders = {
     val codec = implicitly[GenCodec[Seq[Issue]]]
     val input = new JsonStringInput(new JsonReader(text))
     val issues = codec.read(input)
@@ -37,7 +39,7 @@ object IssuesWithHeaders {
 
   implicit def asResponse(implicit fromBody: AsReal[HttpBody, Seq[Issue]]): AsReal[RestResponse, IssuesWithHeaders] = AsReal.create {
     resp =>
-      IssuesWithHeaders(fromBody.asReal(resp.body), linkHeaders(resp.headers("link").value))
+      IssuesWithHeaders(fromBody.asReal(resp.body), linkHeaders(resp.headers.lift("link").map(_.value)))
   }
   // note: if OpenAPI is required, we should implement restResponses
 }
