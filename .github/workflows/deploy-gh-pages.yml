@@ -17,12 +17,12 @@ jobs:
           java-version: 1.8
       - name: Build
         run: |
-          sbt products
+          sbt frontend/fullOptJS
           mkdir public
-          cp frontend/target/scala-2.12/*.js public/.
-          cp frontend/target/scala-2.12/*.html public/.
+          cp frontend/target/scala-2.12/*-opt.js public/.
+          cp frontend/target/scala-2.12/*-jsdeps.js public/.
+          cp frontend/target/scala-2.12/index.html public/.
           cp frontend/target/scala-2.12/*.css public/.
-          mv public/index-fast.html public/index.html
       - name: Deploy
         if: success()
         uses: crazy-max/ghaction-github-pages@v1
