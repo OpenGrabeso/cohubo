@@ -3,6 +3,8 @@ package frontend
 package views
 package select
 
+import java.time.ZonedDateTime
+
 import rest.{DataWithHeaders, RestAPIClient}
 import dataModel._
 import common.model._
@@ -216,13 +218,25 @@ class PagePresenter(
     userService.call(_.notifications.get(all = true)).foreach { notifications =>
       println(notifications)
     }
-     */
-    println(s"lastNotifications $lastNotifications")
-    userService.call(_.repos(org, repo).notifications(ifModifiedSince = lastNotifications.orNull, all = true)).map { notifications =>
-      println(notifications.data.size)
-      println(notifications)
+    */
+    userService.call(_.repos(org, repo).notifications(ifModifiedSince = lastNotifications.orNull, all = false)).map { notifications =>
+      // TODO:  we need paging if there are many notifications
+      println("Notifications " + notifications.data.size)
       lastNotifications = notifications.lastModified orElse lastNotifications
-      println(s"  lastNotifications $lastNotifications")
+      model.subProp(_.unreadInfo) set notifications.data.filter(_.unread).flatMap{ n =>
+        //println(s"Unread ${n.subject}")
+        //println(s"  last_read_at ${n.last_read_at}, updated_at: ${n.updated_at}")
+        // URL is like: https://api.github.com/repos/gamatron/colabo/issues/26
+        val Number = ".*/issues/([0-9]+)".r
+        val issueNumber = n.subject.url match {
+          case Number(number) =>
+            Seq(number.toLong)
+          case _ =>
+            Seq.empty
+        }
+        issueNumber.map(_ -> UnreadInfo(n.updated_at, n.last_read_at))
+      }.toMap
+
     }.failed.foreach { ex =>
       println(s"Nofifications failed $ex")
 

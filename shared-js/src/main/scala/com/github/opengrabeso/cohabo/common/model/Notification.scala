@@ -8,7 +8,7 @@ import rest.EnhancedRestDataCompanion
 case class Notification(
   id: String,
   repository: Repository,
-  //subject: String,
+  subject: Subject,
   reason: String,
   unread: Boolean,
   updated_at: ZonedDateTime,

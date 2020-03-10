@@ -4,6 +4,7 @@ package frontend.views
 import common.css._
 import io.udash._
 import io.udash.bindings.modifiers.Binding.NestedInterceptor
+import io.udash.css._
 import org.scalajs.dom.{Element, Event, Node}
 import io.udash.css.CssView._
 import io.udash.properties.ModelPropertyCreator
@@ -42,7 +43,8 @@ object TableFactory {
   ): (CastableProperty[ItemType], NestedInterceptor) => Element = { (el,_) =>
     val level = indent(el.get)
     val row = tr(
-      `class` := s.tr.className + " table-fold",
+      CssStyleName(s.tr.className),
+      CssStyleName("table-fold"),
       produceWithNested(el) { (ha, nested) =>
         attribs.flatMap { a =>
           // existing but empty shortName means the column should be hidden on narrow view

@@ -74,7 +74,11 @@ object SelectPageStyles extends CssBase {
     ),
     &.hover.attrContains("class", "selected") (
       backgroundColor(c"#A0D0E0")
-    )
+    ),
+    unsafeChild("div.unread") {
+      // TODO: stronger highlight?
+      fontWeight.bold
+    }
   )
 
   val cell = mixin(
