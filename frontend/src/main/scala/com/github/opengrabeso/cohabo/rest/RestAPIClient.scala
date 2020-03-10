@@ -1,6 +1,7 @@
 package com.github.opengrabeso.cohabo
 package rest
 
+import com.avsystem.commons.serialization.GenCodec
 import common.model._
 import com.softwaremill.sttp._
 import io.udash.rest.{RestException, SttpRestClient}
@@ -17,7 +18,7 @@ object RestAPIClient {
   def apply(): RestAPI = api
 
   // used for issue paging
-  def requestIssues(uri: String, token: String): Future[DataWithHeaders[Seq[Issue]]] = {
+  def requestPage[T: GenCodec](uri: String, token: String): Future[DataWithHeaders[T]] = {
     println(s"requestIssues $uri")
     val request = sttp.method(Method.GET, uri"$uri").auth.bearer(token)
 
@@ -27,7 +28,7 @@ object RestAPIClient {
           throw new RestException(err)
         case Right(resp) =>
           val headers = r.headers.toMap
-          EnhancedRestImplicits.fromString[Seq[Issue]](resp, headers.get("link"), headers.get("last-modified"))
+          EnhancedRestImplicits.fromString[T](resp, headers.get("link"), headers.get("last-modified"))
       }
     }
   }

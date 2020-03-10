@@ -84,7 +84,7 @@ class PagePresenter(
   }
 
   def pageArticles(org: String, repo: String, token: String, link: String): Future[DataWithHeaders[Seq[Issue]]] = {
-    RestAPIClient.requestIssues(link, userService.properties.subProp(_.token).get)
+    RestAPIClient.requestPage[Seq[Issue]](link, userService.properties.subProp(_.token).get)
   }
 
   def loadArticlesPage(token: String, org: String, repo: String, mode: String): Unit = {
