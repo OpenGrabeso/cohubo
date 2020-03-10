@@ -88,7 +88,7 @@ class PagePresenter(
   }
 
   def loadArticlesPage(token: String, org: String, repo: String, mode: String): Unit = {
-    val loadA = mode match {
+    val loadIssue = mode match {
       case "next" =>
         val link = model.subProp(_.pagingUrls).get(mode)
         pageArticles(org, repo, token, link)
@@ -96,11 +96,10 @@ class PagePresenter(
         initArticles(org, repo)
     }
 
-    val load = loadA.flatMap {isH =>
-      println(s"Set paging as ${isH.paging}")
-      model.subProp(_.pagingUrls).set(isH.paging)
+    loadIssue.foreach {issuesWithHeaders =>
+      model.subProp(_.pagingUrls).set(issuesWithHeaders.paging)
 
-      val is = isH.issues
+      val is = issuesWithHeaders.issues
 
       val issuesOrdered = is.sortBy(_.updated_at).reverse
 
@@ -108,9 +107,7 @@ class PagePresenter(
       val preview = issuesOrdered.map { id =>
 
         val p = ArticleIdModel(org, repo, id.number, None)
-        val issue = ArticleRowModel(p, id.comments > 0, true, 0, id.title, id.body, Option(id.milestone).map(_.title), id.user.displayName, id.updated_at)
-        // consider adding some comments placeholder?
-        issue
+        ArticleRowModel(p, id.comments > 0, true, 0, id.title, id.body, Option(id.milestone).map(_.title), id.user.displayName, id.updated_at)
       }
 
 
@@ -119,99 +116,79 @@ class PagePresenter(
       }
       model.subProp(_.loading).set(false)
 
-      val requestComments = issuesOrdered.map { i =>
+      issuesOrdered.map { id => // parent issue
         userService.call { api =>
-          api.repos(org, repo).issuesAPI(i.number).comments.map(i -> _)
-        }
-      }
-      Future.sequence(requestComments)
-    }.transform {
-      case Failure(ex@HttpErrorException(code, _, _)) =>
-        if (code != 404) {
-          println(s"Error loading issues from $org/$repo: $ex")
-        }
-        repoValid(false)
-        Failure(ex)
-      case Failure(ex) =>
-        repoValid(false)
-        println(s"Error loading issues from $org/$repo: $ex")
-        Failure(ex)
-      case x =>
-        // settings valid, store them
-        SettingsModel.store(userService.properties.get)
-        repoValid(true)
-        x
-    }
+          api.repos(org, repo).issuesAPI(id.number).comments.map { comments => // the comments
 
-    for (issues <- load) {
-      val log = false
+            val log = false
 
-      val allIssues = issues.flatMap { case (id, comments) =>
+            val p = ArticleIdModel(org, repo, id.number, None)
 
-        val p = ArticleIdModel(org, repo, id.number, None)
+            val issue = ArticleRowModel(p, false, false, 0, id.title, id.body, Option(id.milestone).map(_.title), id.user.displayName, id.updated_at)
+            val issueWithComments = issue +: comments.zipWithIndex.map { case (i, index) =>
+              val articleId = ArticleIdModel(org, repo, id.number, Some((index + 1, i.id)))
+              ArticleRowModel(articleId, false, false, 0, bodyAbstract(i.body), i.body, None, i.user.displayName, i.updated_at)
+            }
 
-        val issue = ArticleRowModel(p, false, false, 0, id.title, id.body, Option(id.milestone).map(_.title), id.user.displayName, id.updated_at)
-        val issueWithComments = issue +: comments.zipWithIndex.map { case (i, index) =>
-          val articleId = ArticleIdModel(org, repo, id.number, Some((index + 1, i.id)))
-          ArticleRowModel(articleId, false, false, 0, bodyAbstract(i.body), i.body, None, i.user.displayName, i.updated_at)
-        }
+            val fromEnd = issueWithComments.reverse
 
-        val fromEnd = issueWithComments.reverse
-
-        def findByQuote(quote: String, previousFromEnd: List[ArticleRowModel]) = {
-          previousFromEnd.filter { i =>
-            val withoutQuotes = removeQuotes(i.body)
-            withoutQuotes.exists(_.contains(quote))
-          }
-        }
-
-        @tailrec
-        def processLast(todo: List[ArticleRowModel], doneChildren: List[(ArticleRowModel, ArticleRowModel)]): List[(ArticleRowModel, ArticleRowModel)] = {
-          todo match {
-            case head :: tail =>
-              // take last article, find its parent in the original order (check quotes TODO: check references)
-              val quotes = extractQuotes(head.body)
-              if (log) println(s"quotes ${quotes.toArray.mkString("[", ",", "]")}")
-              val byQuote = quotes.map(findByQuote(_, tail)).filter(_.nonEmpty)
-              if (byQuote.nonEmpty) {
-                if (log) println(s"byQuote ${byQuote.map(_.map(_.id)).toVector}")
-                // try to find an intersection (article containing all quotes)
-                val allQuotes = byQuote.tail.foldLeft(byQuote.head) { (all, withQuote) =>
-                  all.intersect(withQuote)
-                }
-                // if there is no common intersection, use just the first quote
-                val fallback = if (allQuotes.isEmpty) byQuote.head.headOption.toSeq else allQuotes
-                val parent = if (fallback.nonEmpty) fallback.headOption else tail.headOption
-                processLast(tail, parent.map(_ -> head).toList ++ doneChildren)
-              } else {
-                // when nothing is found, take previous article
-                processLast(tail, tail.headOption.map(_ -> head).toList ++ doneChildren)
+            def findByQuote(quote: String, previousFromEnd: List[ArticleRowModel]) = {
+              previousFromEnd.filter { i =>
+                val withoutQuotes = removeQuotes(i.body)
+                withoutQuotes.exists(_.contains(quote))
               }
+            }
 
-            case _ =>
-              doneChildren
+            @tailrec
+            def processLast(todo: List[ArticleRowModel], doneChildren: List[(ArticleRowModel, ArticleRowModel)]): List[(ArticleRowModel, ArticleRowModel)] = {
+              todo match {
+                case head :: tail =>
+                  // take last article, find its parent in the original order (check quotes TODO: check references)
+                  val quotes = extractQuotes(head.body)
+                  if (log) println(s"quotes ${quotes.toArray.mkString("[", ",", "]")}")
+                  val byQuote = quotes.map(findByQuote(_, tail)).filter(_.nonEmpty)
+                  if (byQuote.nonEmpty) {
+                    if (log) println(s"byQuote ${byQuote.map(_.map(_.id)).toVector}")
+                    // try to find an intersection (article containing all quotes)
+                    val allQuotes = byQuote.tail.foldLeft(byQuote.head) { (all, withQuote) =>
+                      all.intersect(withQuote)
+                    }
+                    // if there is no common intersection, use just the first quote
+                    val fallback = if (allQuotes.isEmpty) byQuote.head.headOption.toSeq else allQuotes
+                    val parent = if (fallback.nonEmpty) fallback.headOption else tail.headOption
+                    processLast(tail, parent.map(_ -> head).toList ++ doneChildren)
+                  } else {
+                    // when nothing is found, take previous article
+                    processLast(tail, tail.headOption.map(_ -> head).toList ++ doneChildren)
+                  }
+
+                case _ =>
+                  doneChildren
+              }
+            }
+            if (log) println(s"fromEnd ${fromEnd.map(_.body)}")
+            val childrenOf = processLast(fromEnd.toList, Nil).groupBy(_._1).mapValues(_.map(_._2))
+            if (log) println(s"root $issue")
+            if (log) println(s"childrenOf ${childrenOf.map { case (k, v) => k.id -> v.map(_.id) }}")
+            def traverseDepthFirst(i: ArticleRowModel, level: Int): List[ArticleRowModel] = {
+              if (log) println("  " * level + i.body)
+              val children = childrenOf.get(i).toList.flatten
+              i.copy(indent = level, hasChildren = children.nonEmpty) :: children.flatMap(traverseDepthFirst(_, level + 1))
+            }
+            val hierarchyWithComments = traverseDepthFirst(issue, 0).tap { h =>
+              if (log) println(s"Hierarchy ${h.map(_.id)}")
+            }
+
+            model.subProp(_.articles).tap { a =>
+              // replace the one we have loaded
+              a.set(a.get.flatMap(r => if (r.id.issueNumber == id.number) hierarchyWithComments else Seq(r)))
+            }
+
+
           }
         }
-        if (log) println(s"fromEnd ${fromEnd.map(_.body)}")
-        val childrenOf = processLast(fromEnd.toList, Nil).groupBy(_._1).mapValues(_.map(_._2))
-        if (log) println(s"root $issue")
-        if (log) println(s"childrenOf ${childrenOf.map { case (k, v) => k.id -> v.map(_.id) }}")
-        def traverseDepthFirst(i: ArticleRowModel, level: Int): List[ArticleRowModel] = {
-          if (log) println("  " * level + i.body)
-          val children = childrenOf.get(i).toList.flatten
-          i.copy(indent = level, hasChildren = children.nonEmpty) :: children.flatMap(traverseDepthFirst(_, level + 1))
-        }
-        traverseDepthFirst(issue, 0).tap { h =>
-          if (log) println(s"Hierarchy ${h.map(_.id)}")
-        }
       }
 
-      val loadedNumbers = issues.map(_._1.number).toSet
-      model.subProp(_.articles).tap { a =>
-        a.set(a.get.filterNot(r => loadedNumbers.contains(r.id.issueNumber)) ++ allIssues)
-      }
-
-      model.subProp(_.loading).set(false)
     }
 
   }
