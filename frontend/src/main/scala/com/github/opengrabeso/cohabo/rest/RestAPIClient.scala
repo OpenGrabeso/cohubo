@@ -1,6 +1,7 @@
 package com.github.opengrabeso.cohabo
 package rest
 
+import common.model._
 import com.softwaremill.sttp._
 import io.udash.rest.{RestException, SttpRestClient}
 
@@ -16,7 +17,7 @@ object RestAPIClient {
   def apply(): RestAPI = api
 
   // used for issue paging
-  def requestIssues(uri: String, token: String): Future[IssuesWithHeaders] = {
+  def requestIssues(uri: String, token: String): Future[DataWithHeaders[Seq[Issue]]] = {
     println(s"requestIssues $uri")
     val request = sttp.method(Method.GET, uri"$uri").auth.bearer(token)
 
@@ -25,7 +26,7 @@ object RestAPIClient {
         case Left(err) =>
           throw new RestException(err)
         case Right(resp) =>
-          IssuesWithHeaders.fromString(resp, r.headers.toMap.get("link"))
+          EnhancedRestImplicits.fromString[Seq[Issue]](resp, r.headers.toMap.get("link"))
       }
     }
   }

@@ -3,7 +3,7 @@ package frontend
 package views
 package select
 
-import rest.{IssuesWithHeaders, RestAPIClient}
+import rest.{DataWithHeaders, RestAPIClient}
 import dataModel._
 import common.model._
 import common.Util._
@@ -79,11 +79,11 @@ class PagePresenter(
   }
 
 
-  def initArticles(org: String, repo: String): Future[IssuesWithHeaders] = {
+  def initArticles(org: String, repo: String): Future[DataWithHeaders[Seq[Issue]]] = {
     userService.call(_.repos(org, repo).issues())
   }
 
-  def pageArticles(org: String, repo: String, token: String, link: String): Future[IssuesWithHeaders] = {
+  def pageArticles(org: String, repo: String, token: String, link: String): Future[DataWithHeaders[Seq[Issue]]] = {
     RestAPIClient.requestIssues(link, userService.properties.subProp(_.token).get)
   }
 
@@ -114,7 +114,7 @@ class PagePresenter(
     loadIssue.foreach {issuesWithHeaders =>
       model.subProp(_.pagingUrls).set(issuesWithHeaders.paging)
 
-      val is = issuesWithHeaders.issues
+      val is = issuesWithHeaders.data
 
       val issuesOrdered = is.sortBy(_.updated_at).reverse
 
