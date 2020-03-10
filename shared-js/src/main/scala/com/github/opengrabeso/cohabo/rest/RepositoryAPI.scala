@@ -11,6 +11,10 @@ trait RepositoryAPI {
   @GET
   def issues(state: String = "open", @transientDefault creator: String = null): Future[DataWithHeaders[Seq[Issue]]]
 
+  @GET
+  def notifications: Future[DataWithHeaders[Seq[Notification]]]
+
+
   @Prefix("issues")
   def issuesAPI(number: Long): IssuesAPI
 }

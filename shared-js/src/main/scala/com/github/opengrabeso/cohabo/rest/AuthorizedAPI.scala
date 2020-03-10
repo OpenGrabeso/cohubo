@@ -12,6 +12,9 @@ trait AuthorizedAPI {
 
   def repos(owner: String, repo: String): RepositoryAPI
 
+
+  def notifications: NotificationsAPI
+
   @Prefix("")
   def markdown: MarkdownAPI
 
