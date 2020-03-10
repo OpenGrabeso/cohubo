@@ -1,6 +1,8 @@
 package com.github.opengrabeso.cohabo
 package rest
 
+import java.time.ZonedDateTime
+
 import com.avsystem.commons.serialization._
 
 import scala.concurrent.Future
@@ -12,7 +14,12 @@ trait RepositoryAPI {
   def issues(state: String = "open", @transientDefault creator: String = null): Future[DataWithHeaders[Seq[Issue]]]
 
   @GET
-  def notifications: Future[DataWithHeaders[Seq[Notification]]]
+  def notifications(
+    @transientDefault all: Boolean = false,
+    @transientDefault participating: Boolean = false,
+    @transientDefault since: ZonedDateTime = null,
+    @transientDefault before: ZonedDateTime = null
+  ): Future[DataWithHeaders[Seq[Notification]]]
 
 
   @Prefix("issues")

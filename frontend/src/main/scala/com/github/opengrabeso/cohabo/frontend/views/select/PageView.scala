@@ -5,7 +5,7 @@ package select
 
 import common.css._
 import io.udash._
-import io.udash.bootstrap.button.UdashButton
+import io.udash.bootstrap.button._
 import io.udash.bootstrap.table.UdashTable
 import io.udash.bootstrap.form.UdashForm
 import io.udash.css._
@@ -28,9 +28,11 @@ class PageView(
 
   private val settingsButton = UdashButton()(_ => "Settings")
   private val nextPageButton = button(model.subProp(_.pagingUrls).transform(_.isEmpty), "Load more issues".toProperty)
+  private val refreshNotifications = button(false.toProperty, "Refresh notifications".toProperty)
 
   buttonOnClick(settingsButton) {presenter.gotoSettings()}
   buttonOnClick(nextPageButton) {presenter.loadMore()}
+  buttonOnClick(refreshNotifications) {presenter.refreshNotifications()}
 
   def issueLink(id: ArticleIdModel) = {
     id.id.map { commentId =>
@@ -130,7 +132,15 @@ class PageView(
               }
             ),
             hr(),
-            nextPageButton,
+
+            UdashButtonToolbar()(
+              UdashButtonGroup()(
+                nextPageButton.render,
+                refreshNotifications.render
+              ).render
+
+            ).render,
+
             hr(),
             div(
               s.useFlex0,

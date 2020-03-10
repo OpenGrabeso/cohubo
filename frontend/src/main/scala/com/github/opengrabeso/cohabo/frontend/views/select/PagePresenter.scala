@@ -90,8 +90,11 @@ class PagePresenter(
   def loadArticlesPage(token: String, org: String, repo: String, mode: String): Unit = {
     val loadIssue = mode match {
       case "next" =>
-        val link = model.subProp(_.pagingUrls).get(mode)
-        pageArticles(org, repo, token, link)
+        model.subProp(_.pagingUrls).get.get(mode).map { link =>
+          pageArticles(org, repo, token, link)
+        }.getOrElse {
+          Future.successful(DataWithHeaders(Nil, Map.empty))
+        }
       case _ =>
         initArticles(org, repo).tap(_.onComplete {
           case Failure(ex@HttpErrorException(code, _, _)) =>
@@ -208,6 +211,23 @@ class PagePresenter(
 
   }
 
+  def loadNotifications(token: String, org: String, repo: String): Unit  = {
+    /*
+    userService.call(_.notifications.get(all = true)).foreach { notifications =>
+      println(notifications)
+    }
+     */
+    userService.call(_.repos(org, repo).notifications(all = true)).map { notifications =>
+      println(notifications.data.size)
+      println(notifications)
+    }.failed.foreach { ex =>
+      println(s"Nofifications failed $ex")
+
+    }
+  }
+
+
+
   def loadArticles(): Unit = {
     // install the handler
     sourceParameters.listen(
@@ -215,6 +235,7 @@ class PagePresenter(
         model.subProp(_.loading).set(true)
         model.subProp(_.articles).set(Seq.empty)
         loadArticlesPage(token, org, repo, "init")
+        loadNotifications(token, org, repo)
       }, initUpdate = true
     )
   }
@@ -224,6 +245,14 @@ class PagePresenter(
   def loadMore(): Unit = {
     val ((token, owner), repo) = sourceParameters.get
     loadArticlesPage(token, owner, repo, "next")
+  }
+
+  def refreshNotifications(): Unit = {
+    println("refreshNotifications")
+    sourceParameters.get.tap {
+      case ((token, org), repo) =>
+        loadNotifications(token, org, repo)
+    }
   }
 
   def gotoSettings(): Unit = {

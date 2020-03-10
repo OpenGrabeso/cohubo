@@ -6,14 +6,15 @@ import java.time.ZonedDateTime
 import rest.EnhancedRestDataCompanion
 
 case class Notification(
-  id: Long,
+  id: String,
   repository: Repository,
-  subject: String,
+  //subject: String,
   reason: String,
   unread: Boolean,
   updated_at: ZonedDateTime,
   last_read_at: ZonedDateTime,
-  url: String
+  url: String,
+  subscription_url: String
 )
 
 object Notification extends EnhancedRestDataCompanion[Notification]

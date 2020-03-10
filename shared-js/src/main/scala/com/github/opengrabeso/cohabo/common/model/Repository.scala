@@ -7,7 +7,7 @@ import rest.EnhancedRestDataCompanion
 
 case class Repository(
   name: String,
-  fullName: String,
+  full_name: String,
   owner: User,
   html_url: String,
   description: String,
