@@ -3,6 +3,7 @@ package frontend
 package views
 package select
 
+import rest.{IssuesWithHeaders, RestAPIClient}
 import dataModel._
 import common.model._
 import common.Util._
@@ -11,7 +12,6 @@ import io.udash._
 import io.udash.rest.raw.HttpErrorException
 
 import scala.concurrent.{ExecutionContext, Future}
-
 import scala.annotation.tailrec
 import scala.util.Failure
 
@@ -21,6 +21,8 @@ class PagePresenter(
   application: Application[RoutingState],
   userService: services.UserContextService
 )(implicit ec: ExecutionContext) extends Presenter[SelectPageState.type] {
+  def props = userService.properties
+  val sourceParameters = props.subProp(_.token).combine(props.subProp(_.organization))(_ -> _).combine(props.subProp(_.repository))(_ -> _)
 
   model.subProp(_.selectedArticleId).listen { id =>
     val sel = model.subProp(_.articles).get.find(id contains _.id)
@@ -72,76 +74,53 @@ class PagePresenter(
     text.linesIterator.filter(_.startsWith(">")).map(_.drop(1).trim).filter(_.nonEmpty).toSeq
   }
 
-  def repoValid(valid: Boolean) = {
+  def repoValid(valid: Boolean): Unit = {
     model.subProp(_.repoError).set(!valid)
   }
 
-  def loadActivities() = {
 
-    val props = userService.properties
-    val sourceParameters = props.subProp(_.token).combine(props.subProp(_.organization))(_ -> _).combine(props.subProp(_.repository))(_ -> _)
+  def initArticles(org: String, repo: String): Future[IssuesWithHeaders] = {
+    userService.call(_.repos(org, repo).issues())
+  }
 
-    // install the handler
-    sourceParameters.listen(
-      { case ((token, org), repo) =>
-        val load = userService.call { api =>
-          val repoAPI = api.repos(org, repo)
-          val issues = repoAPI.issues()
+  def pageArticles(org: String, repo: String, token: String, link: String): Future[IssuesWithHeaders] = {
+    RestAPIClient.requestIssues(link, userService.properties.subProp(_.token).get)
+  }
 
-          issues.flatMap { is =>
+  def loadArticlesPage(token: String, org: String, repo: String, mode: String): Unit = {
+    val loadIssue = mode match {
+      case "next" =>
+        val link = model.subProp(_.pagingUrls).get(mode)
+        pageArticles(org, repo, token, link)
+      case _ =>
+        initArticles(org, repo)
+    }
 
-            val issuesOrdered = is.sortBy(_.updated_at).reverse
+    loadIssue.foreach {issuesWithHeaders =>
+      model.subProp(_.pagingUrls).set(issuesWithHeaders.paging)
 
-            // preview the issues
-            val preview = issuesOrdered.map { id =>
+      val is = issuesWithHeaders.issues
 
-              val p = ArticleIdModel(org, repo, id.number, None)
-              val issue = ArticleRowModel(p, id.comments > 0, true, 0, id.title, id.body, Option(id.milestone).map(_.title), id.user.displayName, id.updated_at)
-              // consider adding some comments placeholder?
-              issue
-            }
+      val issuesOrdered = is.sortBy(_.updated_at).reverse
 
-            model.subProp(_.articles).set(preview)
-            model.subProp(_.loading).set(false)
+      // preview the issues
+      val preview = issuesOrdered.map { id =>
 
-            // issue requests one by one
-            // TODO: some parallel requester
-            def requestNext(todo: List[Issue], done: List[(Issue, Seq[Comment])]): Future[List[(Issue, Seq[Comment])]] = {
-              todo match {
-                case head :: tail =>
-                  repoAPI.issuesAPI(head.number).comments.map { cs =>
-                    (head -> cs) :: done
-                  }.flatMap { d =>
-                    requestNext(tail, d)
-                  }
-                case _ =>
-                  Future.successful(done)
-              }
-            }
-            requestNext(issuesOrdered.toList, Nil).map(_.reverse)
-          }.transform {
-            case Failure(ex@HttpErrorException(code, _, _)) =>
-              if (code != 404) {
-                println("Error loading issues from $org/$repo: $ex")
-              }
-              repoValid(false)
-              Failure(ex)
-            case Failure(ex) =>
-              repoValid(false)
-              println("Error loading issues from $org/$repo: $ex")
-              Failure(ex)
-            case x =>
-              // settings valid, store them
-              SettingsModel.store(userService.properties.get)
-              repoValid(true)
-              x
-          }
-        }
+        val p = ArticleIdModel(org, repo, id.number, None)
+        ArticleRowModel(p, id.comments > 0, true, 0, id.title, id.body, Option(id.milestone).map(_.title), id.user.displayName, id.updated_at)
+      }
 
-        for (issues <- load) {
-          val log = false
 
-          val allIssues = issues.flatMap { case (id, comments) =>
+      model.subProp(_.articles).tap { a =>
+        a.set(a.get ++ preview)
+      }
+      model.subProp(_.loading).set(false)
+
+      issuesOrdered.map { id => // parent issue
+        userService.call { api =>
+          api.repos(org, repo).issuesAPI(id.number).comments.map { comments => // the comments
+
+            val log = false
 
             val p = ArticleIdModel(org, repo, id.number, None)
 
@@ -196,50 +175,40 @@ class PagePresenter(
               val children = childrenOf.get(i).toList.flatten
               i.copy(indent = level, hasChildren = children.nonEmpty) :: children.flatMap(traverseDepthFirst(_, level + 1))
             }
-            traverseDepthFirst(issue, 0).tap { h =>
+            val hierarchyWithComments = traverseDepthFirst(issue, 0).tap { h =>
               if (log) println(s"Hierarchy ${h.map(_.id)}")
             }
+
+            model.subProp(_.articles).tap { a =>
+              // replace the one we have loaded
+              a.set(a.get.flatMap(r => if (r.id.issueNumber == id.number) hierarchyWithComments else Seq(r)))
+            }
+
+
           }
-
-
-          model.subProp(_.articles).set(allIssues)
-
-          model.subProp(_.loading).set(false)
         }
+      }
+
+    }
+
+  }
+
+  def loadArticles(): Unit = {
+    // install the handler
+    sourceParameters.listen(
+      { case ((token, org), repo) =>
+        model.subProp(_.loading).set(true)
+        model.subProp(_.articles).set(Seq.empty)
+        loadArticlesPage(token, org, repo, "init")
       }, initUpdate = true
     )
   }
 
   override def handleState(state: SelectPageState.type): Unit = {}
 
-  def uploadNewActivity() = {
-    /*
-    val selectedFiles = model.subSeq(_.uploads.selectedFiles).get
-
-    val userId = userService.userId.get
-
-    val uploader = new FileUploader(Url(s"/rest/user/$userId/upload"))
-    val uploadModel = uploader.upload("files", selectedFiles, extraData = Map(("timezone":js.Any) -> (TimeFormatting.timezone:js.Any)))
-    uploadModel.listen { p =>
-      model.subProp(_.uploads.state).set(p)
-      for {
-        response <- p.response
-        responseJson <- response.text
-      } {
-        val activities = JsonUtils.read[Seq[ActivityHeader]](responseJson)
-        // insert the activities into the list
-        model.subProp(_.activities).set {
-          val oldAct = model.subProp(_.activities).get
-          val newAct = activities.filterNot(a => oldAct.exists(_.staged.exists(_.id == a.id)))
-          val all = oldAct ++ newAct.map { a=>
-            println(s"Add $a")
-            ActivityRow(Some(a), None, selected = true)
-          }
-          all.sortBy(a => a.staged.orElse(a.strava).get.id.startTime)
-        }
-      }
-    }
-   */
+  def loadMore(): Unit = {
+    val ((token, owner), repo) = sourceParameters.get
+    loadArticlesPage(token, owner, repo, "next")
   }
 
   def gotoSettings(): Unit = {

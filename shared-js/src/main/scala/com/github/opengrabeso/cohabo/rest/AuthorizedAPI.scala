@@ -19,4 +19,4 @@ trait AuthorizedAPI {
   def rate_limit: Future[RateLimits]
 }
 
-object AuthorizedAPI extends RestApiCompanion[EnhancedRestImplicits,AuthorizedAPI](EnhancedRestImplicits)
+object AuthorizedAPI extends RestClientApiCompanion[EnhancedRestImplicits,AuthorizedAPI](EnhancedRestImplicits)

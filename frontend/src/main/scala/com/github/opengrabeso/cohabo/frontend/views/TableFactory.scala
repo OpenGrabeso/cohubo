@@ -55,6 +55,7 @@ object TableFactory {
         }
       },
 
+      if (level > 0) Seq[Modifier](style := "display: none") else Seq.empty[Modifier],
       attr("data-depth") := level,
 
       onclick :+= { e: Event =>

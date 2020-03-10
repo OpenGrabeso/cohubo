@@ -20,7 +20,7 @@ class PageViewFactory(
 
     val view = new PageView(model, presenter, userService.properties)
 
-    presenter.loadActivities()
+    presenter.loadArticles()
 
     (view, presenter)
   }

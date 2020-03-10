@@ -15,6 +15,7 @@ case class PageModel(
   selectedArticleParent: Option[ArticleRowModel] = None,
   selectedArticle: Option[ArticleRowModel] = None,
   articleContent: String = "",
+  pagingUrls: Map[String, String] = Map.empty,
   error: Option[Throwable] = None
 )
 
