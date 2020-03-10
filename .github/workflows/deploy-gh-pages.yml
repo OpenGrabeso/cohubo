@@ -17,7 +17,8 @@ jobs:
           java-version: 1.8
       - name: Build
         run: |
-          sbt frontend/fullOptJS
+          # call products to make sure css is built
+          sbt products frontend/fullOptJS
           mkdir public
           cp frontend/target/scala-2.12/*-opt.js public/.
           cp frontend/target/scala-2.12/*-jsdeps.js public/.
