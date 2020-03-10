@@ -119,23 +119,12 @@ class PagePresenter(
       }
       model.subProp(_.loading).set(false)
 
-      // issue requests one by one
-      // TODO: some parallel or lazy requester
-      def requestNext(todo: List[Issue], done: List[(Issue, Seq[Comment])]): Future[List[(Issue, Seq[Comment])]] = {
-        todo match {
-          case head :: tail =>
-            userService.call { api =>
-              api.repos(org, repo).issuesAPI(head.number).comments.map { cs =>
-                (head -> cs) :: done
-              }.flatMap { d =>
-                requestNext(tail, d)
-              }
-            }
-          case _ =>
-            Future.successful(done)
+      val requestComments = issuesOrdered.map { i =>
+        userService.call { api =>
+          api.repos(org, repo).issuesAPI(i.number).comments.map(i -> _)
         }
       }
-      requestNext(issuesOrdered.toList, Nil).map(_.reverse)
+      Future.sequence(requestComments)
     }.transform {
       case Failure(ex@HttpErrorException(code, _, _)) =>
         if (code != 404) {
