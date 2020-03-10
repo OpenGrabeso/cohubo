@@ -26,7 +26,8 @@ object RestAPIClient {
         case Left(err) =>
           throw new RestException(err)
         case Right(resp) =>
-          EnhancedRestImplicits.fromString[Seq[Issue]](resp, r.headers.toMap.get("link"))
+          val headers = r.headers.toMap
+          EnhancedRestImplicits.fromString[Seq[Issue]](resp, headers.get("link"), headers.get("last-modified"))
       }
     }
   }

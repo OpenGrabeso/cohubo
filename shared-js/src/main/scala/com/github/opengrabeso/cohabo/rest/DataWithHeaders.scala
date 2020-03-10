@@ -7,7 +7,7 @@ import com.avsystem.commons.serialization.json.{JsonReader, JsonStringInput}
 import common.model._
 import io.udash.rest.raw.{HttpBody, RestResponse}
 
-case class DataWithHeaders[T](data: T, paging: Map[String, String])
+case class DataWithHeaders[T](data: T, paging: Map[String, String], lastModified: Option[String])
 
 object DataWithHeaders {
 
@@ -26,18 +26,29 @@ object DataWithHeaders {
         }.toMap
       }.getOrElse(Map.empty)
     }
-    def fromString[T: GenCodec](text: String, linkHeader: Option[String]): DataWithHeaders[T] = {
+    def fromString[T: GenCodec](text: String, linkHeader: Option[String], lastModifiedHeader: Option[String]): DataWithHeaders[T] = {
       val codec = implicitly[GenCodec[T]]
       val input = new JsonStringInput(new JsonReader(text))
       val issues = codec.read(input)
 
-      DataWithHeaders(issues, linkHeaders(linkHeader))
+      DataWithHeaders(issues, linkHeaders(linkHeader), lastModifiedHeader)
     }
 
 
     implicit def asResponse[T](implicit fromBody: AsReal[HttpBody, Seq[T]]): AsReal[RestResponse, DataWithHeaders[Seq[T]]] = AsReal.create {
       resp =>
-        DataWithHeaders(fromBody.asReal(resp.body), linkHeaders(resp.headers.lift("link").map(_.value)))
+        val data = resp.code match {
+          case 304 => // Not Modified
+            Seq.empty
+          case _ =>
+            fromBody.asReal(resp.body)
+        }
+        DataWithHeaders(
+          data,
+          linkHeaders(resp.headers.lift("link").map(_.value)),
+          resp.headers.lift("last-modified").map(_.value)
+        )
+
     }
     // note: if OpenAPI is required, we should implement restResponses
   }

@@ -15,6 +15,7 @@ trait RepositoryAPI {
 
   @GET
   def notifications(
+    @transientDefault @Header("If-Modified-Since") ifModifiedSince: String = null,
     @transientDefault all: Boolean = false,
     @transientDefault participating: Boolean = false,
     @transientDefault since: ZonedDateTime = null,
