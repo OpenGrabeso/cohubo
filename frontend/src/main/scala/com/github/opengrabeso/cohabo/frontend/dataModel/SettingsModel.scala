@@ -13,9 +13,9 @@ object SettingsModel extends HasModelPropertyCreator[SettingsModel] {
   val ls = dom.window.localStorage
   val ss = dom.window.sessionStorage
   val values = Map[String, (SettingsModel => String, (SettingsModel, String) => SettingsModel)](
-    "token" -> (_.token, (m, s) => m.copy(token = s)),
-    "organization" -> (_.organization, (m, s) => m.copy(organization = s)),
-    "repository" -> (_.repository, (m, s) => m.copy(repository = s))
+    "cohubo.token" -> (_.token, (m, s) => m.copy(token = s)),
+    "cohubo.organization" -> (_.organization, (m, s) => m.copy(organization = s)),
+    "cohubo.repository" -> (_.repository, (m, s) => m.copy(repository = s))
   )
 
   def load: SettingsModel = {
