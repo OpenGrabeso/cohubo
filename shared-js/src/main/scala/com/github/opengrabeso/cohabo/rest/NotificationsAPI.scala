@@ -18,7 +18,10 @@ trait NotificationsAPI {
     @transientDefault before: ZonedDateTime = null
   ): Future[DataWithHeaders[Seq[Notification]]]
 
-  def threads: ThreadsAPI
+  @PUT("")
+  def markAsRead(@transientDefault last_read_at: ZonedDateTime = null): Future[Unit]
+
+  def threads(threadId: Long): ThreadsAPI
 }
 
 object NotificationsAPI extends RestClientApiCompanion[EnhancedRestImplicits,NotificationsAPI](EnhancedRestImplicits)

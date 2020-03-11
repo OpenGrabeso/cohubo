@@ -9,9 +9,12 @@ import io.udash.rest._
 
 trait ThreadsAPI {
   @GET("")
-  def get(id: Long): Future[Notification]
+  def get: Future[Notification]
 
-  def threads(threadId: Long): SubscriptionAPI
+  @PUT("")
+  def markAsRead(): Future[Unit]
+
+  def subscription(threadId: Long): SubscriptionAPI
 }
 
 object ThreadsAPI extends RestClientApiCompanion[EnhancedRestImplicits,ThreadsAPI](EnhancedRestImplicits)

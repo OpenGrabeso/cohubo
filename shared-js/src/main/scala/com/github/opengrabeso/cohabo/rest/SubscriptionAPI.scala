@@ -12,9 +12,10 @@ trait SubscriptionAPI {
   def get: Future[ThreadSubscription]
 
   @PUT("")
-  def put(ignored: Boolean): Future[Unit]
+  def set(ignored: Boolean): Future[Unit]
 
-  def threads(threadId: Long): SubscriptionAPI
+  @DELETE(path = "")
+  def delete(): Future[Unit]
 }
 
 object SubscriptionAPI extends RestClientApiCompanion[EnhancedRestImplicits,SubscriptionAPI](EnhancedRestImplicits)
