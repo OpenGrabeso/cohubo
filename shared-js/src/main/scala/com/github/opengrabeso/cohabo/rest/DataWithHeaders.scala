@@ -2,9 +2,6 @@ package com.github.opengrabeso.cohabo
 package rest
 
 import com.avsystem.commons.rpc.AsReal
-import com.avsystem.commons.serialization.GenCodec
-import com.avsystem.commons.serialization.json.{JsonReader, JsonStringInput}
-import common.model._
 import io.udash.rest.raw.{HttpBody, RestResponse}
 
 case class DataWithHeaders[T](data: T, paging: Map[String, String], lastModified: Option[String])
@@ -33,7 +30,7 @@ object DataWithHeaders {
           case 304 => // Not Modified
             Seq.empty
           case _ =>
-            fromBody.asReal(resp.body)
+            fromBody.asReal(resp.ensureNonError.body)
         }
         DataWithHeaders(
           data,
@@ -42,7 +39,6 @@ object DataWithHeaders {
         )
 
     }
-    // note: if OpenAPI is required, we should implement restResponses
   }
 
 }
