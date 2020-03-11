@@ -39,12 +39,14 @@ object TableFactory {
   def rowFactory[ItemType: ModelPropertyCreator, SelType](
     id: ItemType => SelType,
     indent: ItemType => Int,
+    rowModifier: ModelProperty[ItemType] => Modifier,
     sel: Property[Option[SelType]], attribs: Seq[TableAttrib[ItemType]]
   ): (CastableProperty[ItemType], NestedInterceptor) => Element = { (el,_) =>
     val level = indent(el.get)
     val row = tr(
       CssStyleName(s.tr.className),
       CssStyleName("table-fold"),
+      rowModifier(el.asModel),
       produceWithNested(el) { (ha, nested) =>
         attribs.flatMap { a =>
           // existing but empty shortName means the column should be hidden on narrow view

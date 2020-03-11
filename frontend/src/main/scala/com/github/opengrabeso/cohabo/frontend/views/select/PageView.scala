@@ -66,14 +66,10 @@ class PageView(
     def widthWide(min: Int, percent: Int): Option[String] = Some(s"min-width: $min%; width $percent%")
     def width(min: Int, percent: Int, max: Int): Option[String] = Some(s"min-width: $min%; width: $percent%; max-width: $max%")
 
-    def unreadStyle(row: ModelProperty[ArticleRowModel]) = {
+    def rowStyle(row: ModelProperty[ArticleRowModel]) = {
       // we assume those fields are not changing
       // TODO: updatedAt might be changing in future
       val unread = isUnread(row.get.id.issueNumber, row.get.updatedAt)
-
-      unread.reactiveApply { (el, x) =>
-        println(s"Reactive apply for ${row.get.id}: $x")
-      }
 
       CssStyleName("unread").styleIf(unread)
     }
@@ -87,10 +83,10 @@ class PageView(
       //TableFactory.TableAttrib("Parent", (ar, _, _) => ar.parentId.map(_.toString).getOrElse("").render, style = width(5, 5, 10), shortName = Some("")),
       TableFactory.TableAttrib("Article Title", (ar, v, _) =>
         // unicode characters rather than FontAwesome images, as those interacted badly with sticky table header
-        if (ar.hasChildren && ar.preview) div(span(`class` := "no-fold fold-open", "\u2299"), unreadStyle(v), ar.title.render) // (.)
-        else if (ar.hasChildren && ar.indent > 0) div(span(`class` := "fold-control fold-open", "\u02c5"), unreadStyle(v), ar.title.render) // v
-        else if (ar.hasChildren) div(span(`class` := "fold-control", "\u02c3"), unreadStyle(v), ar.title.render) // >
-        else div(span(`class` := "no-fold fold-open", "\u22A1"), unreadStyle(v), ar.title.render), // |.|
+        if (ar.hasChildren && ar.preview) div(span(`class` := "no-fold fold-open", "\u2299"), ar.title.render) // (.)
+        else if (ar.hasChildren && ar.indent > 0) div(span(`class` := "fold-control fold-open", "\u02c5"), ar.title.render) // v
+        else if (ar.hasChildren) div(span(`class` := "fold-control", "\u02c3"), ar.title.render) // >
+        else div(span(`class` := "no-fold fold-open", "\u22A1"), ar.title.render), // |.|
         style = widthWide(50, 50),
         modifier = Some(ar => style := s"padding-left: ${8 + ar.indent * 16}px") // item (td) style
       ),
@@ -101,7 +97,10 @@ class PageView(
 
     val table = UdashTable(model.subSeq(_.articles), bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
       headerFactory = Some(TableFactory.headerFactory(attribs)),
-      rowFactory = TableFactory.rowFactory[ArticleRowModel, ArticleIdModel](_.id, _.indent, model.subProp(_.selectedArticleId), attribs)
+      rowFactory = TableFactory.rowFactory[ArticleRowModel, ArticleIdModel](
+        _.id, _.indent, rowStyle,
+        model.subProp(_.selectedArticleId), attribs
+      )
     )
 
     val repoUrl = globals.subProp(_.organization).combine(globals.subProp(_.repository))(_ -> _)
