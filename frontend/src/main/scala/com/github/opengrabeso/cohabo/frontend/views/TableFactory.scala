@@ -68,9 +68,6 @@ object TableFactory {
       if (level > 0) Seq[Modifier](style := "display: none") else Seq.empty[Modifier],
       attr("data-depth") := level,
 
-      CssStyleName("custom-context-menu"),
-
-
       onclick :+= { e: Event =>
         val td = e.target.asInstanceOf[Element]
         // e.target may be a td inside of tr, we need to find a tr parent in such case

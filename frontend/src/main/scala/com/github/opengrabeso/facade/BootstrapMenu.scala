@@ -1,14 +1,16 @@
 package com.github.opengrabeso.facade
 
+import io.udash.wrappers.jquery.JQuery
+
 import scala.scalajs.js
 import scala.scalajs.js.annotation.{JSExport, JSGlobal, JSGlobalScope}
 
 @JSGlobalScope
 @js.native
 object BootstrapMenu extends js.Object {
-  trait MenuItem extends js.Object {
-    def name: String
-    def onClick(x: js.Any): Unit
+  trait MenuItem[T] extends js.Object {
+    def name(x: T): String
+    def onClick(x: T): Unit
   }
 
   @js.native

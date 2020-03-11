@@ -4,8 +4,8 @@ package views
 package select
 
 import java.time.ZonedDateTime
-import com.github.opengrabeso.facade
 
+import com.github.opengrabeso.facade
 import common.css._
 import io.udash._
 import io.udash.bootstrap.button._
@@ -16,6 +16,7 @@ import io.udash.bootstrap._
 import BootstrapStyles._
 import frontend.dataModel._
 import io.udash.bootstrap.dropdown.UdashDropdown
+import io.udash.wrappers.jquery
 import io.udash.wrappers.jquery.{JQuery, jQ}
 import org.scalajs.dom
 import org.scalajs.dom.{Element, Event, Node}
@@ -114,7 +115,16 @@ class PageView(
     implicit object rowHandler extends views.TableFactory.TableRowHandler[ArticleRowModel, ArticleIdModel] {
       override def id(item: ArticleRowModel) = item.id
       override def indent(item: ArticleRowModel) = item.indent
-      override def rowModifier(itemModel: ModelProperty[ArticleRowModel]) = rowStyle(itemModel)
+      override def rowModifier(itemModel: ModelProperty[ArticleRowModel]) = {
+        val id = itemModel.subProp(_.id).get
+        Seq[Modifier](
+          rowStyle(itemModel),
+          CssStyleName("custom-context-menu"),
+          attr("issue-number") := id.issueNumber,
+          id.id.map(attr("reply-number") := _._1), // include only when the value is present
+          id.id.map(attr("comment-number") := _._2) // include only when the value is present
+        )
+      }
     }
 
     val table = UdashTable(model.subSeq(_.articles), bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
@@ -209,23 +219,29 @@ class PageView(
     ).tap { _ =>
       import facade.BootstrapMenu._
       val menu = new BootstrapMenu(".custom-context-menu", new js.Object {
+        def fetchElementData(e: JQuery): Any = {
+          val issueNumber = e.attr("issue-number").get.toLong
+          val replyNumber = e.attr("reply-number").map(_.toInt)
+          val commentNumber = e.attr("comment-number").map(_.toLong)
+          val (owner, repo) = repoUrl.get
+          val commentId = (replyNumber zip commentNumber).headOption
+          ArticleIdModel(owner, repo, issueNumber, commentId)
+        }
         var actions = js.Array(
-          new MenuItem {
-            val name = "Action"
-            def onClick(x: js.Any) = {println("'Action' clicked!")}
+          new MenuItem[ArticleIdModel] {
+            override def name(x: ArticleIdModel) = "Action"
+            def onClick(x: ArticleIdModel) = {println(s"'Action' clicked! $x")}
           },
-          new MenuItem {
-            val name = "Another action"
-            def onClick(x: js.Any) = {println("'Another action' clicked!")}
+          new MenuItem[ArticleIdModel] {
+            override def name(x: ArticleIdModel) = "Another action"
+            def onClick(x: ArticleIdModel) = {println(s"'Another action' clicked! $x")}
           },
-          new MenuItem {
-            val name = "A third action"
-            def onClick(x: js.Any) = {println("'A third action' clicked!")}
+          new MenuItem[ArticleIdModel] {
+            override def name(x: ArticleIdModel) = s"A third action on $x"
+            def onClick(x: ArticleIdModel) = {println(s"'A third action' clicked! $x")}
           }
         )
       })
-      println(s"menu $menu")
-
     }
   }
 }
