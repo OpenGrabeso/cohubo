@@ -95,12 +95,15 @@ class PageView(
       TableFactory.TableAttrib("Date", (ar, _, _) => div(formatDateTime(ar.updatedAt.toJSDate)).render, style = width(10, 15, 20)),
     )
 
+    implicit object rowHandler extends views.TableFactory.TableRowHandler[ArticleRowModel, ArticleIdModel] {
+      override def id(item: ArticleRowModel) = item.id
+      override def indent(item: ArticleRowModel) = item.indent
+      override def rowModifier(itemModel: ModelProperty[ArticleRowModel]) = rowStyle(itemModel)
+    }
+
     val table = UdashTable(model.subSeq(_.articles), bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
       headerFactory = Some(TableFactory.headerFactory(attribs)),
-      rowFactory = TableFactory.rowFactory[ArticleRowModel, ArticleIdModel](
-        _.id, _.indent, rowStyle,
-        model.subProp(_.selectedArticleId), attribs
-      )
+      rowFactory = TableFactory.rowFactory[ArticleRowModel, ArticleIdModel](model.subProp(_.selectedArticleId), attribs)
     )
 
     val repoUrl = globals.subProp(_.organization).combine(globals.subProp(_.repository))(_ -> _)

@@ -21,6 +21,13 @@ object TableFactory {
     shortName: Option[String] = None
   )
 
+  trait TableRowHandler[ItemType, SelType] {
+    def id(item: ItemType): SelType
+    def indent(item: ItemType): Int
+    def rowModifier(itemModel: ModelProperty[ItemType]): Modifier
+
+  }
+
   def headerFactory[ItemType](attribs: Seq[TableAttrib[ItemType]]): NestedInterceptor => Modifier = _ => tr {
     attribs.flatMap { a =>
       val st = a.style.map(style := _)
@@ -37,16 +44,13 @@ object TableFactory {
   }.render
 
   def rowFactory[ItemType: ModelPropertyCreator, SelType](
-    id: ItemType => SelType,
-    indent: ItemType => Int,
-    rowModifier: ModelProperty[ItemType] => Modifier,
     sel: Property[Option[SelType]], attribs: Seq[TableAttrib[ItemType]]
-  ): (CastableProperty[ItemType], NestedInterceptor) => Element = { (el,_) =>
-    val level = indent(el.get)
+  )(implicit rowHandler: TableRowHandler[ItemType, SelType]): (CastableProperty[ItemType], NestedInterceptor) => Element = { (el,_) =>
+    val level = rowHandler.indent(el.get)
     val row = tr(
       CssStyleName(s.tr.className),
       CssStyleName("table-fold"),
-      rowModifier(el.asModel),
+      rowHandler.rowModifier(el.asModel),
       produceWithNested(el) { (ha, nested) =>
         attribs.flatMap { a =>
           // existing but empty shortName means the column should be hidden on narrow view
@@ -69,7 +73,7 @@ object TableFactory {
         val tr = jQ(td).closest("tr")
         val wasSelected = tr.hasClass("selected")
         if (!wasSelected) {
-          val selId = id(el.get)
+          val selId = rowHandler.id(el.get)
           tr.addClass("selected")
           sel.set(Some(selId))
 
