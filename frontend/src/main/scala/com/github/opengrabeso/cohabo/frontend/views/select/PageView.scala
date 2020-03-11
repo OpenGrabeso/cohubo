@@ -15,6 +15,7 @@ import scalatags.JsDom.all._
 import io.udash.bootstrap._
 import BootstrapStyles._
 import frontend.dataModel._
+import io.udash.bootstrap.dropdown.UdashDropdown
 import io.udash.wrappers.jquery.{JQuery, jQ}
 import org.scalajs.dom.{Element, Event, Node}
 
@@ -66,6 +67,20 @@ class PageView(
     def widthWide(min: Int, percent: Int): Option[String] = Some(s"min-width: $min%; width $percent%")
     def width(min: Int, percent: Int, max: Int): Option[String] = Some(s"min-width: $min%; width: $percent%; max-width: $max%")
 
+    // see https://guide.udash.io/ext/bootstrap Dropdowns
+    val items = SeqProperty[UdashDropdown.DefaultDropdownItem](Seq(
+      UdashDropdown.DefaultDropdownItem.Header("Start"),
+      UdashDropdown.DefaultDropdownItem.Button("Intro", () => ()),
+      UdashDropdown.DefaultDropdownItem.Disabled(
+        UdashDropdown.DefaultDropdownItem.Button("Test Disabled 1", () => ())
+      ),
+      UdashDropdown.DefaultDropdownItem.Divider,
+      UdashDropdown.DefaultDropdownItem.Disabled(
+        UdashDropdown.DefaultDropdownItem.Button("Test Disabled 2", () => ())
+      ),
+    ))
+    val dropdown = UdashDropdown.default(items)(_ => Seq[Modifier]("Dropdown ", Button.color(Color.Primary)))
+
     def rowStyle(row: ModelProperty[ArticleRowModel]) = {
       // we assume id.issueNumber is not changing
       val unread = isUnread(row.get.id.issueNumber, row.subProp(_.updatedAt))
@@ -92,6 +107,7 @@ class PageView(
       TableFactory.TableAttrib("Milestone", (ar, _, _) => div(ar.milestone.getOrElse("").render).render, style = width(10, 15, 20), shortName = Some("")),
       TableFactory.TableAttrib("Posted by", (ar, _, _) => div(ar.createdBy).render, style = width(10, 15, 20), shortName = Some("")),
       TableFactory.TableAttrib("Date", (ar, _, _) => div(formatDateTime(ar.updatedAt.toJSDate)).render, style = width(10, 15, 20)),
+      //TableFactory.TableAttrib("", (ar, _, _) => div("\u22EE").render, style = width(5, 5, 5)),
     )
 
     implicit object rowHandler extends views.TableFactory.TableRowHandler[ArticleRowModel, ArticleIdModel] {
