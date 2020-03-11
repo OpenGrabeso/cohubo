@@ -7,7 +7,8 @@ import io.udash.HasModelPropertyCreator
 
 case class UnreadInfo(
   updatedAt: ZonedDateTime,
-  lastReadAt: ZonedDateTime
+  lastReadAt: ZonedDateTime,
+  threadURL: String
 ) {
   // when we have already read everything, the unread mark must be by user, return everything as unread
   def markedByUser: Boolean = lastReadAt >= updatedAt

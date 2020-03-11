@@ -23,6 +23,7 @@ class PagePresenter(
   application: Application[RoutingState],
   userService: services.UserContextService
 )(implicit ec: ExecutionContext) extends Presenter[SelectPageState.type] {
+
   def props = userService.properties
   val sourceParameters = props.subProp(_.token).combine(props.subProp(_.organization))(_ -> _).combine(props.subProp(_.repository))(_ -> _)
 
@@ -86,7 +87,7 @@ class PagePresenter(
   }
 
   def pageArticles(org: String, repo: String, token: String, link: String): Future[DataWithHeaders[Seq[Issue]]] = {
-    RestAPIClient.requestPage[Seq[Issue]](link, userService.properties.subProp(_.token).get)
+    RestAPIClient.requestWithHeaders[Seq[Issue]](link, userService.properties.subProp(_.token).get)
   }
 
   def loadArticlesPage(token: String, org: String, repo: String, mode: String): Unit = {
@@ -234,7 +235,7 @@ class PagePresenter(
           case _ =>
             Seq.empty
         }
-        issueNumber.map(_ -> UnreadInfo(n.updated_at, n.last_read_at))
+        issueNumber.map(_ -> UnreadInfo(n.updated_at, n.last_read_at, n.url))
       }.toMap
 
     }.failed.foreach { ex =>
@@ -273,6 +274,15 @@ class PagePresenter(
         loadNotifications(token, org, repo, lastNotifications)
     }
   }
+
+  def markAsRead(id: ArticleIdModel): Unit = {
+    val unreadInfo = model.subProp(_.unreadInfo).get
+    for (unread <- unreadInfo.get(id.issueNumber)) {
+      println(s"markAsRead $id, unread $unread")
+    }
+
+  }
+
 
   def gotoSettings(): Unit = {
     application.goTo(SettingsPageState)

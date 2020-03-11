@@ -12,14 +12,24 @@ import scala.util.{Failure, Success}
 
 object RestAPIClient {
   implicit val sttpBackend: SttpBackend[Future, Nothing] = SttpRestClient.defaultBackend()
-  val api: RestAPI = {
-    SttpRestClient[RestAPI]("https://api.github.com")
-  }
+  val api: RestAPI = SttpRestClient[RestAPI]("https://api.github.com")
   def apply(): RestAPI = api
 
-  // used for issue paging
-  def requestPage[T: GenCodec](uri: String, token: String): Future[DataWithHeaders[T]] = {
-    println(s"requestIssues $uri")
+  // many APIs return URLs which should be used to obtain more information - this can be used to have the result decoded
+  def request[T: GenCodec](uri: String, token: String, method: Method = Method.GET): Future[T] = {
+    val request = sttp.method(method, uri"$uri").auth.bearer(token)
+    sttpBackend.send(request).map { r =>
+      r.body match {
+        case Left(err) =>
+          throw new RestException(err)
+        case Right(resp) =>
+          EnhancedRestImplicits.fromString[T](resp)
+      }
+    }
+  }
+
+  // used for issue paging - use the provided URL and process the result headers
+  def requestWithHeaders[T: GenCodec](uri: String, token: String): Future[DataWithHeaders[T]] = {
     val request = sttp.method(Method.GET, uri"$uri").auth.bearer(token)
 
     sttpBackend.send(request).map { r =>

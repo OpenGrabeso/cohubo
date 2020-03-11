@@ -27,11 +27,15 @@ object DataWithHeaders {
       }.getOrElse(Map.empty)
     }
     def fromString[T: GenCodec](text: String, linkHeader: Option[String], lastModifiedHeader: Option[String]): DataWithHeaders[T] = {
-      val codec = implicitly[GenCodec[T]]
       val input = new JsonStringInput(new JsonReader(text))
-      val issues = codec.read(input)
+      val issues = implicitly[GenCodec[T]].read(input)
 
       DataWithHeaders(issues, linkHeaders(linkHeader), lastModifiedHeader)
+    }
+
+    def fromString[T: GenCodec](text: String): T = {
+      val input = new JsonStringInput(new JsonReader(text))
+      implicitly[GenCodec[T]].read(input)
     }
 
 
