@@ -11,7 +11,7 @@ trait ThreadsAPI {
   @GET("")
   def get: Future[Notification]
 
-  @PUT("")
+  @PATCH("")
   def markAsRead(): Future[Unit]
 
   def subscription(threadId: Long): SubscriptionAPI

@@ -11,7 +11,7 @@ case class UnreadInfo(
   threadURL: String
 ) {
   // when we have already read everything, the unread mark must be by user, return everything as unread
-  def markedByUser: Boolean = lastReadAt >= updatedAt
+  def markedByUser: Boolean = lastReadAt == null || lastReadAt >= updatedAt
   def isUnread(time: ZonedDateTime): Boolean = {
     markedByUser || time > lastReadAt
   }

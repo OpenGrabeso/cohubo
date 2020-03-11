@@ -5,6 +5,7 @@ package select
 
 import java.time.ZonedDateTime
 
+import com.softwaremill.sttp.Method
 import rest.{DataWithHeaders, RestAPIClient}
 import dataModel._
 import common.model._
@@ -279,6 +280,11 @@ class PagePresenter(
     val unreadInfo = model.subProp(_.unreadInfo).get
     for (unread <- unreadInfo.get(id.issueNumber)) {
       println(s"markAsRead $id, unread $unread")
+      RestAPIClient.request[Unit](method = Method.PATCH, uri = unread.threadURL, token = props.subProp(_.token).get).foreach{_ =>
+        println(s"markAsRead done - adjust unreadInfo")
+
+      }
+
     }
 
   }
