@@ -11,6 +11,8 @@ import io.udash.properties.ModelPropertyCreator
 import io.udash.wrappers.jquery.{JQuery, jQ}
 import scalatags.JsDom.all._
 
+import scala.scalajs.js
+
 object TableFactory {
   val s = SelectPageStyles
 
@@ -65,6 +67,9 @@ object TableFactory {
 
       if (level > 0) Seq[Modifier](style := "display: none") else Seq.empty[Modifier],
       attr("data-depth") := level,
+
+      CssStyleName("custom-context-menu"),
+
 
       onclick :+= { e: Event =>
         val td = e.target.asInstanceOf[Element]

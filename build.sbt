@@ -95,7 +95,8 @@ lazy val frontend = project.settings(
     //scalaJSUseMainModuleInitializer := true,
     //mainClass in Compile := Some("com.github.opengrabeso.cohabo.MainJS"),
     jsDependencies += ProvidedJS / "jQuery.resizableColumns.js" minified "jQuery.resizableColumns.min.js" dependsOn "jquery.js",
-    //jsDependencies += ProvidedJS / "BootstrapMenu.js" minified "BootstrapMenu.min.js" dependsOn "bootstrap.bundle.js",
+    // https://github.com/dgoguerra/bootstrap-menu/
+    jsDependencies += ProvidedJS / "BootstrapMenu.js" minified "BootstrapMenu.min.js" dependsOn "bootstrap.bundle.js",
 
     (fastOptJS in Compile) := (fastOptJS in Compile).dependsOn(generateIndexTask("index-fast.html","fastopt")).value,
     (fullOptJS in Compile) := (fullOptJS in Compile).dependsOn(generateIndexTask("index.html","opt")).value

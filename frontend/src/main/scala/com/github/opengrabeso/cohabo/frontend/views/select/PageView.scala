@@ -4,12 +4,12 @@ package views
 package select
 
 import java.time.ZonedDateTime
+import com.github.opengrabeso.facade
 
 import common.css._
 import io.udash._
 import io.udash.bootstrap.button._
 import io.udash.bootstrap.table.UdashTable
-import io.udash.bootstrap.form.UdashForm
 import io.udash.css._
 import scalatags.JsDom.all._
 import io.udash.bootstrap._
@@ -17,6 +17,7 @@ import BootstrapStyles._
 import frontend.dataModel._
 import io.udash.bootstrap.dropdown.UdashDropdown
 import io.udash.wrappers.jquery.{JQuery, jQ}
+import org.scalajs.dom
 import org.scalajs.dom.{Element, Event, Node}
 
 import scala.scalajs.js
@@ -205,6 +206,26 @@ class PageView(
 
         )
       )
-    )
+    ).tap { _ =>
+      import facade.BootstrapMenu._
+      val menu = new BootstrapMenu(".custom-context-menu", new js.Object {
+        var actions = js.Array(
+          new MenuItem {
+            val name = "Action"
+            def onClick(x: js.Any) = {println("'Action' clicked!")}
+          },
+          new MenuItem {
+            val name = "Another action"
+            def onClick(x: js.Any) = {println("'Another action' clicked!")}
+          },
+          new MenuItem {
+            val name = "A third action"
+            def onClick(x: js.Any) = {println("'A third action' clicked!")}
+          }
+        )
+      })
+      println(s"menu $menu")
+
+    }
   }
 }
