@@ -28,8 +28,8 @@ class PageView(
 ) extends FinalView with CssView with PageUtils with TimeFormatting {
 
   // each row is checking dynamically in the list of unread rows using a property created by this function
-  def isUnread(id: Long, time: ZonedDateTime): ReadableProperty[Boolean] = {
-    model.subProp(_.unreadInfo).transform { unread =>
+  def isUnread(id: Long, time: ReadableProperty[ZonedDateTime]): ReadableProperty[Boolean] = {
+    model.subProp(_.unreadInfo).combine(time)(_ -> _).transform { case (unread, time) =>
       unread.get(id).exists(_.isUnread(time))
     }
   }
@@ -67,9 +67,8 @@ class PageView(
     def width(min: Int, percent: Int, max: Int): Option[String] = Some(s"min-width: $min%; width: $percent%; max-width: $max%")
 
     def rowStyle(row: ModelProperty[ArticleRowModel]) = {
-      // we assume those fields are not changing
-      // TODO: updatedAt might be changing in future
-      val unread = isUnread(row.get.id.issueNumber, row.get.updatedAt)
+      // we assume id.issueNumber is not changing
+      val unread = isUnread(row.get.id.issueNumber, row.subProp(_.updatedAt))
 
       CssStyleName("unread").styleIf(unread)
     }
