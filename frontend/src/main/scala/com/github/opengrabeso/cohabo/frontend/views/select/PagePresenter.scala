@@ -280,10 +280,11 @@ class PagePresenter(
     val unreadInfo = model.subProp(_.unreadInfo).get
     for (unread <- unreadInfo.get(id.issueNumber)) {
       println(s"markAsRead $id, unread $unread")
-      RestAPIClient.request[Unit](method = Method.PATCH, uri = unread.threadURL, token = props.subProp(_.token).get).foreach{_ =>
+      RestAPIClient.request[Unit](method = Method.PATCH, uri = unread.threadURL, token = props.subProp(_.token).get).map{_ =>
         println(s"markAsRead done - adjust unreadInfo")
-
-      }
+      }.failed.foreach(ex =>
+        println(s"Mark as read error $ex")
+      )
 
     }
 

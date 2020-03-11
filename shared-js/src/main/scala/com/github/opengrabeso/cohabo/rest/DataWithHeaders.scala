@@ -38,8 +38,7 @@ object DataWithHeaders {
       implicitly[GenCodec[T]].read(input)
     }
 
-
-    implicit def asResponse[T](implicit fromBody: AsReal[HttpBody, Seq[T]]): AsReal[RestResponse, DataWithHeaders[Seq[T]]] = AsReal.create {
+    implicit def fromResponse[T](implicit fromBody: AsReal[HttpBody, Seq[T]]): AsReal[RestResponse, DataWithHeaders[Seq[T]]] = AsReal.create {
       resp =>
         val data = resp.code match {
           case 304 => // Not Modified
