@@ -218,8 +218,8 @@ class PageView(
       )
     ).tap { _ =>
       import facade.BootstrapMenu._
-      val menu = new BootstrapMenu(".custom-context-menu", new js.Object {
-        def fetchElementData(e: JQuery): Any = {
+      new BootstrapMenu(".custom-context-menu", new Options[ArticleIdModel] {
+        def fetchElementData(e: JQuery): ArticleIdModel = {
           val issueNumber = e.attr("issue-number").get.toLong
           val replyNumber = e.attr("reply-number").map(_.toInt)
           val commentNumber = e.attr("comment-number").map(_.toLong)
@@ -227,19 +227,9 @@ class PageView(
           val commentId = (replyNumber zip commentNumber).headOption
           ArticleIdModel(owner, repo, issueNumber, commentId)
         }
-        var actions = js.Array(
-          new MenuItem[ArticleIdModel] {
-            override def name(x: ArticleIdModel) = "Action"
-            def onClick(x: ArticleIdModel) = {println(s"'Action' clicked! $x")}
-          },
-          new MenuItem[ArticleIdModel] {
-            override def name(x: ArticleIdModel) = "Another action"
-            def onClick(x: ArticleIdModel) = {println(s"'Another action' clicked! $x")}
-          },
-          new MenuItem[ArticleIdModel] {
-            override def name(x: ArticleIdModel) = s"A third action on $x"
-            def onClick(x: ArticleIdModel) = {println(s"'A third action' clicked! $x")}
-          }
+        val actions = js.Array(
+          MenuItem.par(x => s"Mark as read $x", x => println(s"'A third action' clicked! $x")),
+          MenuItem("Reply", x => println(s"Reply $x"))
         )
       })
     }
