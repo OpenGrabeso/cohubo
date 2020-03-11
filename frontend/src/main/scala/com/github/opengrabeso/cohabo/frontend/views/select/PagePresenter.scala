@@ -27,6 +27,7 @@ class PagePresenter(
 
   def props = userService.properties
   val sourceParameters = props.subProp(_.token).combine(props.subProp(_.organization))(_ -> _).combine(props.subProp(_.repository))(_ -> _)
+  var lastNotifications =  Option.empty[String]
 
   model.subProp(_.selectedArticleId).listen { id =>
     val sel = model.subProp(_.articles).get.find(id contains _.id)
@@ -88,7 +89,7 @@ class PagePresenter(
   }
 
   def pageArticles(org: String, repo: String, token: String, link: String): Future[DataWithHeaders[Seq[Issue]]] = {
-    RestAPIClient.requestWithHeaders[Seq[Issue]](link, userService.properties.subProp(_.token).get)
+    RestAPIClient.requestWithHeaders[Issue](link, userService.properties.subProp(_.token).get)
   }
 
   def loadArticlesPage(token: String, org: String, repo: String, mode: String): Unit = {
@@ -254,6 +255,7 @@ class PagePresenter(
         model.subProp(_.loading).set(true)
         model.subProp(_.articles).set(Seq.empty)
         loadArticlesPage(token, org, repo, "init")
+        lastNotifications = None
         loadNotifications(token, org, repo, None)
       }, initUpdate = true
     )
@@ -266,7 +268,6 @@ class PagePresenter(
     loadArticlesPage(token, owner, repo, "next")
   }
 
-  var lastNotifications =  Option.empty[String]
 
   def refreshNotifications(): Unit = {
     println("refreshNotifications")

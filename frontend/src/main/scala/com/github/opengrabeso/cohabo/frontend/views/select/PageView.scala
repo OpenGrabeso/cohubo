@@ -228,7 +228,7 @@ class PageView(
           ArticleIdModel(owner, repo, issueNumber, commentId)
         }
         val actions = js.Array(
-          MenuItem.par(x => s"Mark as read #${x.issueNumber}", presenter.markAsRead),
+          MenuItem.par(x => s"Mark #${x.issueNumber} as read", presenter.markAsRead),
           MenuItem("Reply", x => println(s"Reply $x"))
         )
       })

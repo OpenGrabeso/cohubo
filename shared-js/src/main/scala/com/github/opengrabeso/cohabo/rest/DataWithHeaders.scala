@@ -26,17 +26,6 @@ object DataWithHeaders {
         }.toMap
       }.getOrElse(Map.empty)
     }
-    def fromString[T: GenCodec](text: String, linkHeader: Option[String], lastModifiedHeader: Option[String]): DataWithHeaders[T] = {
-      val input = new JsonStringInput(new JsonReader(text))
-      val issues = implicitly[GenCodec[T]].read(input)
-
-      DataWithHeaders(issues, linkHeaders(linkHeader), lastModifiedHeader)
-    }
-
-    def fromString[T: GenCodec](text: String): T = {
-      val input = new JsonStringInput(new JsonReader(text))
-      implicitly[GenCodec[T]].read(input)
-    }
 
     implicit def fromResponse[T](implicit fromBody: AsReal[HttpBody, Seq[T]]): AsReal[RestResponse, DataWithHeaders[Seq[T]]] = AsReal.create {
       resp =>
