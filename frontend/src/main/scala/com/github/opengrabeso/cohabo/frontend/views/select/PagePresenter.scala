@@ -18,6 +18,44 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.annotation.tailrec
 import scala.util.{Failure, Success}
 
+
+object PagePresenter {
+  def removeQuotes(text: String): Iterator[String] = {
+    val Mention = "(?:@[^ ]+ )+(.*)".r
+    text.linesIterator.filterNot(_.startsWith(">")).map {
+      case Mention(rest) =>
+        rest
+      case s =>
+        s
+    }.filterNot(_.isEmpty)
+  }
+
+  @scala.annotation.tailrec
+  def removeMarkdown(text: String): String = {
+    val Link = "(.*)\\[([^\\]]+)\\]\\([^)]+\\)(.*)".r
+    text match {
+      case Link(prefix, link, postfix) =>
+        removeMarkdown(prefix + link + postfix) // there may be multiple links on one line
+      case _ =>
+        text
+    }
+  }
+
+  def bodyAbstract(text: String): String = {
+    val dropQuotes = removeQuotes(text)
+    // TODO: smarter abstracts
+    removeMarkdown(dropQuotes.toSeq.head).take(120)
+  }
+
+  def extractQuotes(text: String): Seq[String] = {
+    text.linesIterator.filter(_.startsWith(">")).map(_.drop(1).trim).filter(_.nonEmpty).toSeq
+  }
+
+
+}
+
+import PagePresenter._
+
 /** Contains the business logic of this view. */
 class PagePresenter(
   model: ModelProperty[PageModel],
@@ -57,26 +95,6 @@ class PagePresenter(
       val c = limits.resources.core
       userService.properties.subProp(_.rateLimits).set(Some(c.limit, c.remaining, c.reset))
     }
-  }
-
-  def removeQuotes(text: String): Iterator[String] = {
-    val Mention = "(?:@[^ ]+ )+(.*)".r
-    text.linesIterator.filterNot(_.startsWith(">")).map {
-      case Mention(rest) =>
-        rest
-      case s =>
-        s
-    }.filterNot(_.isEmpty)
-  }
-
-  def bodyAbstract(text: String): String = {
-    val dropQuotes = removeQuotes(text)
-    // TODO: smarter abstracts
-    dropQuotes.toSeq.head.take(120)
-  }
-
-  def extractQuotes(text: String): Seq[String] = {
-    text.linesIterator.filter(_.startsWith(">")).map(_.drop(1).trim).filter(_.nonEmpty).toSeq
   }
 
   def repoValid(valid: Boolean): Unit = {
