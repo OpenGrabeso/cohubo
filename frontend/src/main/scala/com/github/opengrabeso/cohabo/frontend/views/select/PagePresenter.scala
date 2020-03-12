@@ -249,8 +249,11 @@ class PagePresenter(
         issueNumber.map(_ -> UnreadInfo(n.updated_at, n.last_read_at, n.url))
       }.toMap
 
-    }.failed.foreach { ex =>
-      println(s"Nofifications failed $ex")
+    }.failed.foreach {
+      case HttpErrorException(code, _, _) if code == 304 =>
+        // expected - this mean nothing had changed and there is nothing to do
+      case ex  =>
+        println(s"Notifications failed $ex")
 
     }
   }

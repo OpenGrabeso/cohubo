@@ -27,14 +27,8 @@ object DataWithHeaders {
 
     implicit def fromResponse[T](implicit fromBody: AsReal[HttpBody, Seq[T]]): AsReal[RestResponse, DataWithHeaders[Seq[T]]] = AsReal.create {
       resp =>
-        val data = resp.code match {
-          case 304 => // Not Modified
-            Seq.empty
-          case _ =>
-            fromBody.asReal(resp.ensureNonError.body)
-        }
         DataWithHeaders(
-          data,
+          fromBody.asReal(resp.ensureNonError.body),
           linkHeaders(resp.headers.lift("link").map(_.value)),
           resp.headers.lift("last-modified").map(_.value)
         )
