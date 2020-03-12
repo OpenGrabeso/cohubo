@@ -15,11 +15,8 @@ import scalatags.JsDom.all._
 import io.udash.bootstrap._
 import BootstrapStyles._
 import frontend.dataModel._
-import io.udash.bootstrap.dropdown.UdashDropdown
-import io.udash.wrappers.jquery
 import io.udash.wrappers.jquery.{JQuery, jQ}
-import org.scalajs.dom
-import org.scalajs.dom.{Element, Event, Node}
+import org.scalajs.dom.Node
 
 import scala.scalajs.js
 import scala.concurrent.duration.{span => _, _}
@@ -68,20 +65,6 @@ class PageView(
     type DisplayAttrib = TableFactory.TableAttrib[ArticleRowModel]
     def widthWide(min: Int, percent: Int): Option[String] = Some(s"min-width: $min%; width $percent%")
     def width(min: Int, percent: Int, max: Int): Option[String] = Some(s"min-width: $min%; width: $percent%; max-width: $max%")
-
-    // see https://guide.udash.io/ext/bootstrap Dropdowns
-    val items = SeqProperty[UdashDropdown.DefaultDropdownItem](Seq(
-      UdashDropdown.DefaultDropdownItem.Header("Start"),
-      UdashDropdown.DefaultDropdownItem.Button("Intro", () => ()),
-      UdashDropdown.DefaultDropdownItem.Disabled(
-        UdashDropdown.DefaultDropdownItem.Button("Test Disabled 1", () => ())
-      ),
-      UdashDropdown.DefaultDropdownItem.Divider,
-      UdashDropdown.DefaultDropdownItem.Disabled(
-        UdashDropdown.DefaultDropdownItem.Button("Test Disabled 2", () => ())
-      ),
-    ))
-    val dropdown = UdashDropdown.default(items)(_ => Seq[Modifier]("Dropdown ", Button.color(Color.Primary)))
 
     def rowStyle(row: ModelProperty[ArticleRowModel]) = {
       // we assume id.issueNumber is not changing
