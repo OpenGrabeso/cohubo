@@ -13,6 +13,8 @@ case class ArticleRowModel(
   body: String,
   milestone: Option[String],
   createdBy: String,
+  createdAt: ZonedDateTime,
+  lastEditedAt: ZonedDateTime,
   updatedAt: ZonedDateTime
 )
 

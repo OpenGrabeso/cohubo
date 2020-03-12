@@ -85,7 +85,7 @@ class PageView(
 
     def rowStyle(row: ModelProperty[ArticleRowModel]) = {
       // we assume id.issueNumber is not changing
-      val unread = isUnread(row.get.id.issueNumber, row.subProp(_.updatedAt))
+      val unread = isUnread(row.get.id.issueNumber, row.subProp(_.lastEditedAt))
 
       CssStyleName("unread").styleIf(unread)
     }

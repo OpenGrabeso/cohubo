@@ -126,13 +126,17 @@ class PagePresenter(
 
       val issuesOrdered = is.sortBy(_.updated_at).reverse
 
-      // preview the issues
-      val preview = issuesOrdered.map { id =>
 
+      def rowFromIssue(id: Issue) = {
         val p = ArticleIdModel(org, repo, id.number, None)
-        ArticleRowModel(p, id.comments > 0, true, 0, id.title, id.body, Option(id.milestone).map(_.title), id.user.displayName, id.updated_at)
+        ArticleRowModel(
+          p, id.comments > 0, true, 0, id.title, id.body, Option(id.milestone).map(_.title), id.user.displayName,
+          id.created_at, id.created_at, id.updated_at
+        )
       }
 
+      // preview the issues
+      val preview = issuesOrdered.map(rowFromIssue)
 
       model.subProp(_.articles).tap { a =>
         a.set(a.get ++ preview)
@@ -145,12 +149,16 @@ class PagePresenter(
 
             val log = false
 
-            val p = ArticleIdModel(org, repo, id.number, None)
+            // hasChildren will be set later in traverseDepthFirst if necessary
+            val issue = rowFromIssue(id).copy(hasChildren = false, preview = false)
+            val p = issue.id
 
-            val issue = ArticleRowModel(p, false, false, 0, id.title, id.body, Option(id.milestone).map(_.title), id.user.displayName, id.updated_at)
             val issueWithComments = issue +: comments.zipWithIndex.map { case (i, index) =>
               val articleId = ArticleIdModel(org, repo, id.number, Some((index + 1, i.id)))
-              ArticleRowModel(articleId, false, false, 0, bodyAbstract(i.body), i.body, None, i.user.displayName, i.updated_at)
+              ArticleRowModel(
+                articleId, false, false, 0, bodyAbstract(i.body), i.body, None, i.user.displayName,
+                i.created_at, i.updated_at, i.updated_at
+              )
             }
 
             val fromEnd = issueWithComments.reverse
@@ -222,6 +230,7 @@ class PagePresenter(
       println(notifications)
     }
     */
+    println(s"Load notifications since $lastNotifications")
     userService.call(_.repos(org, repo).notifications(ifModifiedSince = lastNotifications.orNull, all = false)).map { notifications =>
       // TODO:  we need paging if there are many notifications
       println("Notifications " + notifications.data.size)
