@@ -72,7 +72,7 @@ class PagePresenter(
   def bodyAbstract(text: String): String = {
     val dropQuotes = removeQuotes(text)
     // TODO: smarter abstracts
-    dropQuotes.toSeq.head.take(80)
+    dropQuotes.toSeq.head.take(120)
   }
 
   def extractQuotes(text: String): Seq[String] = {
