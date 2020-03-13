@@ -76,6 +76,11 @@ object SelectPageStyles extends CssBase {
       // TODO: stronger highlight?
       fontWeight.bold
     ),
+    &.attrContains("class", "unread-children") (
+      // TODO: stronger highlight?
+      fontWeight.bold,
+      color(c"#808080")
+    ),
     &.hover.attrContains("class", "selected") (
       backgroundColor(c"#A0D0E0")
     )

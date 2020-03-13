@@ -17,7 +17,6 @@ import BootstrapStyles._
 import frontend.dataModel._
 import io.udash.wrappers.jquery.{JQuery, jQ}
 import org.scalajs.dom.Node
-
 import scala.scalajs.js
 import scala.concurrent.duration.{span => _, _}
 
@@ -32,6 +31,20 @@ class PageView(
     model.subProp(_.unreadInfo).combine(time)(_ -> _).transform { case (unread, time) =>
       unread.get(id).exists(_.isUnread(time))
     }
+  }
+
+  def hasUnreadChildren(row: ReadableProperty[ArticleRowModel]): ReadableProperty[Boolean] = {
+    model.subProp(_.unreadInfo).combine(row)(_ -> _).transform { case (unread, row) =>
+      // when the article itself is unread, do not mark it has having unread children
+      import common.Util._
+      import scala.math.Ordered._
+      if (row.updatedAt > row.lastEditedAt) {
+        unread.get(row.id.issueNumber).exists(_.isUnread(row.updatedAt))
+      } else {
+        false
+      }
+    }
+
   }
 
 
@@ -73,8 +86,12 @@ class PageView(
         if (row.subProp(_.createdBy).get == globals.subProp(_.user.login).get) false
         else b
       }
+      val unreadChildren = hasUnreadChildren(row)
 
-      CssStyleName("unread").styleIf(unread)
+      Seq(
+        CssStyleName("unread").styleIf(unread),
+        CssStyleName("unread-children").styleIf(unreadChildren)
+      )
     }
     val attribs = Seq[DisplayAttrib](
       TableFactory.TableAttrib("#", (ar, _, _) =>

@@ -15,7 +15,7 @@ case class ArticleRowModel(
   createdBy: String,
   createdAt: ZonedDateTime,
   lastEditedAt: ZonedDateTime,
-  updatedAt: ZonedDateTime
+  updatedAt: ZonedDateTime // for an issue includes its children
 )
 
 object ArticleRowModel extends HasModelPropertyCreator[ArticleRowModel]
