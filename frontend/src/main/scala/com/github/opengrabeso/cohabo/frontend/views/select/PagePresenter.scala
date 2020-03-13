@@ -5,6 +5,7 @@ package select
 
 import java.time.ZonedDateTime
 
+import rest.DataWithHeaders._
 import com.softwaremill.sttp.Method
 import rest.{DataWithHeaders, RestAPIClient}
 import dataModel._
@@ -16,7 +17,10 @@ import io.udash.rest.raw.HttpErrorException
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.annotation.tailrec
-import scala.util.{Failure, Success}
+import scala.concurrent.duration._
+import scala.scalajs.js.timers._
+import scala.util.{Failure, Success, Try}
+import TimeFormatting._
 
 
 object PagePresenter {
@@ -66,6 +70,7 @@ class PagePresenter(
   def props = userService.properties
   val sourceParameters = props.subProp(_.token).combine(props.subProp(_.organization))(_ -> _).combine(props.subProp(_.repository))(_ -> _)
   var lastNotifications =  Option.empty[String]
+  var scheduled = Option.empty[SetTimeoutHandle]
 
   model.subProp(_.selectedArticleId).listen { id =>
     val sel = model.subProp(_.articles).get.find(id contains _.id)
@@ -116,7 +121,7 @@ class PagePresenter(
         model.subProp(_.pagingUrls).get.get(mode).map { link =>
           pageArticles(org, repo, token, link)
         }.getOrElse {
-          Future.successful(DataWithHeaders(Nil, Map.empty, None))
+          Future.successful(DataWithHeaders(Nil))
         }
       case _ =>
         initArticles(org, repo).tap(_.onComplete {
@@ -138,7 +143,7 @@ class PagePresenter(
     }
 
     loadIssue.foreach {issuesWithHeaders =>
-      model.subProp(_.pagingUrls).set(issuesWithHeaders.paging)
+      model.subProp(_.pagingUrls).set(issuesWithHeaders.headers.paging)
 
       val is = issuesWithHeaders.data
 
@@ -242,18 +247,25 @@ class PagePresenter(
 
   }
 
-  def loadNotifications(token: String, org: String, repo: String, lastTime: Option[String]): Unit  = {
-    /*
-    userService.call(_.notifications.get(all = true)).foreach { notifications =>
-      println(notifications)
+  def loadNotifications(token: String, org: String, repo: String): Unit  = {
+    val logging = true
+    scheduled.foreach(clearTimeout)
+    scheduled = None
+
+    val defaultInterval = 60
+    def scheduleNext(sec: Int): Unit = {
+      if (logging) println(s"scheduleNext $sec")
+      scheduled = Some(setTimeout(sec.seconds) {
+        scheduled = None
+        loadNotifications(token, org, repo)
+      })
     }
-    */
     println(s"Load notifications since $lastNotifications")
     userService.call(_.repos(org, repo).notifications(ifModifiedSince = lastNotifications.orNull, all = false)).map { notifications =>
       // TODO:  we need paging if there are many notifications
-      println("Notifications " + notifications.data.size)
-      lastNotifications = notifications.lastModified orElse lastNotifications
-      model.subProp(_.unreadInfo) set notifications.data.filter(_.unread).flatMap{ n =>
+      if (logging) println(s"Notifications ${notifications.data.size} headers ${notifications.headers}")
+
+      val newUnreadData = notifications.data.filter(_.unread).flatMap{ n =>
         //println(s"Unread ${n.subject}")
         //println(s"  last_read_at ${n.last_read_at}, updated_at: ${n.updated_at}")
         // URL is like: https://api.github.com/repos/gamatron/colabo/issues/26
@@ -267,10 +279,37 @@ class PagePresenter(
         issueNumber.map(_ -> UnreadInfo(n.updated_at, n.last_read_at, n.url))
       }.toMap
 
+      if (lastNotifications.nonEmpty) {
+        lastNotifications = None
+        // we seem to have received the delta only, update the data we have
+        // and make sure the next call will get the full data
+        model.subProp(_.unreadInfo).set(model.subProp(_.unreadInfo).get ++ newUnreadData)
+      } else {
+        model.subProp(_.unreadInfo).set(newUnreadData)
+        lastNotifications = notifications.headers.lastModified orElse lastNotifications
+      }
+
+      object ParseLastModified {
+        def unapply(s: String): Option[ZonedDateTime] = {
+          Try(parseHttpTimestamp(s)).toOption
+        }
+      }
+      for {
+        ParseLastModified(lastModified) <- notifications.headers.lastModified
+      } {
+        model.subProp(_.unreadInfoFrom).set(Some(lastModified))
+      }
+      scheduleNext(notifications.headers.xPollInterval.map(_.toInt).getOrElse(defaultInterval))
     }.failed.foreach {
-      case HttpErrorException(code, _, _) if code == 304 =>
+      case HttpErrorExceptionWithHeaders(ex, headers) =>
         // expected - this mean nothing had changed and there is nothing to do
+        if (logging) println(s"Notification headers $headers")
+        scheduleNext(headers.xPollInterval.map(_.toInt).getOrElse(defaultInterval))
+        if (ex.code != 304) { // // 304 is expected - this mean nothing had changed and there is nothing to do
+          println(s"Notifications failed $ex")
+        }
       case ex  =>
+        scheduleNext(60)
         println(s"Notifications failed $ex")
 
     }
@@ -286,7 +325,7 @@ class PagePresenter(
         model.subProp(_.articles).set(Seq.empty)
         loadArticlesPage(token, org, repo, "init")
         lastNotifications = None
-        loadNotifications(token, org, repo, None)
+        loadNotifications(token, org, repo)
       }, initUpdate = true
     )
   }
@@ -303,7 +342,7 @@ class PagePresenter(
     println("refreshNotifications")
     sourceParameters.get.tap {
       case ((token, org), repo) =>
-        loadNotifications(token, org, repo, lastNotifications)
+        loadNotifications(token, org, repo)
     }
   }
 

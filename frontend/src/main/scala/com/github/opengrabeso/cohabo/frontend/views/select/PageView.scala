@@ -20,6 +20,9 @@ import org.scalajs.dom.Node
 import scala.scalajs.js
 import scala.concurrent.duration.{span => _, _}
 
+import common.Util._
+import scala.math.Ordered._
+
 class PageView(
   model: ModelProperty[PageModel],
   presenter: PagePresenter,
@@ -28,16 +31,14 @@ class PageView(
 
   // each row is checking dynamically in the list of unread rows using a property created by this function
   def isUnread(id: Long, time: ReadableProperty[ZonedDateTime]): ReadableProperty[Boolean] = {
-    model.subProp(_.unreadInfo).combine(time)(_ -> _).transform { case (unread, time) =>
-      unread.get(id).exists(_.isUnread(time))
+    model.subProp(_.unreadInfo).combine(time)(_ -> _).combine(model.subProp(_.unreadInfoFrom))(_ -> _).transform { case ((unread, time), unreadFrom ) =>
+      unread.get(id).exists(_.isUnread(time)) || unreadFrom.exists(time >= _)
     }
   }
 
   def hasUnreadChildren(row: ReadableProperty[ArticleRowModel]): ReadableProperty[Boolean] = {
     model.subProp(_.unreadInfo).combine(row)(_ -> _).transform { case (unread, row) =>
       // when the article itself is unread, do not mark it has having unread children
-      import common.Util._
-      import scala.math.Ordered._
       if (row.updatedAt > row.lastEditedAt) {
         unread.get(row.id.issueNumber).exists(_.isUnread(row.updatedAt))
       } else {

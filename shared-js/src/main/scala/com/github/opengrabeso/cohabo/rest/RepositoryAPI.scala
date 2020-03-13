@@ -19,7 +19,8 @@ trait RepositoryAPI {
     @transientDefault all: Boolean = false,
     @transientDefault participating: Boolean = false,
     @transientDefault since: ZonedDateTime = null,
-    @transientDefault before: ZonedDateTime = null
+    @transientDefault before: ZonedDateTime = null,
+    noCache: String = ZonedDateTime.now.toEpochSecond.toString // prevent any other caching (esp. prevent Chrome adding "If-Modified-Since" headers)
   ): Future[DataWithHeaders[Seq[Notification]]]
 
 
