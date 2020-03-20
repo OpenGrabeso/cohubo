@@ -3,34 +3,61 @@ package frontend
 package views
 package select
 
+import java.time.ZonedDateTime
+
+import com.github.opengrabeso.facade
 import common.css._
 import io.udash._
-import io.udash.bootstrap.button.UdashButton
+import io.udash.bootstrap.button._
 import io.udash.bootstrap.table.UdashTable
-import io.udash.bootstrap.form.UdashForm
 import io.udash.css._
 import scalatags.JsDom.all._
 import io.udash.bootstrap._
 import BootstrapStyles._
 import frontend.dataModel._
 import io.udash.wrappers.jquery.{JQuery, jQ}
-import org.scalajs.dom.{Element, Event, Node}
-
+import org.scalajs.dom.Node
 import scala.scalajs.js
 import scala.concurrent.duration.{span => _, _}
+
+import common.Util._
+import scala.math.Ordered._
 
 class PageView(
   model: ModelProperty[PageModel],
   presenter: PagePresenter,
   globals: ModelProperty[SettingsModel]
 ) extends FinalView with CssView with PageUtils with TimeFormatting {
+
+  // each row is checking dynamically in the list of unread rows using a property created by this function
+  def isUnread(id: Long, time: ReadableProperty[ZonedDateTime]): ReadableProperty[Boolean] = {
+    model.subProp(_.unreadInfo).combine(time)(_ -> _).combine(model.subProp(_.unreadInfoFrom))(_ -> _).transform { case ((unread, time), unreadFrom ) =>
+      unread.get(id).exists(_.isUnread(time)) || unreadFrom.exists(time >= _)
+    }
+  }
+
+  def hasUnreadChildren(row: ReadableProperty[ArticleRowModel]): ReadableProperty[Boolean] = {
+    model.subProp(_.unreadInfo).combine(row)(_ -> _).transform { case (unread, row) =>
+      // when the article itself is unread, do not mark it has having unread children
+      if (row.updatedAt > row.lastEditedAt) {
+        unread.get(row.id.issueNumber).exists(_.isUnread(row.updatedAt))
+      } else {
+        false
+      }
+    }
+
+  }
+
+
   val s = SelectPageStyles
 
   private val settingsButton = UdashButton()(_ => "Settings")
   private val nextPageButton = button(model.subProp(_.pagingUrls).transform(_.isEmpty), "Load more issues".toProperty)
+  private val refreshNotifications = button(false.toProperty, "Refresh notifications".toProperty)
 
   buttonOnClick(settingsButton) {presenter.gotoSettings()}
   buttonOnClick(nextPageButton) {presenter.loadMore()}
+  buttonOnClick(refreshNotifications) {presenter.refreshNotifications()}
 
   def issueLink(id: ArticleIdModel) = {
     id.id.map { commentId =>
@@ -53,6 +80,20 @@ class PageView(
     def widthWide(min: Int, percent: Int): Option[String] = Some(s"min-width: $min%; width $percent%")
     def width(min: Int, percent: Int, max: Int): Option[String] = Some(s"min-width: $min%; width: $percent%; max-width: $max%")
 
+    def rowStyle(row: ModelProperty[ArticleRowModel]) = {
+      // we assume id.issueNumber is not changing
+      val unread = isUnread(row.get.id.issueNumber, row.subProp(_.lastEditedAt)).transform { b =>
+        // never consider unread the issue we have authored
+        if (row.subProp(_.createdBy).get == globals.subProp(_.user.login).get) false
+        else b
+      }
+      val unreadChildren = hasUnreadChildren(row)
+
+      Seq(
+        CssStyleName("unread").styleIf(unread),
+        CssStyleName("unread-children").styleIf(unreadChildren)
+      )
+    }
     val attribs = Seq[DisplayAttrib](
       TableFactory.TableAttrib("#", (ar, _, _) =>
         div(
@@ -61,7 +102,7 @@ class PageView(
         ).render, style = width(5, 5, 10)
       ),
       //TableFactory.TableAttrib("Parent", (ar, _, _) => ar.parentId.map(_.toString).getOrElse("").render, style = width(5, 5, 10), shortName = Some("")),
-      TableFactory.TableAttrib("Article Title", (ar, _, _) =>
+      TableFactory.TableAttrib("Article Title", (ar, v, _) =>
         // unicode characters rather than FontAwesome images, as those interacted badly with sticky table header
         if (ar.hasChildren && ar.preview) div(span(`class` := "no-fold fold-open", "\u2299"), ar.title.render) // (.)
         else if (ar.hasChildren && ar.indent > 0) div(span(`class` := "fold-control fold-open", "\u02c5"), ar.title.render) // v
@@ -70,14 +111,30 @@ class PageView(
         style = widthWide(50, 50),
         modifier = Some(ar => style := s"padding-left: ${8 + ar.indent * 16}px") // item (td) style
       ),
-      TableFactory.TableAttrib("Milestone", (ar, _, _) => ar.milestone.getOrElse("").render, style = width(10, 15, 20), shortName = Some("")),
-      TableFactory.TableAttrib("Posted by", (ar, _, _) => ar.createdBy.render, style = width(10, 15, 20), shortName = Some("")),
-      TableFactory.TableAttrib("Date", (ar, _, _) => formatDateTime(ar.updatedAt.toJSDate).render, style = width(10, 15, 20)),
+      TableFactory.TableAttrib("Milestone", (ar, _, _) => div(ar.milestone.getOrElse("").render).render, style = width(10, 15, 20), shortName = Some("")),
+      TableFactory.TableAttrib("Posted by", (ar, _, _) => div(ar.createdBy).render, style = width(10, 15, 20), shortName = Some("")),
+      TableFactory.TableAttrib("Date", (ar, _, _) => div(formatDateTime(ar.updatedAt.toJSDate)).render, style = width(10, 15, 20)),
+      //TableFactory.TableAttrib("", (ar, _, _) => div("\u22EE").render, style = width(5, 5, 5)),
     )
+
+    implicit object rowHandler extends views.TableFactory.TableRowHandler[ArticleRowModel, ArticleIdModel] {
+      override def id(item: ArticleRowModel) = item.id
+      override def indent(item: ArticleRowModel) = item.indent
+      override def rowModifier(itemModel: ModelProperty[ArticleRowModel]) = {
+        val id = itemModel.subProp(_.id).get
+        Seq[Modifier](
+          rowStyle(itemModel),
+          CssStyleName("custom-context-menu"),
+          attr("issue-number") := id.issueNumber,
+          id.id.map(attr("reply-number") := _._1), // include only when the value is present
+          id.id.map(attr("comment-number") := _._2) // include only when the value is present
+        )
+      }
+    }
 
     val table = UdashTable(model.subSeq(_.articles), bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
       headerFactory = Some(TableFactory.headerFactory(attribs)),
-      rowFactory = TableFactory.rowFactory[ArticleRowModel, ArticleIdModel](_.id, _.indent, model.subProp(_.selectedArticleId), attribs)
+      rowFactory = TableFactory.rowFactory[ArticleRowModel, ArticleIdModel](model.subProp(_.selectedArticleId), attribs)
     )
 
     val repoUrl = globals.subProp(_.organization).combine(globals.subProp(_.repository))(_ -> _)
@@ -130,7 +187,15 @@ class PageView(
               }
             ),
             hr(),
-            nextPageButton,
+
+            UdashButtonToolbar()(
+              UdashButtonGroup()(
+                nextPageButton.render,
+                refreshNotifications.render
+              ).render
+
+            ).render,
+
             hr(),
             div(
               s.useFlex0,
@@ -156,6 +221,22 @@ class PageView(
 
         )
       )
-    )
+    ).tap { _ =>
+      import facade.BootstrapMenu._
+      new BootstrapMenu(".custom-context-menu", new Options[ArticleIdModel] {
+        def fetchElementData(e: JQuery): ArticleIdModel = {
+          val issueNumber = e.attr("issue-number").get.toLong
+          val replyNumber = e.attr("reply-number").map(_.toInt)
+          val commentNumber = e.attr("comment-number").map(_.toLong)
+          val (owner, repo) = repoUrl.get
+          val commentId = (replyNumber zip commentNumber).headOption
+          ArticleIdModel(owner, repo, issueNumber, commentId)
+        }
+        val actions = js.Array(
+          MenuItem.par(x => s"Mark #${x.issueNumber} as read", presenter.markAsRead),
+          MenuItem("Reply", x => println(s"Reply $x"))
+        )
+      })
+    }
   }
 }

@@ -4,11 +4,14 @@ package frontend.views
 import common.css._
 import io.udash._
 import io.udash.bindings.modifiers.Binding.NestedInterceptor
+import io.udash.css._
 import org.scalajs.dom.{Element, Event, Node}
 import io.udash.css.CssView._
 import io.udash.properties.ModelPropertyCreator
 import io.udash.wrappers.jquery.{JQuery, jQ}
 import scalatags.JsDom.all._
+
+import scala.scalajs.js
 
 object TableFactory {
   val s = SelectPageStyles
@@ -19,6 +22,13 @@ object TableFactory {
     modifier: Option[ItemType => Modifier] = None,
     shortName: Option[String] = None
   )
+
+  trait TableRowHandler[ItemType, SelType] {
+    def id(item: ItemType): SelType
+    def indent(item: ItemType): Int
+    def rowModifier(itemModel: ModelProperty[ItemType]): Modifier
+
+  }
 
   def headerFactory[ItemType](attribs: Seq[TableAttrib[ItemType]]): NestedInterceptor => Modifier = _ => tr {
     attribs.flatMap { a =>
@@ -36,13 +46,13 @@ object TableFactory {
   }.render
 
   def rowFactory[ItemType: ModelPropertyCreator, SelType](
-    id: ItemType => SelType,
-    indent: ItemType => Int,
     sel: Property[Option[SelType]], attribs: Seq[TableAttrib[ItemType]]
-  ): (CastableProperty[ItemType], NestedInterceptor) => Element = { (el,_) =>
-    val level = indent(el.get)
+  )(implicit rowHandler: TableRowHandler[ItemType, SelType]): (CastableProperty[ItemType], NestedInterceptor) => Element = { (el,_) =>
+    val level = rowHandler.indent(el.get)
     val row = tr(
-      `class` := s.tr.className + " table-fold",
+      CssStyleName(s.tr.className),
+      CssStyleName("table-fold"),
+      rowHandler.rowModifier(el.asModel),
       produceWithNested(el) { (ha, nested) =>
         attribs.flatMap { a =>
           // existing but empty shortName means the column should be hidden on narrow view
@@ -65,7 +75,7 @@ object TableFactory {
         val tr = jQ(td).closest("tr")
         val wasSelected = tr.hasClass("selected")
         if (!wasSelected) {
-          val selId = id(el.get)
+          val selId = rowHandler.id(el.get)
           tr.addClass("selected")
           sel.set(Some(selId))
 

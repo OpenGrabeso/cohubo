@@ -5,6 +5,7 @@ import java.time.ZonedDateTime
 
 import rest.EnhancedRestDataCompanion
 
+// https://developer.github.com/v3/issues/comments/
 case class Comment(
   id: Long,
   url: String,

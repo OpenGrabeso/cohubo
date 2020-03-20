@@ -3,7 +3,11 @@ package frontend
 package views
 package select
 
-import rest.{IssuesWithHeaders, RestAPIClient}
+import java.time.ZonedDateTime
+
+import rest.DataWithHeaders._
+import com.softwaremill.sttp.Method
+import rest.{DataWithHeaders, RestAPIClient}
 import dataModel._
 import common.model._
 import common.Util._
@@ -13,7 +17,48 @@ import io.udash.rest.raw.HttpErrorException
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.annotation.tailrec
-import scala.util.{Failure, Success}
+import scala.concurrent.duration._
+import scala.scalajs.js.timers._
+import scala.util.{Failure, Success, Try}
+import TimeFormatting._
+
+
+object PagePresenter {
+  def removeQuotes(text: String): Iterator[String] = {
+    val Mention = "(?:@[^ ]+ )+(.*)".r
+    text.linesIterator.filterNot(_.startsWith(">")).map {
+      case Mention(rest) =>
+        rest
+      case s =>
+        s
+    }.filterNot(_.isEmpty)
+  }
+
+  @scala.annotation.tailrec
+  def removeMarkdown(text: String): String = {
+    val Link = "(.*)\\[([^\\]]+)\\]\\([^)]+\\)(.*)".r
+    text match {
+      case Link(prefix, link, postfix) =>
+        removeMarkdown(prefix + link + postfix) // there may be multiple links on one line
+      case _ =>
+        text
+    }
+  }
+
+  def bodyAbstract(text: String): String = {
+    val dropQuotes = removeQuotes(text)
+    // TODO: smarter abstracts
+    removeMarkdown(dropQuotes.toSeq.head).take(120)
+  }
+
+  def extractQuotes(text: String): Seq[String] = {
+    text.linesIterator.filter(_.startsWith(">")).map(_.drop(1).trim).filter(_.nonEmpty).toSeq
+  }
+
+
+}
+
+import PagePresenter._
 
 /** Contains the business logic of this view. */
 class PagePresenter(
@@ -21,8 +66,11 @@ class PagePresenter(
   application: Application[RoutingState],
   userService: services.UserContextService
 )(implicit ec: ExecutionContext) extends Presenter[SelectPageState.type] {
+
   def props = userService.properties
   val sourceParameters = props.subProp(_.token).combine(props.subProp(_.organization))(_ -> _).combine(props.subProp(_.repository))(_ -> _)
+  var lastNotifications =  Option.empty[String]
+  var scheduled = Option.empty[SetTimeoutHandle]
 
   model.subProp(_.selectedArticleId).listen { id =>
     val sel = model.subProp(_.articles).get.find(id contains _.id)
@@ -54,44 +102,27 @@ class PagePresenter(
     }
   }
 
-  def removeQuotes(text: String): Iterator[String] = {
-    val Mention = "(?:@[^ ]+ )+(.*)".r
-    text.linesIterator.filterNot(_.startsWith(">")).map {
-      case Mention(rest) =>
-        rest
-      case s =>
-        s
-    }.filterNot(_.isEmpty)
-  }
-
-  def bodyAbstract(text: String): String = {
-    val dropQuotes = removeQuotes(text)
-    // TODO: smarter abstracts
-    dropQuotes.toSeq.head.take(80)
-  }
-
-  def extractQuotes(text: String): Seq[String] = {
-    text.linesIterator.filter(_.startsWith(">")).map(_.drop(1).trim).filter(_.nonEmpty).toSeq
-  }
-
   def repoValid(valid: Boolean): Unit = {
     model.subProp(_.repoError).set(!valid)
   }
 
 
-  def initArticles(org: String, repo: String): Future[IssuesWithHeaders] = {
+  def initArticles(org: String, repo: String): Future[DataWithHeaders[Seq[Issue]]] = {
     userService.call(_.repos(org, repo).issues())
   }
 
-  def pageArticles(org: String, repo: String, token: String, link: String): Future[IssuesWithHeaders] = {
-    RestAPIClient.requestIssues(link, userService.properties.subProp(_.token).get)
+  def pageArticles(org: String, repo: String, token: String, link: String): Future[DataWithHeaders[Seq[Issue]]] = {
+    RestAPIClient.requestWithHeaders[Issue](link, userService.properties.subProp(_.token).get)
   }
 
   def loadArticlesPage(token: String, org: String, repo: String, mode: String): Unit = {
     val loadIssue = mode match {
       case "next" =>
-        val link = model.subProp(_.pagingUrls).get(mode)
-        pageArticles(org, repo, token, link)
+        model.subProp(_.pagingUrls).get.get(mode).map { link =>
+          pageArticles(org, repo, token, link)
+        }.getOrElse {
+          Future.successful(DataWithHeaders(Nil))
+        }
       case _ =>
         initArticles(org, repo).tap(_.onComplete {
           case Failure(ex@HttpErrorException(code, _, _)) =>
@@ -112,19 +143,23 @@ class PagePresenter(
     }
 
     loadIssue.foreach {issuesWithHeaders =>
-      model.subProp(_.pagingUrls).set(issuesWithHeaders.paging)
+      model.subProp(_.pagingUrls).set(issuesWithHeaders.headers.paging)
 
-      val is = issuesWithHeaders.issues
+      val is = issuesWithHeaders.data
 
       val issuesOrdered = is.sortBy(_.updated_at).reverse
 
-      // preview the issues
-      val preview = issuesOrdered.map { id =>
 
+      def rowFromIssue(id: Issue) = {
         val p = ArticleIdModel(org, repo, id.number, None)
-        ArticleRowModel(p, id.comments > 0, true, 0, id.title, id.body, Option(id.milestone).map(_.title), id.user.displayName, id.updated_at)
+        ArticleRowModel(
+          p, id.comments > 0, true, 0, id.title, id.body, Option(id.milestone).map(_.title), id.user.displayName,
+          id.created_at, id.created_at, id.updated_at
+        )
       }
 
+      // preview the issues
+      val preview = issuesOrdered.map(rowFromIssue)
 
       model.subProp(_.articles).tap { a =>
         a.set(a.get ++ preview)
@@ -137,12 +172,16 @@ class PagePresenter(
 
             val log = false
 
-            val p = ArticleIdModel(org, repo, id.number, None)
+            // hasChildren will be set later in traverseDepthFirst if necessary
+            val issue = rowFromIssue(id).copy(hasChildren = false, preview = false)
+            val p = issue.id
 
-            val issue = ArticleRowModel(p, false, false, 0, id.title, id.body, Option(id.milestone).map(_.title), id.user.displayName, id.updated_at)
             val issueWithComments = issue +: comments.zipWithIndex.map { case (i, index) =>
               val articleId = ArticleIdModel(org, repo, id.number, Some((index + 1, i.id)))
-              ArticleRowModel(articleId, false, false, 0, bodyAbstract(i.body), i.body, None, i.user.displayName, i.updated_at)
+              ArticleRowModel(
+                articleId, false, false, 0, bodyAbstract(i.body), i.body, None, i.user.displayName,
+                i.created_at, i.updated_at, i.updated_at
+              )
             }
 
             val fromEnd = issueWithComments.reverse
@@ -208,6 +247,76 @@ class PagePresenter(
 
   }
 
+  def loadNotifications(token: String, org: String, repo: String): Unit  = {
+    val logging = true
+    scheduled.foreach(clearTimeout)
+    scheduled = None
+
+    val defaultInterval = 60
+    def scheduleNext(sec: Int): Unit = {
+      if (logging) println(s"scheduleNext $sec")
+      scheduled = Some(setTimeout(sec.seconds) {
+        scheduled = None
+        loadNotifications(token, org, repo)
+      })
+    }
+    println(s"Load notifications since $lastNotifications")
+    userService.call(_.repos(org, repo).notifications(ifModifiedSince = lastNotifications.orNull, all = false)).map { notifications =>
+      // TODO:  we need paging if there are many notifications
+      if (logging) println(s"Notifications ${notifications.data.size} headers ${notifications.headers}")
+
+      val newUnreadData = notifications.data.filter(_.unread).flatMap{ n =>
+        //println(s"Unread ${n.subject}")
+        //println(s"  last_read_at ${n.last_read_at}, updated_at: ${n.updated_at}")
+        // URL is like: https://api.github.com/repos/gamatron/colabo/issues/26
+        val Number = ".*/issues/([0-9]+)".r
+        val issueNumber = n.subject.url match {
+          case Number(number) =>
+            Seq(number.toLong)
+          case _ =>
+            Seq.empty
+        }
+        issueNumber.map(_ -> UnreadInfo(n.updated_at, n.last_read_at, n.url))
+      }.toMap
+
+      if (lastNotifications.nonEmpty) {
+        lastNotifications = None
+        // we seem to have received the delta only, update the data we have
+        // and make sure the next call will get the full data
+        model.subProp(_.unreadInfo).set(model.subProp(_.unreadInfo).get ++ newUnreadData)
+      } else {
+        model.subProp(_.unreadInfo).set(newUnreadData)
+        lastNotifications = notifications.headers.lastModified orElse lastNotifications
+      }
+
+      object ParseLastModified {
+        def unapply(s: String): Option[ZonedDateTime] = {
+          Try(parseHttpTimestamp(s)).toOption
+        }
+      }
+      for {
+        ParseLastModified(lastModified) <- notifications.headers.lastModified
+      } {
+        model.subProp(_.unreadInfoFrom).set(Some(lastModified))
+      }
+      scheduleNext(notifications.headers.xPollInterval.map(_.toInt).getOrElse(defaultInterval))
+    }.failed.foreach {
+      case HttpErrorExceptionWithHeaders(ex, headers) =>
+        // expected - this mean nothing had changed and there is nothing to do
+        if (logging) println(s"Notification headers $headers")
+        scheduleNext(headers.xPollInterval.map(_.toInt).getOrElse(defaultInterval))
+        if (ex.code != 304) { // // 304 is expected - this mean nothing had changed and there is nothing to do
+          println(s"Notifications failed $ex")
+        }
+      case ex  =>
+        scheduleNext(60)
+        println(s"Notifications failed $ex")
+
+    }
+  }
+
+
+
   def loadArticles(): Unit = {
     // install the handler
     sourceParameters.listen(
@@ -215,6 +324,8 @@ class PagePresenter(
         model.subProp(_.loading).set(true)
         model.subProp(_.articles).set(Seq.empty)
         loadArticlesPage(token, org, repo, "init")
+        lastNotifications = None
+        loadNotifications(token, org, repo)
       }, initUpdate = true
     )
   }
@@ -225,6 +336,30 @@ class PagePresenter(
     val ((token, owner), repo) = sourceParameters.get
     loadArticlesPage(token, owner, repo, "next")
   }
+
+
+  def refreshNotifications(): Unit = {
+    println("refreshNotifications")
+    sourceParameters.get.tap {
+      case ((token, org), repo) =>
+        loadNotifications(token, org, repo)
+    }
+  }
+
+  def markAsRead(id: ArticleIdModel): Unit = {
+    val unreadInfo = model.subProp(_.unreadInfo).get
+    for (unread <- unreadInfo.get(id.issueNumber)) {
+      println(s"markAsRead $id, unread $unread")
+      RestAPIClient.request[Unit](method = Method.PATCH, uri = unread.threadURL, token = props.subProp(_.token).get).map{_ =>
+        println(s"markAsRead done - adjust unreadInfo")
+      }.failed.foreach(ex =>
+        println(s"Mark as read error $ex")
+      )
+
+    }
+
+  }
+
 
   def gotoSettings(): Unit = {
     application.goTo(SettingsPageState)

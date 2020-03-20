@@ -1,34 +1,14 @@
 package com.github.opengrabeso.cohabo
 package rest
 
-import java.time.ZonedDateTime
-
 import com.avsystem.commons.meta.MacroInstances
 import com.avsystem.commons.serialization.{GenCodec, GenKeyCodec, HasGenCodecWithDeps, Input, Output}
 import io.udash.rest._
 import io.udash.rest.openapi.{RestSchema, RestStructure}
 
-trait EnhancedRestImplicits extends DefaultRestImplicits {
+trait EnhancedRestImplicits extends DefaultRestImplicits with ZonedDateTimeCodecs with DataWithHeaders.Implicits
 
-  implicit val zonedDateTimeCodec: GenCodec[ZonedDateTime] = new GenCodec[ZonedDateTime] {
-    override def read(input: Input) = {
-      val str = input.readSimple().readString()
-      ZonedDateTime.parse(str)
-    }
-    override def write(output: Output, value: ZonedDateTime) = {
-      val str = value.toString
-      output.writeSimple().writeString(str)
-    }
-  }
-  implicit val zonedDateTimeKeyCodec: GenKeyCodec[ZonedDateTime] = GenKeyCodec.create(ZonedDateTime.parse,_.toString)
-}
-
-object EnhancedRestImplicits extends EnhancedRestImplicits {
-  object ZonedDateTimeAU {
-    def apply(string: String): ZonedDateTime = ZonedDateTime.parse(string)
-    def unapply(dateTime: ZonedDateTime): Option[String] = Some(dateTime.toString)
-  }
-}
+object EnhancedRestImplicits extends EnhancedRestImplicits
 
 abstract class EnhancedRestDataCompanion[T](
   implicit macroCodec: MacroInstances[EnhancedRestImplicits.type, () => GenCodec[T]]

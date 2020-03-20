@@ -3,6 +3,8 @@ package frontend
 package views
 package select
 
+import java.time.ZonedDateTime
+
 import com.github.opengrabeso.cohabo.frontend.dataModel._
 import io.udash._
 
@@ -16,7 +18,9 @@ case class PageModel(
   selectedArticle: Option[ArticleRowModel] = None,
   articleContent: String = "",
   pagingUrls: Map[String, String] = Map.empty,
-  error: Option[Throwable] = None
+  error: Option[Throwable] = None,
+  unreadInfoFrom: Option[ZonedDateTime] = None, // anything newer than the notification info must be unread
+  unreadInfo: Map[Long, UnreadInfo] = Map.empty // list unread articles (and time range when unread)
 )
 
 object PageModel extends HasModelPropertyCreator[PageModel]

@@ -39,6 +39,12 @@ trait TimeFormatting {
     }
   }
 
+  def parseHttpTimestamp(s: String): ZonedDateTime = {
+    // browsers can parse the HTTP timestamp
+    val iso = new js.Date(s).toISOString()
+    ZonedDateTime.parse(iso)
+  }
+
   def formatTime(t: js.Date) = {
     try {
       new intl.DateTimeFormat(
@@ -74,7 +80,7 @@ trait TimeFormatting {
     def toJSDate: js.Date = {
       // without "withZoneSameInstant" the resulting time contained strange [SYSTEM] zone suffix
       val text = t.withZoneSameInstant(ZoneOffset.UTC).toString // (DateTimeFormatter.ISO_ZONED_DATE_TIME)
-      new js.Date(js.Date.parse(text))
+      new js.Date(text)
     }
   }
 
