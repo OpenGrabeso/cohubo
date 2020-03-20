@@ -31,9 +31,18 @@ object PagePresenter {
         rest
       case s =>
         s
-    }.filterNot(_.isEmpty)
+    }
   }
 
+  def removeHeading(text: String): String = {
+    val Heading = "#+ *(.*)".r
+    text match {
+      case Heading(rest) =>
+        rest
+      case _ =>
+        text
+    }
+  }
   @scala.annotation.tailrec
   def removeMarkdown(text: String): String = {
     val Link = "(.*)\\[([^\\]]+)\\]\\([^)]+\\)(.*)".r
@@ -46,7 +55,7 @@ object PagePresenter {
   }
 
   def bodyAbstract(text: String): String = {
-    val dropQuotes = removeQuotes(text)
+    val dropQuotes = removeQuotes(text).map(removeHeading).filterNot(_.isEmpty)
     // TODO: smarter abstracts
     removeMarkdown(dropQuotes.toSeq.head).take(120)
   }
