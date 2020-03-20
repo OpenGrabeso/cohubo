@@ -213,13 +213,9 @@ class PagePresenter(
                   if (byQuote.nonEmpty) {
                     if (log) println(s"byQuote ${byQuote.map(_.map(_.id)).toVector}")
                     // try to find an intersection (article containing all quotes)
-                    val allQuotes = byQuote.tail.foldLeft(byQuote.head) { (all, withQuote) =>
-                      all.intersect(withQuote)
-                    }
-                    // if there is no common intersection, use just the first quote
-                    val fallback = if (allQuotes.isEmpty) byQuote.head.headOption.toSeq else allQuotes
-                    val parent = if (fallback.nonEmpty) fallback.headOption else tail.headOption
-                    processLast(tail, parent.map(_ -> head).toList ++ doneChildren)
+                    // check
+                    val mostQuoted = byQuote.flatten.groupBy(identity).mapValues(_.size).maxBy(_._2)._1
+                    processLast(tail, (mostQuoted -> head) :: doneChildren)
                   } else {
                     // when nothing is found, take previous article
                     processLast(tail, tail.headOption.map(_ -> head).toList ++ doneChildren)
