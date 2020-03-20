@@ -174,6 +174,12 @@ object SelectPageStyles extends CssBase {
     borderColor(c"#8080c0")
   )
 
+  val editTextArea = style(
+    overflow.auto,
+    width(100 %%),
+    boxSizing.borderBox
+  )
+
   val selectedArticle = style(
     unsafeChild(".title") (
       margin(0 px)

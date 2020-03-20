@@ -54,7 +54,8 @@ class PageView(
   private val settingsButton = UdashButton()(_ => "Settings")
   private val nextPageButton = button(model.subProp(_.pagingUrls).transform(_.isEmpty), "Load more issues".toProperty)
   private val refreshNotifications = button(false.toProperty, "Refresh notifications".toProperty)
-  private val editButton = button(false.toProperty, "Edit".toProperty)
+  private val editButtonTitle = model.subProp(_.editing).transform(b => if (b) "Cancel" else "Edit")
+  private val editButton = button(false.toProperty, editButtonTitle)
 
   buttonOnClick(settingsButton) {presenter.gotoSettings()}
   buttonOnClick(nextPageButton) {presenter.loadMore()}
@@ -222,11 +223,14 @@ class PageView(
               },
               div(
                 s.articleContentTextArea,
-                div(`class`:="article-content").render.tap { ac =>
-                  model.subProp(_.articleContent).listen { content =>
-                    ac.asInstanceOf[js.Dynamic].innerHTML = content
-                  }
-                }
+                showIfElse(model.subProp(_.editing))(
+                  TextArea(model.subProp(_.editedArticleMarkdown))(Form.control, s.editTextArea).render,
+                  div(`class`:="article-content").render.tap { ac =>
+                    model.subProp(_.articleContent).listen { content =>
+                      ac.asInstanceOf[js.Dynamic].innerHTML = content
+                    }
+                  }.render
+                )
               )
             )
           ).render

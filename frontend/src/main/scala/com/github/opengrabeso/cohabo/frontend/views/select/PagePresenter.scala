@@ -352,7 +352,19 @@ class PagePresenter(
   }
 
   def editCurrentArticle(): Unit = {
+    val wasEditing = model.subProp(_.editing).get
+    if (wasEditing) {
+      model.subProp(_.editing).set(false)
+    } else {
 
+      for {
+        id <- model.subProp(_.selectedArticleId).get
+        sel <- model.subProp(_.articles).get.find(id == _.id)
+      } {
+        model.subProp(_.editedArticleMarkdown).set(sel.body)
+        model.subProp(_.editing).set(true)
+      }
+    }
   }
 
   def markAsRead(id: ArticleIdModel): Unit = {
