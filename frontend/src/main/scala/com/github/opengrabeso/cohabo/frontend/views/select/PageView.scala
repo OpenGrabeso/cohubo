@@ -54,10 +54,12 @@ class PageView(
   private val settingsButton = UdashButton()(_ => "Settings")
   private val nextPageButton = button(model.subProp(_.pagingUrls).transform(_.isEmpty), "Load more issues".toProperty)
   private val refreshNotifications = button(false.toProperty, "Refresh notifications".toProperty)
+  private val editButton = button(false.toProperty, "Edit".toProperty)
 
   buttonOnClick(settingsButton) {presenter.gotoSettings()}
   buttonOnClick(nextPageButton) {presenter.loadMore()}
   buttonOnClick(refreshNotifications) {presenter.refreshNotifications()}
+  buttonOnClick(editButton) {presenter.editCurrentArticle()}
 
   def issueLink(id: ArticleIdModel) = {
     id.id.map { commentId =>
@@ -201,9 +203,19 @@ class PageView(
               s.useFlex0,
               produce(model.subProp(_.selectedArticleParent)) {
                 case Some(row) =>
-                  div(s.selectedArticle,
-                    h4(`class`:="title", span(row.title), span(`class`:= "link", issueLink(row.id))),
-                    div(span(`class`:= "createdBy", row.createdBy))
+                  div(
+                    s.flexRow,
+                    div(
+                      s.selectedArticle,
+                      h4(`class`:="title", span(row.title), span(`class`:= "link", issueLink(row.id))),
+                      div(span(`class`:= "createdBy", row.createdBy))
+                    ).render,
+                    div(
+                      s.useFlex1
+                    ),
+                    div(
+                      editButton
+                    ).render
                   ).render
                 case None =>
                   div().render

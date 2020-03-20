@@ -351,6 +351,10 @@ class PagePresenter(
     }
   }
 
+  def editCurrentArticle(): Unit = {
+
+  }
+
   def markAsRead(id: ArticleIdModel): Unit = {
     val unreadInfo = model.subProp(_.unreadInfo).get
     for (unread <- unreadInfo.get(id.issueNumber)) {

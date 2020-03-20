@@ -31,6 +31,11 @@ object SelectPageStyles extends CssBase {
     flexDirection.column
   )
 
+  val flexRow = style(
+    display.flex,
+    flexDirection.row
+  )
+
   val useFlex1 = style(
     passFlex
   )
