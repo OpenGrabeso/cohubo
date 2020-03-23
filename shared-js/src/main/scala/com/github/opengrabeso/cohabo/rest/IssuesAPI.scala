@@ -23,6 +23,9 @@ trait IssuesAPI {
 
   @GET
   def comments: Future[Seq[Comment]]
+
+  @POST("comments")
+  def createComment(body: String): Future[Comment]
 }
 
 object IssuesAPI extends RestClientApiCompanion[EnhancedRestImplicits,IssuesAPI](EnhancedRestImplicits)

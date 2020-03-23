@@ -21,6 +21,8 @@ import scala.concurrent.duration._
 import scala.scalajs.js.timers._
 import scala.util.{Failure, Success, Try}
 import TimeFormatting._
+import io.udash.wrappers.jquery.jQ
+import org.scalajs.dom
 
 
 object PagePresenter {
@@ -77,7 +79,7 @@ class PagePresenter(
 )(implicit ec: ExecutionContext) extends Presenter[SelectPageState.type] {
 
   def props = userService.properties
-  val sourceParameters = props.subProp(_.token).combine(props.subProp(_.organization))(_ -> _).combine(props.subProp(_.repository))(_ -> _)
+  val sourceParameters = props.subProp(_.token).combine(props.subProp(_.context))(_ -> _)
   var lastNotifications =  Option.empty[String]
   var scheduled = Option.empty[SetTimeoutHandle]
 
@@ -92,7 +94,7 @@ class PagePresenter(
         model.subProp(_.articleContent).set("...")
         val content = s.body
         val props = userService.properties.get
-        val context = props.organization + "/" + props.repository
+        val context = props.context.relativeUrl
         val renderMarkdown = userService.call(_.markdown.markdown(content, "gfm", context))
         renderMarkdown.map { html =>
           model.subProp(_.articleContent).set(html.data)
@@ -116,33 +118,113 @@ class PagePresenter(
   }
 
 
-  def initArticles(org: String, repo: String): Future[DataWithHeaders[Seq[Issue]]] = {
-    userService.call(_.repos(org, repo).issues())
+  private def initArticles(context: ContextModel): Future[DataWithHeaders[Seq[Issue]]] = {
+    userService.call(_.repos(context.organization, context.repository).issues())
   }
 
-  def pageArticles(org: String, repo: String, token: String, link: String): Future[DataWithHeaders[Seq[Issue]]] = {
-    RestAPIClient.requestWithHeaders[Issue](link, userService.properties.subProp(_.token).get)
+  private def pageArticles(context: ContextModel, token: String, link: String): Future[DataWithHeaders[Seq[Issue]]] = {
+    RestAPIClient.requestWithHeaders[Issue](link, token)
   }
 
-  def loadArticlesPage(token: String, org: String, repo: String, mode: String): Unit = {
+  private def rowFromIssue(id: Issue, context: ContextModel) = {
+    val p = ArticleIdModel(context.organization, context.repository, id.number, None)
+    ArticleRowModel(
+      p, id.comments > 0, true, 0, id.title, id.body, Option(id.milestone).map(_.title), id.user.displayName,
+      id.created_at, id.created_at, id.updated_at
+    )
+  }
+
+
+  private def rowFromComment(articleId: ArticleIdModel, i: Comment) = ArticleRowModel(
+    articleId, false, false, 0, bodyAbstract(i.body), i.body, None, i.user.displayName,
+    i.created_at, i.updated_at, i.updated_at
+  )
+
+  private def findByQuote(quote: String, findIn: List[ArticleRowModel]): List[ArticleRowModel] = {
+    findIn.filter { i =>
+      val withoutQuotes = removeQuotes(i.body)
+      withoutQuotes.exists(_.contains(quote))
+    }
+  }
+
+  private def processIssueComments(issue: ArticleRowModel, comments: Seq[ArticleRowModel], context: ContextModel): Unit = { // the comments
+
+    val log = false
+
+    // hasChildren will be set later in traverseDepthFirst if necessary
+
+    val issueWithComments = issue +: comments
+
+    val fromEnd = issueWithComments.reverse
+
+    @tailrec
+    def processLast(todo: List[ArticleRowModel], doneChildren: List[(ArticleRowModel, ArticleRowModel)]): List[(ArticleRowModel, ArticleRowModel)] = {
+      todo match {
+        case head :: tail =>
+          // take last article, find its parent in the original order (check quotes TODO: check references)
+          val quotes = extractQuotes(head.body)
+          if (log) println(s"quotes ${quotes.toArray.mkString("[", ",", "]")}")
+          val byQuote = quotes.map(findByQuote(_, tail)).filter(_.nonEmpty)
+          if (byQuote.nonEmpty) {
+            if (log) println(s"byQuote ${byQuote.map(_.map(_.id)).toVector}")
+            // try to find an intersection (article containing all quotes)
+            // check
+            val mostQuoted = byQuote.flatten.groupBy(identity).mapValues(_.size).maxBy(_._2)._1
+            processLast(tail, (mostQuoted -> head) :: doneChildren)
+          } else {
+            // when nothing is found, take previous article
+            processLast(tail, tail.headOption.map(_ -> head).toList ++ doneChildren)
+          }
+
+        case _ =>
+          doneChildren
+      }
+    }
+    if (log) println(s"fromEnd ${fromEnd.map(_.body)}")
+    val childrenOf = processLast(fromEnd.toList, Nil).groupBy(_._1).mapValues(_.map(_._2))
+    if (log) println(s"root $issue")
+    if (log) println(s"childrenOf ${childrenOf.map { case (k, v) => k.id -> v.map(_.id) }}")
+    def traverseDepthFirst(i: ArticleRowModel, level: Int): List[ArticleRowModel] = {
+      if (log) println("  " * level + i.body)
+      val children = childrenOf.get(i).toList.flatten
+      i.copy(indent = level, hasChildren = children.nonEmpty) :: children.flatMap(traverseDepthFirst(_, level + 1))
+    }
+    val hierarchyWithComments = traverseDepthFirst(issue, 0).tap { h =>
+      if (log) println(s"Hierarchy ${h.map(_.id)}")
+    }
+
+    val a = model.subProp(_.articles)
+    // replace the one we have loaded
+    val (before, issueAndAfter) = a.get.span(_.id.issueNumber != issue.id.issueNumber)
+    val after = issueAndAfter.dropWhile(_.id.issueNumber == issue.id.issueNumber)
+    a.set(before ++ hierarchyWithComments ++ after)
+    // TODO: we may have to re-sort the issues
+  }
+
+  private def focusEdit(): Unit = {
+    jQ(dom.document).find("#edit-text-area").trigger("focus")
+  }
+
+
+  def loadArticlesPage(token: String, context: ContextModel, mode: String): Unit = {
     val loadIssue = mode match {
       case "next" =>
         model.subProp(_.pagingUrls).get.get(mode).map { link =>
-          pageArticles(org, repo, token, link)
+          pageArticles(context, token, link)
         }.getOrElse {
           Future.successful(DataWithHeaders(Nil))
         }
       case _ =>
-        initArticles(org, repo).tap(_.onComplete {
+        initArticles(context).tap(_.onComplete {
           case Failure(ex@HttpErrorException(code, _, _)) =>
             if (code != 404) {
-              println(s"Error loading issues from $org/$repo: $ex")
+              println(s"Error loading issues from ${context.relativeUrl}: $ex")
             }
             repoValid(false)
             Failure(ex)
           case Failure(ex) =>
             repoValid(false)
-            println(s"Error loading issues from $org/$repo: $ex")
+            println(s"Error loading issues from ${context.relativeUrl}: $ex")
             Failure(ex)
           case x =>
             // settings valid, store them
@@ -159,16 +241,8 @@ class PagePresenter(
       val issuesOrdered = is.sortBy(_.updated_at).reverse
 
 
-      def rowFromIssue(id: Issue) = {
-        val p = ArticleIdModel(org, repo, id.number, None)
-        ArticleRowModel(
-          p, id.comments > 0, true, 0, id.title, id.body, Option(id.milestone).map(_.title), id.user.displayName,
-          id.created_at, id.created_at, id.updated_at
-        )
-      }
-
       // preview the issues
-      val preview = issuesOrdered.map(rowFromIssue)
+      val preview = issuesOrdered.map(rowFromIssue(_, context))
 
       model.subProp(_.articles).tap { a =>
         a.set(a.get ++ preview)
@@ -177,73 +251,12 @@ class PagePresenter(
 
       issuesOrdered.map { id => // parent issue
         userService.call { api =>
-          api.repos(org, repo).issuesAPI(id.number).comments.map { comments => // the comments
-
-            val log = false
-
-            // hasChildren will be set later in traverseDepthFirst if necessary
-            val issue = rowFromIssue(id).copy(hasChildren = false, preview = false)
-            val p = issue.id
-
-            val issueWithComments = issue +: comments.zipWithIndex.map { case (i, index) =>
-              val articleId = ArticleIdModel(org, repo, id.number, Some((index + 1, i.id)))
-              ArticleRowModel(
-                articleId, false, false, 0, bodyAbstract(i.body), i.body, None, i.user.displayName,
-                i.created_at, i.updated_at, i.updated_at
-              )
+          api.repos(context.organization, context.repository).issuesAPI(id.number).comments.map { comments => // the comments
+            val issue = rowFromIssue(id, context).copy(hasChildren = false, preview = false)
+            val commentRows = comments.zipWithIndex.map { case (c, i) =>
+              rowFromComment(ArticleIdModel(context.organization, context.repository, id.number, Some(i, c.id)), c)
             }
-
-            val fromEnd = issueWithComments.reverse
-
-            def findByQuote(quote: String, previousFromEnd: List[ArticleRowModel]) = {
-              previousFromEnd.filter { i =>
-                val withoutQuotes = removeQuotes(i.body)
-                withoutQuotes.exists(_.contains(quote))
-              }
-            }
-
-            @tailrec
-            def processLast(todo: List[ArticleRowModel], doneChildren: List[(ArticleRowModel, ArticleRowModel)]): List[(ArticleRowModel, ArticleRowModel)] = {
-              todo match {
-                case head :: tail =>
-                  // take last article, find its parent in the original order (check quotes TODO: check references)
-                  val quotes = extractQuotes(head.body)
-                  if (log) println(s"quotes ${quotes.toArray.mkString("[", ",", "]")}")
-                  val byQuote = quotes.map(findByQuote(_, tail)).filter(_.nonEmpty)
-                  if (byQuote.nonEmpty) {
-                    if (log) println(s"byQuote ${byQuote.map(_.map(_.id)).toVector}")
-                    // try to find an intersection (article containing all quotes)
-                    // check
-                    val mostQuoted = byQuote.flatten.groupBy(identity).mapValues(_.size).maxBy(_._2)._1
-                    processLast(tail, (mostQuoted -> head) :: doneChildren)
-                  } else {
-                    // when nothing is found, take previous article
-                    processLast(tail, tail.headOption.map(_ -> head).toList ++ doneChildren)
-                  }
-
-                case _ =>
-                  doneChildren
-              }
-            }
-            if (log) println(s"fromEnd ${fromEnd.map(_.body)}")
-            val childrenOf = processLast(fromEnd.toList, Nil).groupBy(_._1).mapValues(_.map(_._2))
-            if (log) println(s"root $issue")
-            if (log) println(s"childrenOf ${childrenOf.map { case (k, v) => k.id -> v.map(_.id) }}")
-            def traverseDepthFirst(i: ArticleRowModel, level: Int): List[ArticleRowModel] = {
-              if (log) println("  " * level + i.body)
-              val children = childrenOf.get(i).toList.flatten
-              i.copy(indent = level, hasChildren = children.nonEmpty) :: children.flatMap(traverseDepthFirst(_, level + 1))
-            }
-            val hierarchyWithComments = traverseDepthFirst(issue, 0).tap { h =>
-              if (log) println(s"Hierarchy ${h.map(_.id)}")
-            }
-
-            model.subProp(_.articles).tap { a =>
-              // replace the one we have loaded
-              a.set(a.get.flatMap(r => if (r.id.issueNumber == id.number) hierarchyWithComments else Seq(r)))
-            }
-
-
+            processIssueComments(issue, commentRows, context)
           }
         }
       }
@@ -252,7 +265,7 @@ class PagePresenter(
 
   }
 
-  def loadNotifications(token: String, org: String, repo: String): Unit  = {
+  def loadNotifications(token: String, context: ContextModel): Unit  = {
     val logging = true
     scheduled.foreach(clearTimeout)
     scheduled = None
@@ -262,11 +275,11 @@ class PagePresenter(
       if (logging) println(s"scheduleNext $sec")
       scheduled = Some(setTimeout(sec.seconds) {
         scheduled = None
-        loadNotifications(token, org, repo)
+        loadNotifications(token, context)
       })
     }
     println(s"Load notifications since $lastNotifications")
-    userService.call(_.repos(org, repo).notifications(ifModifiedSince = lastNotifications.orNull, all = false)).map { notifications =>
+    userService.call(_.repos(context.organization, context.repository).notifications(ifModifiedSince = lastNotifications.orNull, all = false)).map { notifications =>
       // TODO:  we need paging if there are many notifications
       if (logging) println(s"Notifications ${notifications.data.size} headers ${notifications.headers}")
 
@@ -325,12 +338,12 @@ class PagePresenter(
   def loadArticles(): Unit = {
     // install the handler
     sourceParameters.listen(
-      { case ((token, org), repo) =>
+      { case (token, context) =>
         model.subProp(_.loading).set(true)
         model.subProp(_.articles).set(Seq.empty)
-        loadArticlesPage(token, org, repo, "init")
+        loadArticlesPage(token, context, "init")
         lastNotifications = None
-        loadNotifications(token, org, repo)
+        loadNotifications(token, context)
       }, initUpdate = true
     )
   }
@@ -338,47 +351,53 @@ class PagePresenter(
   override def handleState(state: SelectPageState.type): Unit = {}
 
   def loadMore(): Unit = {
-    val ((token, owner), repo) = sourceParameters.get
-    loadArticlesPage(token, owner, repo, "next")
+    val (token, context) = sourceParameters.get
+    loadArticlesPage(token, context, "next")
   }
 
 
   def refreshNotifications(): Unit = {
     println("refreshNotifications")
     sourceParameters.get.tap {
-      case ((token, org), repo) =>
-        loadNotifications(token, org, repo)
+      case (token, context) =>
+        loadNotifications(token, context)
     }
   }
 
   def editCurrentArticle(): Unit = {
-    val wasEditing = model.subProp(_.editing).get
+    val wasEditing = model.subProp(_.editing).get._1
     if (!wasEditing) {
       for {
         id <- model.subProp(_.selectedArticleId).get
         sel <- model.subProp(_.articles).get.find(id == _.id)
       } {
         model.subProp(_.editedArticleMarkdown).set(sel.body)
-        model.subProp(_.editing).set(true)
+        model.subProp(_.editing).set((true, false))
+        focusEdit()
       }
     }
   }
 
   def editCancel(): Unit = {
-    model.subProp(_.editing).set(false)
+    model.subProp(_.editing).set((false, false))
   }
 
   def editOK(): Unit = {
-    // TODO: store / update
-    for (selectedId <- model.subProp(_.selectedArticleId).get) {
-      userService.properties.get.tap { settings =>
+    for {
+      selectedId <- model.subProp(_.selectedArticleId).get
+      if model.subProp(_.editing).get._1
+      context = userService.properties.get.context
+    } {
+      val body = model.subProp(_.editedArticleMarkdown).get
+      if (!model.subProp(_.editing).get._2) {
+        println(s"Edit $selectedId")
+        // plain edit
         userService.call { api =>
-          val body = model.subProp(_.editedArticleMarkdown).get
-          selectedId match  {
+          selectedId match {
             case ArticleIdModel(_, _, issueId, Some((_, commentId))) =>
-              api.repos(settings.organization, settings.repository).editComment(commentId, body).map(_.body)
+              api.repos(context.organization, context.repository).editComment(commentId, body).map(_.body)
             case ArticleIdModel(_, _, issueId, None) =>
-              val issueAPI = api.repos(settings.organization, settings.repository).issuesAPI(issueId)
+              val issueAPI = api.repos(context.organization, context.repository).issuesAPI(issueId)
               issueAPI.get.flatMap { i =>
                 issueAPI.update(
                   i.title,
@@ -394,9 +413,8 @@ class PagePresenter(
           case Failure(ex) =>
             println(s"Edit failure $ex")
           case Success(body) =>
-            model.subProp(_.editing).set(false)
-            val context = settings.organization + "/" + settings.repository
-            val renderMarkdown = userService.call(_.markdown.markdown(body, "gfm", context))
+            model.subProp(_.editing).set((false, false))
+            val renderMarkdown = userService.call(_.markdown.markdown(body, "gfm", context.relativeUrl))
             // update the local data: article display and article content in the article table
             renderMarkdown.map { html =>
               model.subProp(_.articleContent).set(html.data)
@@ -409,8 +427,28 @@ class PagePresenter(
                 else a
               })
             }
-
         }
+      } else {
+        // reply (create a new comment)
+        userService.call { api =>
+          api.repos(context.organization, context.repository).issuesAPI(selectedId.issueNumber).createComment(body).map { c =>
+            // add the comment to the article list
+            val articles = model.subProp(_.articles).get
+            for {
+              i <- articles.find(_.id == ArticleIdModel(context.organization, context.repository, selectedId.issueNumber, None))
+              comments = articles.filter(a => a.id.issueNumber == selectedId.issueNumber && a.id.id.nonEmpty)
+            } {
+              val newId = ArticleIdModel(context.organization, context.repository, selectedId.issueNumber, Some(comments.length, c.id))
+              val newRow = rowFromComment(newId, c)
+              processIssueComments(i, comments :+ newRow, context)
+            }
+          }
+        }
+      }.onComplete {
+        case Failure(ex) =>
+          println(s"Reply failure $ex")
+        case Success(s) =>
+          model.subProp(_.editing).set((false, false))
       }
     }
   }
@@ -429,6 +467,38 @@ class PagePresenter(
 
   }
 
+  def reply(id: ArticleIdModel): Unit = {
+    val wasEditing = model.subProp(_.editing).get._1
+    if (!wasEditing) {
+      // TODO: autoquote if needed
+      // check all existing replies to the issue
+      val replies = model.subProp(_.articles).get.filter(a => a.id.issueNumber == id.issueNumber)
+      // there always must exists at least the reply we are replying to, it does not have to be a comment, though
+      val maxReplyNumber = replies.flatMap(_.id.id).map(_._1).maxOpt
+
+      val isLast = (id.id.map(_._1), maxReplyNumber) match {
+        case (Some(iid), Some(r)) if iid == r =>
+          true
+        case (None, None) =>
+          true
+        case _ =>
+          false
+      }
+
+      val quote = if (!isLast) {
+        val replyTo = replies.find(_.id == id).get
+        // TODO: smarter quote
+        "> " + bodyAbstract(replyTo.body) + "\n\n"
+      } else ""
+
+      println(s"Reply to $id")
+      model.subProp(_.editing).set((true, true))
+      model.subProp(_.selectedArticleId).set(Some(id))
+      model.subProp(_.editedArticleMarkdown).set(quote)
+      model.subProp(_.editedArticleHTML).set("")
+      focusEdit()
+    }
+  }
 
   def gotoSettings(): Unit = {
     application.goTo(SettingsPageState)

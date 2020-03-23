@@ -19,7 +19,7 @@ case class PageModel(
   articleContent: String = "",
   pagingUrls: Map[String, String] = Map.empty,
   error: Option[Throwable] = None,
-  editing: Boolean = false,
+  editing: (Boolean, Boolean) = (false, false), // editing, editing is reply
   editedArticleMarkdown: String = "",
   editedArticleHTML: String = "",
   unreadInfoFrom: Option[ZonedDateTime] = None, // anything newer than the notification info must be unread

@@ -54,7 +54,7 @@ class PageView(
   private val settingsButton = UdashButton()(_ => "Settings")
   private val nextPageButton = button(model.subProp(_.pagingUrls).transform(_.isEmpty), "Load more issues".toProperty)
   private val refreshNotifications = button(false.toProperty, "Refresh notifications".toProperty)
-  private val editButton = button(model.subProp(_.editing), "Edit".toProperty)
+  private val editButton = button(model.subProp(_.editing).transform(_._1), "Edit".toProperty)
   private val editOKButton = button(false.toProperty, "OK".toProperty)
   private val editCancelButton = button(false.toProperty, "Cancel".toProperty)
 
@@ -143,32 +143,33 @@ class PageView(
       rowFactory = TableFactory.rowFactory[ArticleRowModel, ArticleIdModel](model.subProp(_.selectedArticleId), attribs)
     )
 
-    val repoUrl = globals.subProp(_.organization).combine(globals.subProp(_.repository))(_ -> _)
+    val repoUrl = globals.subModel(_.context)
     div(
       s.container,
       div(Grid.row)(
         Spacing.margin(size = SpacingSize.Small),
         settingsButton.render,
-        TextInput(globals.subProp(_.organization), debounce = 500.millis)(),
-        TextInput(globals.subProp(_.repository), debounce = 500.millis)(),
+        TextInput(repoUrl.subProp(_.organization), debounce = 500.millis)(),
+        TextInput(repoUrl.subProp(_.repository), debounce = 500.millis)(),
         showIfElse(model.subProp(_.repoError))(
           p("???").render,
           div(
-            produce(repoUrl) { case (r, o) =>
+            produce(repoUrl) { context =>
+              val ro = context.relativeUrl
               Seq[Node](
                 a(
                   Spacing.margin(size = SpacingSize.Small),
-                  href := s"https://www.github.com/$r/$o",
-                  s"$r/$o"
+                  href := s"https://www.github.com/$ro",
+                  ro
                 ).render,
                 a(
                   Spacing.margin(size = SpacingSize.Small),
-                  href := s"https://www.github.com/$r/$o/issues",
+                  href := s"https://www.github.com/$ro/issues",
                   s"Issues"
                 ).render,
                 a(
                   Spacing.margin(size = SpacingSize.Small),
-                  href := s"https://www.github.com/$r/$o/milestones",
+                  href := s"https://www.github.com/$ro/milestones",
                   s"Milestones"
                 ).render
 
@@ -220,9 +221,9 @@ class PageView(
                 case None =>
                   div().render
               },
-              showIfElse(model.subProp(_.editing))(
+              showIfElse(model.subProp(_.editing).transform(_._1))(
                 div(
-                  TextArea(model.subProp(_.editedArticleMarkdown))(Form.control, s.editTextArea),
+                  TextArea(model.subProp(_.editedArticleMarkdown))(Form.control, s.editTextArea, id := "edit-text-area"),
                   div(
                     s.flexRow,
                     div(s.useFlex1),
@@ -251,13 +252,13 @@ class PageView(
           val issueNumber = e.attr("issue-number").get.toLong
           val replyNumber = e.attr("reply-number").map(_.toInt)
           val commentNumber = e.attr("comment-number").map(_.toLong)
-          val (owner, repo) = repoUrl.get
+          val context = repoUrl.get
           val commentId = (replyNumber zip commentNumber).headOption
-          ArticleIdModel(owner, repo, issueNumber, commentId)
+          ArticleIdModel(context.organization, context.repository, issueNumber, commentId)
         }
         val actions = js.Array(
           MenuItem.par(x => s"Mark #${x.issueNumber} as read", presenter.markAsRead),
-          MenuItem("Reply", x => println(s"Reply $x"))
+          MenuItem("Reply", presenter.reply)
         )
       })
     }
