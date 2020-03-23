@@ -201,6 +201,10 @@ class PagePresenter(
     // TODO: we may have to re-sort the issues
   }
 
+  private def focusEdit(): Unit = {
+    jQ(dom.document).find("#edit-text-area").trigger("focus")
+  }
+
 
   def loadArticlesPage(token: String, context: ContextModel, mode: String): Unit = {
     val loadIssue = mode match {
@@ -369,6 +373,7 @@ class PagePresenter(
       } {
         model.subProp(_.editedArticleMarkdown).set(sel.body)
         model.subProp(_.editing).set((true, false))
+        focusEdit()
       }
     }
   }
@@ -491,6 +496,7 @@ class PagePresenter(
       model.subProp(_.selectedArticleId).set(Some(id))
       model.subProp(_.editedArticleMarkdown).set(quote)
       model.subProp(_.editedArticleHTML).set("")
+      focusEdit()
     }
   }
 
