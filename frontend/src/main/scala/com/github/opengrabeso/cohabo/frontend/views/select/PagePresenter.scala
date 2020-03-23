@@ -352,29 +352,34 @@ class PagePresenter(
   }
 
   def editCurrentArticle(): Unit = {
-    val wasEditing = model.subProp(_.editing).get
+    val wasEditing = model.subProp(_.editing).get._1
     if (!wasEditing) {
       for {
         id <- model.subProp(_.selectedArticleId).get
         sel <- model.subProp(_.articles).get.find(id == _.id)
       } {
         model.subProp(_.editedArticleMarkdown).set(sel.body)
-        model.subProp(_.editing).set(true)
+        model.subProp(_.editing).set((true, false))
       }
     }
   }
 
   def editCancel(): Unit = {
-    model.subProp(_.editing).set(false)
+    model.subProp(_.editing).set((false, false))
   }
 
   def editOK(): Unit = {
-    // TODO: store / update
-    for (selectedId <- model.subProp(_.selectedArticleId).get) {
-      userService.properties.get.tap { settings =>
+    for {
+      selectedId <- model.subProp(_.selectedArticleId).get
+      if model.subProp(_.editing).get._1
+      settings = userService.properties.get
+    } {
+      val body = model.subProp(_.editedArticleMarkdown).get
+      if (!model.subProp(_.editing).get._2) {
+        println(s"Edit $selectedId")
+        // plain edit
         userService.call { api =>
-          val body = model.subProp(_.editedArticleMarkdown).get
-          selectedId match  {
+          selectedId match {
             case ArticleIdModel(_, _, issueId, Some((_, commentId))) =>
               api.repos(settings.organization, settings.repository).editComment(commentId, body).map(_.body)
             case ArticleIdModel(_, _, issueId, None) =>
@@ -394,7 +399,7 @@ class PagePresenter(
           case Failure(ex) =>
             println(s"Edit failure $ex")
           case Success(body) =>
-            model.subProp(_.editing).set(false)
+            model.subProp(_.editing).set((false, false))
             val context = settings.organization + "/" + settings.repository
             val renderMarkdown = userService.call(_.markdown.markdown(body, "gfm", context))
             // update the local data: article display and article content in the article table
@@ -409,7 +414,15 @@ class PagePresenter(
                 else a
               })
             }
-
+        }
+      } else {
+        println(s"Do reply to $selectedId")
+        // reply (create a new comment)
+        userService.call { api =>
+          api.repos(settings.organization, settings.repository).issuesAPI(selectedId.issueNumber).createComment(body).map { c =>
+            // TODO: add the comment to the article list
+            println(s"Reply completed as $c")
+          }
         }
       }
     }
@@ -429,6 +442,16 @@ class PagePresenter(
 
   }
 
+  def reply(id: ArticleIdModel): Unit = {
+    val wasEditing = model.subProp(_.editing).get._1
+    if (!wasEditing) {
+      // TODO: autoquote if needed
+
+      println(s"Reply to $id")
+      model.subProp(_.editing).set((true, true))
+      model.subProp(_.selectedArticleId).set(Some(id))
+    }
+  }
 
   def gotoSettings(): Unit = {
     application.goTo(SettingsPageState)

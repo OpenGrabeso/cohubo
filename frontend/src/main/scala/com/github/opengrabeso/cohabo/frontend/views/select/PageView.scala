@@ -54,7 +54,7 @@ class PageView(
   private val settingsButton = UdashButton()(_ => "Settings")
   private val nextPageButton = button(model.subProp(_.pagingUrls).transform(_.isEmpty), "Load more issues".toProperty)
   private val refreshNotifications = button(false.toProperty, "Refresh notifications".toProperty)
-  private val editButton = button(model.subProp(_.editing), "Edit".toProperty)
+  private val editButton = button(model.subProp(_.editing).transform(_._1), "Edit".toProperty)
   private val editOKButton = button(false.toProperty, "OK".toProperty)
   private val editCancelButton = button(false.toProperty, "Cancel".toProperty)
 
@@ -220,7 +220,7 @@ class PageView(
                 case None =>
                   div().render
               },
-              showIfElse(model.subProp(_.editing))(
+              showIfElse(model.subProp(_.editing).transform(_._1))(
                 div(
                   TextArea(model.subProp(_.editedArticleMarkdown))(Form.control, s.editTextArea),
                   div(
@@ -257,7 +257,7 @@ class PageView(
         }
         val actions = js.Array(
           MenuItem.par(x => s"Mark #${x.issueNumber} as read", presenter.markAsRead),
-          MenuItem("Reply", x => println(s"Reply $x"))
+          MenuItem("Reply", presenter.reply)
         )
       })
     }
