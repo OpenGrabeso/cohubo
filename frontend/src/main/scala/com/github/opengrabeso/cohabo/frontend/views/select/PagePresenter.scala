@@ -424,7 +424,6 @@ class PagePresenter(
             }
         }
       } else {
-        println(s"Do reply to $selectedId")
         // reply (create a new comment)
         userService.call { api =>
           api.repos(settings.organization, settings.repository).issuesAPI(selectedId.issueNumber).createComment(body).map { c =>
@@ -467,10 +466,11 @@ class PagePresenter(
     val wasEditing = model.subProp(_.editing).get._1
     if (!wasEditing) {
       // TODO: autoquote if needed
-
       println(s"Reply to $id")
       model.subProp(_.editing).set((true, true))
       model.subProp(_.selectedArticleId).set(Some(id))
+      model.subProp(_.editedArticleMarkdown).set("")
+      model.subProp(_.editedArticleHTML).set("")
     }
   }
 
