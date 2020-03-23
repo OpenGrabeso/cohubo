@@ -376,7 +376,7 @@ class PagePresenter(
           val body = model.subProp(_.editedArticleMarkdown).get
           selectedId match  {
             case ArticleIdModel(_, _, issueId, Some((_, commentId))) =>
-              api.repos(settings.organization, settings.repository).editComment(commentId, body)
+              api.repos(settings.organization, settings.repository).editComment(commentId, body).map(_.body)
             case ArticleIdModel(_, _, issueId, None) =>
               val issueAPI = api.repos(settings.organization, settings.repository).issuesAPI(issueId)
               issueAPI.get.flatMap { i =>
@@ -388,15 +388,29 @@ class PagePresenter(
                   i.labels.map(_.name),
                   i.assignees.map(_.login)
                 )
-              }
+              }.map(_.body)
           }
         }.onComplete {
           case Failure(ex) =>
             println(s"Edit failure $ex")
-          case _ =>
+          case Success(body) =>
             model.subProp(_.editing).set(false)
-        }
+            val context = settings.organization + "/" + settings.repository
+            val renderMarkdown = userService.call(_.markdown.markdown(body, "gfm", context))
+            // update the local data: article display and article content in the article table
+            renderMarkdown.map { html =>
+              model.subProp(_.articleContent).set(html.data)
+            }.failed.foreach { ex =>
+              model.subProp(_.articleContent).set(s"Markdown error $ex")
+            }
+            model.subProp(_.articles).tap { as =>
+              as.set(as.get.map { a =>
+                if (a.id == selectedId) a.copy(body = body)
+                else a
+              })
+            }
 
+        }
       }
     }
   }
