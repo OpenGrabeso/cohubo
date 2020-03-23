@@ -370,7 +370,35 @@ class PagePresenter(
 
   def editOK(): Unit = {
     // TODO: store / update
-    model.subProp(_.editing).set(false)
+    for (selectedId <- model.subProp(_.selectedArticleId).get) {
+      userService.properties.get.tap { settings =>
+        userService.call { api =>
+          val body = model.subProp(_.editedArticleMarkdown).get
+          selectedId match  {
+            case ArticleIdModel(_, _, issueId, Some((_, commentId))) =>
+              api.repos(settings.organization, settings.repository).editComment(commentId, body)
+            case ArticleIdModel(_, _, issueId, None) =>
+              val issueAPI = api.repos(settings.organization, settings.repository).issuesAPI(issueId)
+              issueAPI.get.flatMap { i =>
+                issueAPI.update(
+                  i.title,
+                  i.body,
+                  i.state,
+                  i.milestone.number,
+                  i.labels.map(_.name),
+                  i.assignees.map(_.login)
+                )
+              }
+          }
+        }.onComplete {
+          case Failure(ex) =>
+            println(s"Edit failure $ex")
+          case _ =>
+            model.subProp(_.editing).set(false)
+        }
+
+      }
+    }
   }
 
   def markAsRead(id: ArticleIdModel): Unit = {

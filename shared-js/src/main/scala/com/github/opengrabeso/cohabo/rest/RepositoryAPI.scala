@@ -26,6 +26,14 @@ trait RepositoryAPI {
 
   @Prefix("issues")
   def issuesAPI(number: Long): IssuesAPI
+
+  @PATCH("issues/comments")
+  def editComment(
+    @Path
+    id: Long,
+    body: String
+  ): Future[Comment]
+
 }
 
 object RepositoryAPI extends RestClientApiCompanion[EnhancedRestImplicits,RepositoryAPI](EnhancedRestImplicits)
