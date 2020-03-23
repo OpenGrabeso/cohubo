@@ -77,7 +77,7 @@ class PagePresenter(
 )(implicit ec: ExecutionContext) extends Presenter[SelectPageState.type] {
 
   def props = userService.properties
-  val sourceParameters = props.subProp(_.token).combine(props.subProp(_.organization))(_ -> _).combine(props.subProp(_.repository))(_ -> _)
+  val sourceParameters = props.subProp(_.token).combine(props.subProp(_.context))(_ -> _)
   var lastNotifications =  Option.empty[String]
   var scheduled = Option.empty[SetTimeoutHandle]
 
@@ -92,7 +92,7 @@ class PagePresenter(
         model.subProp(_.articleContent).set("...")
         val content = s.body
         val props = userService.properties.get
-        val context = props.organization + "/" + props.repository
+        val context = props.context.relativeUrl
         val renderMarkdown = userService.call(_.markdown.markdown(content, "gfm", context))
         renderMarkdown.map { html =>
           model.subProp(_.articleContent).set(html.data)
@@ -116,16 +116,16 @@ class PagePresenter(
   }
 
 
-  def initArticles(org: String, repo: String): Future[DataWithHeaders[Seq[Issue]]] = {
-    userService.call(_.repos(org, repo).issues())
+  def initArticles(context: ContextModel): Future[DataWithHeaders[Seq[Issue]]] = {
+    userService.call(_.repos(context.organization, context.repository).issues())
   }
 
-  def pageArticles(org: String, repo: String, token: String, link: String): Future[DataWithHeaders[Seq[Issue]]] = {
-    RestAPIClient.requestWithHeaders[Issue](link, userService.properties.subProp(_.token).get)
+  def pageArticles(context: ContextModel, token: String, link: String): Future[DataWithHeaders[Seq[Issue]]] = {
+    RestAPIClient.requestWithHeaders[Issue](link, token)
   }
 
-  def rowFromIssue(id: Issue, org: String, repo: String) = {
-    val p = ArticleIdModel(org, repo, id.number, None)
+  def rowFromIssue(id: Issue, context: ContextModel) = {
+    val p = ArticleIdModel(context.organization, context.repository, id.number, None)
     ArticleRowModel(
       p, id.comments > 0, true, 0, id.title, id.body, Option(id.milestone).map(_.title), id.user.displayName,
       id.created_at, id.created_at, id.updated_at
@@ -139,7 +139,7 @@ class PagePresenter(
   )
 
 
-  def processIssueComments(issue: ArticleRowModel, comments: Seq[ArticleRowModel], org: String, repo: String): Unit = { // the comments
+  def processIssueComments(issue: ArticleRowModel, comments: Seq[ArticleRowModel], context: ContextModel): Unit = { // the comments
 
     val log = false
 
@@ -201,25 +201,25 @@ class PagePresenter(
   }
 
 
-  def loadArticlesPage(token: String, org: String, repo: String, mode: String): Unit = {
+  def loadArticlesPage(token: String, context: ContextModel, mode: String): Unit = {
     val loadIssue = mode match {
       case "next" =>
         model.subProp(_.pagingUrls).get.get(mode).map { link =>
-          pageArticles(org, repo, token, link)
+          pageArticles(context, token, link)
         }.getOrElse {
           Future.successful(DataWithHeaders(Nil))
         }
       case _ =>
-        initArticles(org, repo).tap(_.onComplete {
+        initArticles(context).tap(_.onComplete {
           case Failure(ex@HttpErrorException(code, _, _)) =>
             if (code != 404) {
-              println(s"Error loading issues from $org/$repo: $ex")
+              println(s"Error loading issues from ${context.relativeUrl}: $ex")
             }
             repoValid(false)
             Failure(ex)
           case Failure(ex) =>
             repoValid(false)
-            println(s"Error loading issues from $org/$repo: $ex")
+            println(s"Error loading issues from ${context.relativeUrl}: $ex")
             Failure(ex)
           case x =>
             // settings valid, store them
@@ -237,7 +237,7 @@ class PagePresenter(
 
 
       // preview the issues
-      val preview = issuesOrdered.map(rowFromIssue(_, org, repo))
+      val preview = issuesOrdered.map(rowFromIssue(_, context))
 
       model.subProp(_.articles).tap { a =>
         a.set(a.get ++ preview)
@@ -246,12 +246,12 @@ class PagePresenter(
 
       issuesOrdered.map { id => // parent issue
         userService.call { api =>
-          api.repos(org, repo).issuesAPI(id.number).comments.map { comments => // the comments
-            val issue = rowFromIssue(id, org, repo).copy(hasChildren = false, preview = false)
+          api.repos(context.organization, context.repository).issuesAPI(id.number).comments.map { comments => // the comments
+            val issue = rowFromIssue(id, context).copy(hasChildren = false, preview = false)
             val commentRows = comments.zipWithIndex.map { case (c, i) =>
-              rowFromComment(ArticleIdModel(org, repo, id.number, Some(i, c.id)), c)
+              rowFromComment(ArticleIdModel(context.organization, context.repository, id.number, Some(i, c.id)), c)
             }
-            processIssueComments(issue, commentRows, org, repo)
+            processIssueComments(issue, commentRows, context)
           }
         }
       }
@@ -260,7 +260,7 @@ class PagePresenter(
 
   }
 
-  def loadNotifications(token: String, org: String, repo: String): Unit  = {
+  def loadNotifications(token: String, context: ContextModel): Unit  = {
     val logging = true
     scheduled.foreach(clearTimeout)
     scheduled = None
@@ -270,11 +270,11 @@ class PagePresenter(
       if (logging) println(s"scheduleNext $sec")
       scheduled = Some(setTimeout(sec.seconds) {
         scheduled = None
-        loadNotifications(token, org, repo)
+        loadNotifications(token, context)
       })
     }
     println(s"Load notifications since $lastNotifications")
-    userService.call(_.repos(org, repo).notifications(ifModifiedSince = lastNotifications.orNull, all = false)).map { notifications =>
+    userService.call(_.repos(context.organization, context.repository).notifications(ifModifiedSince = lastNotifications.orNull, all = false)).map { notifications =>
       // TODO:  we need paging if there are many notifications
       if (logging) println(s"Notifications ${notifications.data.size} headers ${notifications.headers}")
 
@@ -333,12 +333,12 @@ class PagePresenter(
   def loadArticles(): Unit = {
     // install the handler
     sourceParameters.listen(
-      { case ((token, org), repo) =>
+      { case (token, context) =>
         model.subProp(_.loading).set(true)
         model.subProp(_.articles).set(Seq.empty)
-        loadArticlesPage(token, org, repo, "init")
+        loadArticlesPage(token, context, "init")
         lastNotifications = None
-        loadNotifications(token, org, repo)
+        loadNotifications(token, context)
       }, initUpdate = true
     )
   }
@@ -346,16 +346,16 @@ class PagePresenter(
   override def handleState(state: SelectPageState.type): Unit = {}
 
   def loadMore(): Unit = {
-    val ((token, owner), repo) = sourceParameters.get
-    loadArticlesPage(token, owner, repo, "next")
+    val (token, context) = sourceParameters.get
+    loadArticlesPage(token, context, "next")
   }
 
 
   def refreshNotifications(): Unit = {
     println("refreshNotifications")
     sourceParameters.get.tap {
-      case ((token, org), repo) =>
-        loadNotifications(token, org, repo)
+      case (token, context) =>
+        loadNotifications(token, context)
     }
   }
 
@@ -380,7 +380,7 @@ class PagePresenter(
     for {
       selectedId <- model.subProp(_.selectedArticleId).get
       if model.subProp(_.editing).get._1
-      settings = userService.properties.get
+      context = userService.properties.get.context
     } {
       val body = model.subProp(_.editedArticleMarkdown).get
       if (!model.subProp(_.editing).get._2) {
@@ -389,9 +389,9 @@ class PagePresenter(
         userService.call { api =>
           selectedId match {
             case ArticleIdModel(_, _, issueId, Some((_, commentId))) =>
-              api.repos(settings.organization, settings.repository).editComment(commentId, body).map(_.body)
+              api.repos(context.organization, context.repository).editComment(commentId, body).map(_.body)
             case ArticleIdModel(_, _, issueId, None) =>
-              val issueAPI = api.repos(settings.organization, settings.repository).issuesAPI(issueId)
+              val issueAPI = api.repos(context.organization, context.repository).issuesAPI(issueId)
               issueAPI.get.flatMap { i =>
                 issueAPI.update(
                   i.title,
@@ -408,8 +408,7 @@ class PagePresenter(
             println(s"Edit failure $ex")
           case Success(body) =>
             model.subProp(_.editing).set((false, false))
-            val context = settings.organization + "/" + settings.repository
-            val renderMarkdown = userService.call(_.markdown.markdown(body, "gfm", context))
+            val renderMarkdown = userService.call(_.markdown.markdown(body, "gfm", context.relativeUrl))
             // update the local data: article display and article content in the article table
             renderMarkdown.map { html =>
               model.subProp(_.articleContent).set(html.data)
@@ -426,16 +425,16 @@ class PagePresenter(
       } else {
         // reply (create a new comment)
         userService.call { api =>
-          api.repos(settings.organization, settings.repository).issuesAPI(selectedId.issueNumber).createComment(body).map { c =>
+          api.repos(context.organization, context.repository).issuesAPI(selectedId.issueNumber).createComment(body).map { c =>
             // add the comment to the article list
             val articles = model.subProp(_.articles).get
             for {
-              i <- articles.find(_.id == ArticleIdModel(settings.organization, settings.repository, selectedId.issueNumber, None))
+              i <- articles.find(_.id == ArticleIdModel(context.organization, context.repository, selectedId.issueNumber, None))
               comments = articles.filter(a => a.id.issueNumber == selectedId.issueNumber && a.id.id.nonEmpty)
             } {
-              val newId = ArticleIdModel(settings.organization, settings.repository, selectedId.issueNumber, Some(comments.length, c.id))
+              val newId = ArticleIdModel(context.organization, context.repository, selectedId.issueNumber, Some(comments.length, c.id))
               val newRow = rowFromComment(newId, c)
-              processIssueComments(i, comments :+ newRow, settings.organization, settings.repository)
+              processIssueComments(i, comments :+ newRow, context)
             }
           }
         }

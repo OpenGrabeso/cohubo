@@ -4,7 +4,7 @@ import io.udash.HasModelPropertyCreator
 import org.scalajs.dom
 
 case class SettingsModel(
-  token: String = null, organization: String = null, repository: String = null,
+  token: String = null, context: ContextModel = ContextModel(),
   user: UserLoginModel = UserLoginModel(),
   rateLimits: Option[(Long, Long, Long)] = None
 )
@@ -14,8 +14,8 @@ object SettingsModel extends HasModelPropertyCreator[SettingsModel] {
   val ss = dom.window.sessionStorage
   val values = Map[String, (SettingsModel => String, (SettingsModel, String) => SettingsModel)](
     "cohubo.token" -> (_.token, (m, s) => m.copy(token = s)),
-    "cohubo.organization" -> (_.organization, (m, s) => m.copy(organization = s)),
-    "cohubo.repository" -> (_.repository, (m, s) => m.copy(repository = s))
+    "cohubo.organization" -> (_.context.organization, (m, s) => m.copy(context = m.context.copy(organization = s))),
+    "cohubo.repository" -> (_.context.repository, (m, s) => m.copy(context = m.context.copy(repository = s)))
   )
 
   def load: SettingsModel = {

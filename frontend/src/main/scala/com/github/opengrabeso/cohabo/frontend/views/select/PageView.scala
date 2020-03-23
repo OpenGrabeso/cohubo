@@ -143,32 +143,33 @@ class PageView(
       rowFactory = TableFactory.rowFactory[ArticleRowModel, ArticleIdModel](model.subProp(_.selectedArticleId), attribs)
     )
 
-    val repoUrl = globals.subProp(_.organization).combine(globals.subProp(_.repository))(_ -> _)
+    val repoUrl = globals.subModel(_.context)
     div(
       s.container,
       div(Grid.row)(
         Spacing.margin(size = SpacingSize.Small),
         settingsButton.render,
-        TextInput(globals.subProp(_.organization), debounce = 500.millis)(),
-        TextInput(globals.subProp(_.repository), debounce = 500.millis)(),
+        TextInput(repoUrl.subProp(_.organization), debounce = 500.millis)(),
+        TextInput(repoUrl.subProp(_.repository), debounce = 500.millis)(),
         showIfElse(model.subProp(_.repoError))(
           p("???").render,
           div(
-            produce(repoUrl) { case (r, o) =>
+            produce(repoUrl) { context =>
+              val ro = context.relativeUrl
               Seq[Node](
                 a(
                   Spacing.margin(size = SpacingSize.Small),
-                  href := s"https://www.github.com/$r/$o",
-                  s"$r/$o"
+                  href := s"https://www.github.com/$ro",
+                  ro
                 ).render,
                 a(
                   Spacing.margin(size = SpacingSize.Small),
-                  href := s"https://www.github.com/$r/$o/issues",
+                  href := s"https://www.github.com/$ro/issues",
                   s"Issues"
                 ).render,
                 a(
                   Spacing.margin(size = SpacingSize.Small),
-                  href := s"https://www.github.com/$r/$o/milestones",
+                  href := s"https://www.github.com/$ro/milestones",
                   s"Milestones"
                 ).render
 
@@ -251,9 +252,9 @@ class PageView(
           val issueNumber = e.attr("issue-number").get.toLong
           val replyNumber = e.attr("reply-number").map(_.toInt)
           val commentNumber = e.attr("comment-number").map(_.toLong)
-          val (owner, repo) = repoUrl.get
+          val context = repoUrl.get
           val commentId = (replyNumber zip commentNumber).headOption
-          ArticleIdModel(owner, repo, issueNumber, commentId)
+          ArticleIdModel(context.organization, context.repository, issueNumber, commentId)
         }
         val actions = js.Array(
           MenuItem.par(x => s"Mark #${x.issueNumber} as read", presenter.markAsRead),
