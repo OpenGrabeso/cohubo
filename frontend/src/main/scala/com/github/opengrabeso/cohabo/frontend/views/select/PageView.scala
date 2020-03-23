@@ -54,10 +54,16 @@ class PageView(
   private val settingsButton = UdashButton()(_ => "Settings")
   private val nextPageButton = button(model.subProp(_.pagingUrls).transform(_.isEmpty), "Load more issues".toProperty)
   private val refreshNotifications = button(false.toProperty, "Refresh notifications".toProperty)
+  private val editButton = button(model.subProp(_.editing), "Edit".toProperty)
+  private val editOKButton = button(false.toProperty, "OK".toProperty)
+  private val editCancelButton = button(false.toProperty, "Cancel".toProperty)
 
   buttonOnClick(settingsButton) {presenter.gotoSettings()}
   buttonOnClick(nextPageButton) {presenter.loadMore()}
   buttonOnClick(refreshNotifications) {presenter.refreshNotifications()}
+  buttonOnClick(editButton) {presenter.editCurrentArticle()}
+  buttonOnClick(editOKButton) {presenter.editOK()}
+  buttonOnClick(editCancelButton) {presenter.editCancel()}
 
   def issueLink(id: ArticleIdModel) = {
     id.id.map { commentId =>
@@ -201,20 +207,37 @@ class PageView(
               s.useFlex0,
               produce(model.subProp(_.selectedArticleParent)) {
                 case Some(row) =>
-                  div(s.selectedArticle,
-                    h4(`class`:="title", span(row.title), span(`class`:= "link", issueLink(row.id))),
-                    div(span(`class`:= "createdBy", row.createdBy))
+                  div(
+                    s.flexRow,
+                    div(
+                      s.selectedArticle,
+                      h4(`class`:="title", span(row.title), span(`class`:= "link", issueLink(row.id))),
+                      div(span(`class`:= "createdBy", row.createdBy))
+                    ),
+                    div(s.useFlex1),
+                    div(editButton)
                   ).render
                 case None =>
                   div().render
               },
-              div(
-                s.articleContentTextArea,
-                div(`class`:="article-content").render.tap { ac =>
-                  model.subProp(_.articleContent).listen { content =>
-                    ac.asInstanceOf[js.Dynamic].innerHTML = content
+              showIfElse(model.subProp(_.editing))(
+                div(
+                  TextArea(model.subProp(_.editedArticleMarkdown))(Form.control, s.editTextArea),
+                  div(
+                    s.flexRow,
+                    div(s.useFlex1),
+                    editOKButton,
+                    editCancelButton
+                  )
+                ).render,
+                div(
+                  s.articleContentTextArea,
+                  div(`class`:="article-content").render.tap { ac =>
+                    model.subProp(_.articleContent).listen { content =>
+                      ac.asInstanceOf[js.Dynamic].innerHTML = content
+                    }
                   }
-                }
+                ).render
               )
             )
           ).render

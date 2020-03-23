@@ -351,6 +351,70 @@ class PagePresenter(
     }
   }
 
+  def editCurrentArticle(): Unit = {
+    val wasEditing = model.subProp(_.editing).get
+    if (!wasEditing) {
+      for {
+        id <- model.subProp(_.selectedArticleId).get
+        sel <- model.subProp(_.articles).get.find(id == _.id)
+      } {
+        model.subProp(_.editedArticleMarkdown).set(sel.body)
+        model.subProp(_.editing).set(true)
+      }
+    }
+  }
+
+  def editCancel(): Unit = {
+    model.subProp(_.editing).set(false)
+  }
+
+  def editOK(): Unit = {
+    // TODO: store / update
+    for (selectedId <- model.subProp(_.selectedArticleId).get) {
+      userService.properties.get.tap { settings =>
+        userService.call { api =>
+          val body = model.subProp(_.editedArticleMarkdown).get
+          selectedId match  {
+            case ArticleIdModel(_, _, issueId, Some((_, commentId))) =>
+              api.repos(settings.organization, settings.repository).editComment(commentId, body).map(_.body)
+            case ArticleIdModel(_, _, issueId, None) =>
+              val issueAPI = api.repos(settings.organization, settings.repository).issuesAPI(issueId)
+              issueAPI.get.flatMap { i =>
+                issueAPI.update(
+                  i.title,
+                  i.body,
+                  i.state,
+                  i.milestone.number,
+                  i.labels.map(_.name),
+                  i.assignees.map(_.login)
+                )
+              }.map(_.body)
+          }
+        }.onComplete {
+          case Failure(ex) =>
+            println(s"Edit failure $ex")
+          case Success(body) =>
+            model.subProp(_.editing).set(false)
+            val context = settings.organization + "/" + settings.repository
+            val renderMarkdown = userService.call(_.markdown.markdown(body, "gfm", context))
+            // update the local data: article display and article content in the article table
+            renderMarkdown.map { html =>
+              model.subProp(_.articleContent).set(html.data)
+            }.failed.foreach { ex =>
+              model.subProp(_.articleContent).set(s"Markdown error $ex")
+            }
+            model.subProp(_.articles).tap { as =>
+              as.set(as.get.map { a =>
+                if (a.id == selectedId) a.copy(body = body)
+                else a
+              })
+            }
+
+        }
+      }
+    }
+  }
+
   def markAsRead(id: ArticleIdModel): Unit = {
     val unreadInfo = model.subProp(_.unreadInfo).get
     for (unread <- unreadInfo.get(id.issueNumber)) {

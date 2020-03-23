@@ -31,6 +31,11 @@ object SelectPageStyles extends CssBase {
     flexDirection.column
   )
 
+  val flexRow = style(
+    display.flex,
+    flexDirection.row
+  )
+
   val useFlex1 = style(
     passFlex
   )
@@ -167,6 +172,12 @@ object SelectPageStyles extends CssBase {
     borderStyle.solid,
     borderWidth(1 px),
     borderColor(c"#8080c0")
+  )
+
+  val editTextArea = style(
+    overflow.auto,
+    width(100 %%),
+    boxSizing.borderBox
   )
 
   val selectedArticle = style(

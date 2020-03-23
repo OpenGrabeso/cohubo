@@ -13,6 +13,9 @@ case class Issue(
   user: User,
   comments: Long,
   milestone: Milestone,
+  state: String,
+  labels: Array[Label],
+  assignees: Array[User],
   created_at: ZonedDateTime,
   updated_at: ZonedDateTime
 )

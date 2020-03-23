@@ -19,6 +19,9 @@ case class PageModel(
   articleContent: String = "",
   pagingUrls: Map[String, String] = Map.empty,
   error: Option[Throwable] = None,
+  editing: Boolean = false,
+  editedArticleMarkdown: String = "",
+  editedArticleHTML: String = "",
   unreadInfoFrom: Option[ZonedDateTime] = None, // anything newer than the notification info must be unread
   unreadInfo: Map[Long, UnreadInfo] = Map.empty // list unread articles (and time range when unread)
 )
