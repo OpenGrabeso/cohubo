@@ -124,6 +124,83 @@ class PagePresenter(
     RestAPIClient.requestWithHeaders[Issue](link, userService.properties.subProp(_.token).get)
   }
 
+  def rowFromIssue(id: Issue, org: String, repo: String) = {
+    val p = ArticleIdModel(org, repo, id.number, None)
+    ArticleRowModel(
+      p, id.comments > 0, true, 0, id.title, id.body, Option(id.milestone).map(_.title), id.user.displayName,
+      id.created_at, id.created_at, id.updated_at
+    )
+  }
+
+
+  def rowFromComment(articleId: ArticleIdModel, i: Comment) = ArticleRowModel(
+    articleId, false, false, 0, bodyAbstract(i.body), i.body, None, i.user.displayName,
+    i.created_at, i.updated_at, i.updated_at
+  )
+
+
+  def processIssueComments(issue: ArticleRowModel, comments: Seq[ArticleRowModel], org: String, repo: String): Unit = { // the comments
+
+    val log = false
+
+    // hasChildren will be set later in traverseDepthFirst if necessary
+
+    val issueWithComments = issue +: comments
+
+    val fromEnd = issueWithComments.reverse
+
+    def findByQuote(quote: String, previousFromEnd: List[ArticleRowModel]) = {
+      previousFromEnd.filter { i =>
+        val withoutQuotes = removeQuotes(i.body)
+        withoutQuotes.exists(_.contains(quote))
+      }
+    }
+
+    @tailrec
+    def processLast(todo: List[ArticleRowModel], doneChildren: List[(ArticleRowModel, ArticleRowModel)]): List[(ArticleRowModel, ArticleRowModel)] = {
+      todo match {
+        case head :: tail =>
+          // take last article, find its parent in the original order (check quotes TODO: check references)
+          val quotes = extractQuotes(head.body)
+          if (log) println(s"quotes ${quotes.toArray.mkString("[", ",", "]")}")
+          val byQuote = quotes.map(findByQuote(_, tail)).filter(_.nonEmpty)
+          if (byQuote.nonEmpty) {
+            if (log) println(s"byQuote ${byQuote.map(_.map(_.id)).toVector}")
+            // try to find an intersection (article containing all quotes)
+            // check
+            val mostQuoted = byQuote.flatten.groupBy(identity).mapValues(_.size).maxBy(_._2)._1
+            processLast(tail, (mostQuoted -> head) :: doneChildren)
+          } else {
+            // when nothing is found, take previous article
+            processLast(tail, tail.headOption.map(_ -> head).toList ++ doneChildren)
+          }
+
+        case _ =>
+          doneChildren
+      }
+    }
+    if (log) println(s"fromEnd ${fromEnd.map(_.body)}")
+    val childrenOf = processLast(fromEnd.toList, Nil).groupBy(_._1).mapValues(_.map(_._2))
+    if (log) println(s"root $issue")
+    if (log) println(s"childrenOf ${childrenOf.map { case (k, v) => k.id -> v.map(_.id) }}")
+    def traverseDepthFirst(i: ArticleRowModel, level: Int): List[ArticleRowModel] = {
+      if (log) println("  " * level + i.body)
+      val children = childrenOf.get(i).toList.flatten
+      i.copy(indent = level, hasChildren = children.nonEmpty) :: children.flatMap(traverseDepthFirst(_, level + 1))
+    }
+    val hierarchyWithComments = traverseDepthFirst(issue, 0).tap { h =>
+      if (log) println(s"Hierarchy ${h.map(_.id)}")
+    }
+
+    val a = model.subProp(_.articles)
+    // replace the one we have loaded
+    val (before, issueAndAfter) = a.get.span(_.id.issueNumber != issue.id.issueNumber)
+    val after = issueAndAfter.dropWhile(_.id.issueNumber == issue.id.issueNumber)
+    a.set(before ++ hierarchyWithComments ++ after)
+    // TODO: we may have to re-sort the issues
+  }
+
+
   def loadArticlesPage(token: String, org: String, repo: String, mode: String): Unit = {
     val loadIssue = mode match {
       case "next" =>
@@ -159,16 +236,8 @@ class PagePresenter(
       val issuesOrdered = is.sortBy(_.updated_at).reverse
 
 
-      def rowFromIssue(id: Issue) = {
-        val p = ArticleIdModel(org, repo, id.number, None)
-        ArticleRowModel(
-          p, id.comments > 0, true, 0, id.title, id.body, Option(id.milestone).map(_.title), id.user.displayName,
-          id.created_at, id.created_at, id.updated_at
-        )
-      }
-
       // preview the issues
-      val preview = issuesOrdered.map(rowFromIssue)
+      val preview = issuesOrdered.map(rowFromIssue(_, org, repo))
 
       model.subProp(_.articles).tap { a =>
         a.set(a.get ++ preview)
@@ -178,72 +247,11 @@ class PagePresenter(
       issuesOrdered.map { id => // parent issue
         userService.call { api =>
           api.repos(org, repo).issuesAPI(id.number).comments.map { comments => // the comments
-
-            val log = false
-
-            // hasChildren will be set later in traverseDepthFirst if necessary
-            val issue = rowFromIssue(id).copy(hasChildren = false, preview = false)
-            val p = issue.id
-
-            val issueWithComments = issue +: comments.zipWithIndex.map { case (i, index) =>
-              val articleId = ArticleIdModel(org, repo, id.number, Some((index + 1, i.id)))
-              ArticleRowModel(
-                articleId, false, false, 0, bodyAbstract(i.body), i.body, None, i.user.displayName,
-                i.created_at, i.updated_at, i.updated_at
-              )
+            val issue = rowFromIssue(id, org, repo).copy(hasChildren = false, preview = false)
+            val commentRows = comments.zipWithIndex.map { case (c, i) =>
+              rowFromComment(ArticleIdModel(org, repo, id.number, Some(i, c.id)), c)
             }
-
-            val fromEnd = issueWithComments.reverse
-
-            def findByQuote(quote: String, previousFromEnd: List[ArticleRowModel]) = {
-              previousFromEnd.filter { i =>
-                val withoutQuotes = removeQuotes(i.body)
-                withoutQuotes.exists(_.contains(quote))
-              }
-            }
-
-            @tailrec
-            def processLast(todo: List[ArticleRowModel], doneChildren: List[(ArticleRowModel, ArticleRowModel)]): List[(ArticleRowModel, ArticleRowModel)] = {
-              todo match {
-                case head :: tail =>
-                  // take last article, find its parent in the original order (check quotes TODO: check references)
-                  val quotes = extractQuotes(head.body)
-                  if (log) println(s"quotes ${quotes.toArray.mkString("[", ",", "]")}")
-                  val byQuote = quotes.map(findByQuote(_, tail)).filter(_.nonEmpty)
-                  if (byQuote.nonEmpty) {
-                    if (log) println(s"byQuote ${byQuote.map(_.map(_.id)).toVector}")
-                    // try to find an intersection (article containing all quotes)
-                    // check
-                    val mostQuoted = byQuote.flatten.groupBy(identity).mapValues(_.size).maxBy(_._2)._1
-                    processLast(tail, (mostQuoted -> head) :: doneChildren)
-                  } else {
-                    // when nothing is found, take previous article
-                    processLast(tail, tail.headOption.map(_ -> head).toList ++ doneChildren)
-                  }
-
-                case _ =>
-                  doneChildren
-              }
-            }
-            if (log) println(s"fromEnd ${fromEnd.map(_.body)}")
-            val childrenOf = processLast(fromEnd.toList, Nil).groupBy(_._1).mapValues(_.map(_._2))
-            if (log) println(s"root $issue")
-            if (log) println(s"childrenOf ${childrenOf.map { case (k, v) => k.id -> v.map(_.id) }}")
-            def traverseDepthFirst(i: ArticleRowModel, level: Int): List[ArticleRowModel] = {
-              if (log) println("  " * level + i.body)
-              val children = childrenOf.get(i).toList.flatten
-              i.copy(indent = level, hasChildren = children.nonEmpty) :: children.flatMap(traverseDepthFirst(_, level + 1))
-            }
-            val hierarchyWithComments = traverseDepthFirst(issue, 0).tap { h =>
-              if (log) println(s"Hierarchy ${h.map(_.id)}")
-            }
-
-            model.subProp(_.articles).tap { a =>
-              // replace the one we have loaded
-              a.set(a.get.flatMap(r => if (r.id.issueNumber == id.number) hierarchyWithComments else Seq(r)))
-            }
-
-
+            processIssueComments(issue, commentRows, org, repo)
           }
         }
       }
@@ -420,10 +428,23 @@ class PagePresenter(
         // reply (create a new comment)
         userService.call { api =>
           api.repos(settings.organization, settings.repository).issuesAPI(selectedId.issueNumber).createComment(body).map { c =>
-            // TODO: add the comment to the article list
-            println(s"Reply completed as $c")
+            // add the comment to the article list
+            val articles = model.subProp(_.articles).get
+            for {
+              i <- articles.find(_.id == ArticleIdModel(settings.organization, settings.repository, selectedId.issueNumber, None))
+              comments = articles.filter(a => a.id.issueNumber == selectedId.issueNumber && a.id.id.nonEmpty)
+            } {
+              val newId = ArticleIdModel(settings.organization, settings.repository, selectedId.issueNumber, Some(comments.length, c.id))
+              val newRow = rowFromComment(newId, c)
+              processIssueComments(i, comments :+ newRow, settings.organization, settings.repository)
+            }
           }
         }
+      }.onComplete {
+        case Failure(ex) =>
+          println(s"Reply failure $ex")
+        case Success(s) =>
+          model.subProp(_.editing).set((false, false))
       }
     }
   }
