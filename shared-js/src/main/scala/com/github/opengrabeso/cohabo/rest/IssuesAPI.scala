@@ -22,7 +22,7 @@ trait IssuesAPI {
   ): Future[Issue]
 
   @GET
-  def comments: Future[Seq[Comment]]
+  def comments: Future[DataWithHeaders[Seq[Comment]]]
 
   @POST("comments")
   def createComment(body: String): Future[Comment]

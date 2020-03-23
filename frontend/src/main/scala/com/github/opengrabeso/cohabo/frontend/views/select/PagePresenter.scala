@@ -15,7 +15,7 @@ import routing._
 import io.udash._
 import io.udash.rest.raw.HttpErrorException
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.annotation.tailrec
 import scala.concurrent.duration._
 import scala.scalajs.js.timers._
@@ -59,7 +59,7 @@ object PagePresenter {
   def bodyAbstract(text: String): String = {
     val dropQuotes = removeQuotes(text).map(removeHeading).filterNot(_.isEmpty)
     // TODO: smarter abstracts
-    removeMarkdown(dropQuotes.toSeq.head).take(120)
+    removeMarkdown(dropQuotes.toSeq.headOption.getOrElse("")).take(120)
   }
 
   def extractQuotes(text: String): Seq[String] = {
@@ -249,15 +249,33 @@ class PagePresenter(
       }
       model.subProp(_.loading).set(false)
 
-      issuesOrdered.map { id => // parent issue
+      issuesOrdered.foreach { id => // parent issue
+
         userService.call { api =>
-          api.repos(context.organization, context.repository).issuesAPI(id.number).comments.map { comments => // the comments
-            val issue = rowFromIssue(id, context).copy(hasChildren = false, preview = false)
-            val commentRows = comments.zipWithIndex.map { case (c, i) =>
-              rowFromComment(ArticleIdModel(context.organization, context.repository, id.number, Some(i, c.id)), c)
+
+          val apiDone = Promise[Unit]()
+          val issue = rowFromIssue(id, context).copy(hasChildren = false, preview = false)
+
+          def processComments(done: Seq[Comment], resp: DataWithHeaders.Headers): Unit = {
+
+            resp.paging.get("next") match {
+              case Some(next) =>
+                RestAPIClient.requestWithHeaders[Comment](next, token).map(c => processComments(done ++ c.data, c.headers)).failed.foreach(apiDone.failure)
+              case None =>
+                val commentRows = done.zipWithIndex.map { case (c, i) =>
+                  rowFromComment(ArticleIdModel(context.organization, context.repository, id.number, Some(i, c.id)), c)
+                }
+                processIssueComments(issue, commentRows, context)
+                apiDone.success(())
             }
-            processIssueComments(issue, commentRows, context)
+
           }
+
+          api.repos(context.organization, context.repository).issuesAPI(id.number).comments.map(c => processComments(c.data, c.headers)).failed.foreach(apiDone.failure)
+
+          apiDone.future
+        }.failed.foreach{ ex =>
+          ex.printStackTrace()
         }
       }
 
