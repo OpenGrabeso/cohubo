@@ -223,7 +223,7 @@ class PageView(
               },
               showIfElse(model.subProp(_.editing).transform(_._1))(
                 div(
-                  TextArea(model.subProp(_.editedArticleMarkdown))(Form.control, s.editTextArea),
+                  TextArea(model.subProp(_.editedArticleMarkdown))(Form.control, s.editTextArea, id := "edit-text-area"),
                   div(
                     s.flexRow,
                     div(s.useFlex1),

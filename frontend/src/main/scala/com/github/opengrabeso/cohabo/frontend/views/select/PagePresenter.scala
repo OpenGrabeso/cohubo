@@ -21,6 +21,8 @@ import scala.concurrent.duration._
 import scala.scalajs.js.timers._
 import scala.util.{Failure, Success, Try}
 import TimeFormatting._
+import io.udash.wrappers.jquery.jQ
+import org.scalajs.dom
 
 
 object PagePresenter {
@@ -116,15 +118,15 @@ class PagePresenter(
   }
 
 
-  def initArticles(context: ContextModel): Future[DataWithHeaders[Seq[Issue]]] = {
+  private def initArticles(context: ContextModel): Future[DataWithHeaders[Seq[Issue]]] = {
     userService.call(_.repos(context.organization, context.repository).issues())
   }
 
-  def pageArticles(context: ContextModel, token: String, link: String): Future[DataWithHeaders[Seq[Issue]]] = {
+  private def pageArticles(context: ContextModel, token: String, link: String): Future[DataWithHeaders[Seq[Issue]]] = {
     RestAPIClient.requestWithHeaders[Issue](link, token)
   }
 
-  def rowFromIssue(id: Issue, context: ContextModel) = {
+  private def rowFromIssue(id: Issue, context: ContextModel) = {
     val p = ArticleIdModel(context.organization, context.repository, id.number, None)
     ArticleRowModel(
       p, id.comments > 0, true, 0, id.title, id.body, Option(id.milestone).map(_.title), id.user.displayName,
@@ -133,13 +135,19 @@ class PagePresenter(
   }
 
 
-  def rowFromComment(articleId: ArticleIdModel, i: Comment) = ArticleRowModel(
+  private def rowFromComment(articleId: ArticleIdModel, i: Comment) = ArticleRowModel(
     articleId, false, false, 0, bodyAbstract(i.body), i.body, None, i.user.displayName,
     i.created_at, i.updated_at, i.updated_at
   )
 
+  private def findByQuote(quote: String, findIn: List[ArticleRowModel]): List[ArticleRowModel] = {
+    findIn.filter { i =>
+      val withoutQuotes = removeQuotes(i.body)
+      withoutQuotes.exists(_.contains(quote))
+    }
+  }
 
-  def processIssueComments(issue: ArticleRowModel, comments: Seq[ArticleRowModel], context: ContextModel): Unit = { // the comments
+  private def processIssueComments(issue: ArticleRowModel, comments: Seq[ArticleRowModel], context: ContextModel): Unit = { // the comments
 
     val log = false
 
@@ -148,13 +156,6 @@ class PagePresenter(
     val issueWithComments = issue +: comments
 
     val fromEnd = issueWithComments.reverse
-
-    def findByQuote(quote: String, previousFromEnd: List[ArticleRowModel]) = {
-      previousFromEnd.filter { i =>
-        val withoutQuotes = removeQuotes(i.body)
-        withoutQuotes.exists(_.contains(quote))
-      }
-    }
 
     @tailrec
     def processLast(todo: List[ArticleRowModel], doneChildren: List[(ArticleRowModel, ArticleRowModel)]): List[(ArticleRowModel, ArticleRowModel)] = {
@@ -465,10 +466,30 @@ class PagePresenter(
     val wasEditing = model.subProp(_.editing).get._1
     if (!wasEditing) {
       // TODO: autoquote if needed
+      // check all existing replies to the issue
+      val replies = model.subProp(_.articles).get.filter(a => a.id.issueNumber == id.issueNumber)
+      // there always must exists at least the reply we are replying to, it does not have to be a comment, though
+      val maxReplyNumber = replies.flatMap(_.id.id).map(_._1).maxOpt
+
+      val isLast = (id.id.map(_._1), maxReplyNumber) match {
+        case (Some(iid), Some(r)) if iid == r =>
+          true
+        case (None, None) =>
+          true
+        case _ =>
+          false
+      }
+
+      val quote = if (!isLast) {
+        val replyTo = replies.find(_.id == id).get
+        // TODO: smarter quote
+        "> " + bodyAbstract(replyTo.body) + "\n\n"
+      } else ""
+
       println(s"Reply to $id")
       model.subProp(_.editing).set((true, true))
       model.subProp(_.selectedArticleId).set(Some(id))
-      model.subProp(_.editedArticleMarkdown).set("")
+      model.subProp(_.editedArticleMarkdown).set(quote)
       model.subProp(_.editedArticleHTML).set("")
     }
   }
