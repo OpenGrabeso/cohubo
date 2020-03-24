@@ -33,6 +33,7 @@ object BootstrapMenu extends {
 
   trait Options[T] extends js.Object {
     def fetchElementData(e: JQuery): T
-    def actions: js.Array[MenuItem[T]]
+    def actions: js.Object
+    type Item = T
   }
 }

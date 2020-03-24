@@ -26,7 +26,7 @@ import scala.math.Ordered._
 class PageView(
   model: ModelProperty[PageModel],
   presenter: PagePresenter,
-  globals: ModelProperty[SettingsModel]
+  val globals: ModelProperty[SettingsModel]
 ) extends FinalView with CssView with PageUtils with TimeFormatting {
 
   // each row is checking dynamically in the list of unread rows using a property created by this function
@@ -256,9 +256,11 @@ class PageView(
           val commentId = (replyNumber zip commentNumber).headOption
           ArticleIdModel(context.organization, context.repository, issueNumber, commentId)
         }
-        val actions = js.Array(
-          MenuItem.par(x => s"Mark #${x.issueNumber} as read", presenter.markAsRead),
-          MenuItem("Reply", presenter.reply)
+        val actionsGroups =  js.Array(js.Array("markAsRead", "reply"), js.Array("copyLink"))
+        val actions: js.Object = js.Dynamic.literal(
+          "markAsRead" -> MenuItem.par[ArticleIdModel](x => s"Mark #${x.issueNumber} as read", presenter.markAsRead),
+          "reply" -> MenuItem[ArticleIdModel]("Reply", presenter.reply),
+          "copyLink" -> MenuItem("Copy link", presenter.copyLink)
         )
       })
     }

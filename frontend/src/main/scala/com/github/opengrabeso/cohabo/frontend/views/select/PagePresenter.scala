@@ -518,6 +518,9 @@ class PagePresenter(
     }
   }
 
+  def copyLink(id: ArticleIdModel): Unit = {
+  }
+
   def gotoSettings(): Unit = {
     application.goTo(SettingsPageState)
   }
