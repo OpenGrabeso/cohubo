@@ -66,10 +66,10 @@ def generateIndexTask(index: String, suffix: String) = Def.task {
     }
   )
 
-  log.info(s"Generate $index with suffix: $suffix")
+  log.info(s"Generate $source from $index with suffix: $suffix")
 }
 
-val generateCssTask = taskKey[Unit]("Copy CSS and JS files to the output.")
+val generateCssTask = taskKey[Unit]("Copy CSS and JS files")
 
 generateCssTask := Def.task {
   val log = streams.value.log
@@ -87,6 +87,18 @@ generateCssTask := Def.task {
   IO.copy(pairs, CopyOptions.apply(overwrite = true, preserveLastModified = true, preserveExecutable = false))
 }.value
 
+def copyAssets() = Def.task {
+  val log = streams.value.log
+  import Path._
+  val src = baseDirectory.value / "assets"
+  val srcFiles: Seq[File] = (src ** "*").get()
+  val tgt = (Compile / crossTarget).value
+  val pairs = srcFiles pair rebase(src, tgt)
+  log.info(s"Assets from $src to $tgt")
+  // Copy files to source files to target
+  IO.copy(pairs, CopyOptions.apply(overwrite = true, preserveLastModified = true, preserveExecutable = false))
+}
+
 lazy val frontend = project.settings(
     name := "Cohubo",
     commonSettings,
@@ -98,8 +110,8 @@ lazy val frontend = project.settings(
     // https://github.com/dgoguerra/bootstrap-menu/
     jsDependencies += ProvidedJS / "BootstrapMenu.js" minified "BootstrapMenu.min.js" dependsOn "bootstrap.bundle.js",
 
-    (fastOptJS in Compile) := (fastOptJS in Compile).dependsOn(generateIndexTask("index-fast.html","fastopt")).value,
-    (fullOptJS in Compile) := (fullOptJS in Compile).dependsOn(generateIndexTask("index.html","opt")).value
+    (fastOptJS in Compile) := (fastOptJS in Compile).dependsOn(generateIndexTask("index-fast.html","fastopt"), copyAssets()).value,
+    (fullOptJS in Compile) := (fullOptJS in Compile).dependsOn(generateIndexTask("index.html","opt"), copyAssets()).value
   ).enablePlugins(ScalaJSPlugin)
     .dependsOn(sharedJs_JS)
 
@@ -128,5 +140,5 @@ lazy val root = (project in file("."))
       }
     }.value,
 
-    Compile / products := (Compile / products dependsOn generateCssTask).value
+    Compile / products := ((Compile / products).dependsOn(generateCssTask)).value
   )
