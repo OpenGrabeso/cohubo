@@ -242,11 +242,12 @@ class PageView(
           val commentId = (replyNumber zip commentNumber).headOption
           ArticleIdModel(context.organization, context.repository, issueNumber, commentId)
         }
-        val actionsGroups =  js.Array(js.Array("markAsRead", "reply"), js.Array("copyLink"))
+        val actionsGroups =  js.Array(js.Array("copyLink", "openGitHub"))
         val actions: js.Object = js.Dynamic.literal(
           "markAsRead" -> MenuItem.par[ArticleIdModel](x => s"Mark #${x.issueNumber} as read", presenter.markAsRead),
           "reply" -> MenuItem[ArticleIdModel]("Reply", presenter.reply),
-          "copyLink" -> MenuItem("Copy link", presenter.copyLink)
+          "copyLink" -> MenuItem("Copy link", presenter.copyLink),
+          "openGitHub" -> MenuItem("Open on GitHub", presenter.gotoGithub)
         )
       })
     }

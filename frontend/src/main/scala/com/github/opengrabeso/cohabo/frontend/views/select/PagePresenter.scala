@@ -525,6 +525,10 @@ class PagePresenter(
     dom.window.navigator.asInstanceOf[js.Dynamic].clipboard.writeText(link)
   }
 
+  def gotoGithub(id: ArticleIdModel): Unit = {
+    dom.window.location.href = id.issueUri
+  }
+
   def gotoSettings(): Unit = {
     application.goTo(SettingsPageState)
   }
