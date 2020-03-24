@@ -65,20 +65,6 @@ class PageView(
   buttonOnClick(editOKButton) {presenter.editOK()}
   buttonOnClick(editCancelButton) {presenter.editCancel()}
 
-  def issueLink(id: ArticleIdModel) = {
-    id.id.map { commentId =>
-      a(
-        href := s"https://www.github.com/${id.owner}/${id.repo}/issues/${id.issueNumber}#issuecomment-${commentId._2}",
-        s"(${commentId._1})"
-      )
-    }.getOrElse {
-      a(
-        href := s"https://www.github.com/${id.owner}/${id.repo}/issues/${id.issueNumber}",
-        s"#${id.issueNumber}"
-      )
-    }
-  }
-
   def getTemplate: Modifier = {
 
     // value is a callback
@@ -104,7 +90,7 @@ class PageView(
       TableFactory.TableAttrib("#", (ar, _, _) =>
         div(
           ar.id.id.map(_ => style := "margin-left: 20px"),
-          issueLink(ar.id)
+          ar.id.issueLink
         ).render, style = width(5, 5, 10)
       ),
       //TableFactory.TableAttrib("Parent", (ar, _, _) => ar.parentId.map(_.toString).getOrElse("").render, style = width(5, 5, 10), shortName = Some("")),
@@ -212,7 +198,7 @@ class PageView(
                     s.flexRow,
                     div(
                       s.selectedArticle,
-                      h4(`class`:="title", span(row.title), span(`class`:= "link", issueLink(row.id))),
+                      h4(`class`:="title", span(row.title), span(`class`:= "link", row.id.issueLink)),
                       div(span(`class`:= "createdBy", row.createdBy))
                     ),
                     div(s.useFlex1),

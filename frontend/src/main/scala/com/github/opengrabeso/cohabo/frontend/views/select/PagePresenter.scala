@@ -24,6 +24,8 @@ import TimeFormatting._
 import io.udash.wrappers.jquery.jQ
 import org.scalajs.dom
 
+import scala.scalajs.js
+
 
 object PagePresenter {
   def removeQuotes(text: String): Iterator[String] = {
@@ -519,6 +521,8 @@ class PagePresenter(
   }
 
   def copyLink(id: ArticleIdModel): Unit = {
+    val link: String = id.issueUri
+    dom.window.navigator.asInstanceOf[js.Dynamic].clipboard.writeText(link)
   }
 
   def gotoSettings(): Unit = {

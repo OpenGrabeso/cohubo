@@ -29,7 +29,7 @@ lazy val jsCommonSettings = Seq(
 )
 
 lazy val jsLibs = libraryDependencies ++= Seq(
-  "org.scala-js" %%% "scalajs-dom" % "0.9.7",
+  "org.scala-js" %%% "scalajs-dom" % "0.9.7", // it seems we cannot use a newer scalajs-dom with Udash 0.8.2
   "org.querki" %%% "jquery-facade" % "1.2",
 
   "io.udash" %%% "udash-bootstrap4" % udashVersion,
