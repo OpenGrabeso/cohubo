@@ -545,6 +545,11 @@ class PagePresenter(
       }.map(_.body)
     }.onComplete {
       case Success(_) =>
+        // by default we do not display closed issues - the default reaction is to remove the one we have closed
+        // TODO: we could probably mark is somehow instead, that would be less distruptive
+        val a = model.subProp(_.articles)
+        a.set(a.get.filter(_.id.issueNumber != id.issueNumber))
+
       case Failure(ex) =>
         println(s"Error closing #${id.issueNumber}: $ex")
     }
