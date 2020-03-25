@@ -24,6 +24,8 @@ import TimeFormatting._
 import io.udash.wrappers.jquery.jQ
 import org.scalajs.dom
 
+import scala.scalajs.js
+
 
 object PagePresenter {
   def removeQuotes(text: String): Iterator[String] = {
@@ -517,6 +519,43 @@ class PagePresenter(
       focusEdit()
     }
   }
+
+  def copyLink(id: ArticleIdModel): Unit = {
+    val link: String = id.issueUri
+    dom.window.navigator.asInstanceOf[js.Dynamic].clipboard.writeText(link)
+  }
+
+  def gotoGithub(id: ArticleIdModel): Unit = {
+    dom.window.location.href = id.issueUri
+  }
+
+  def closeIssue(id: ArticleIdModel): Unit = {
+    val context = props.subProp(_.context).get
+    userService.call { api =>
+      val issueAPI = api.repos(context.organization, context.repository).issuesAPI(id.issueNumber)
+      issueAPI.get.flatMap { i =>
+        issueAPI.update(
+          i.title,
+          i.body,
+          "closed",
+          Option(i.milestone).map(_.number).getOrElse(-1),
+          i.labels.map(_.name),
+          i.assignees.map(_.login)
+        )
+      }.map(_.body)
+    }.onComplete {
+      case Success(_) =>
+        // by default we do not display closed issues - the default reaction is to remove the one we have closed
+        // TODO: we could probably mark is somehow instead, that would be less distruptive
+        val a = model.subProp(_.articles)
+        a.set(a.get.filter(_.id.issueNumber != id.issueNumber))
+
+      case Failure(ex) =>
+        println(s"Error closing #${id.issueNumber}: $ex")
+    }
+
+  }
+
 
   def gotoSettings(): Unit = {
     application.goTo(SettingsPageState)

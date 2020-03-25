@@ -29,6 +29,15 @@ class PageView(
   globals: ModelProperty[SettingsModel]
 ) extends FinalView with CssView with PageUtils with TimeFormatting {
 
+  def fetchElementData(e: JQuery): ArticleIdModel = {
+    val issueNumber = e.attr("issue-number").get.toLong
+    val replyNumber = e.attr("reply-number").map(_.toInt)
+    val commentNumber = e.attr("comment-number").map(_.toLong)
+    val context = globals.subModel(_.context).get
+    val commentId = (replyNumber zip commentNumber).headOption
+    ArticleIdModel(context.organization, context.repository, issueNumber, commentId)
+  }
+
   // each row is checking dynamically in the list of unread rows using a property created by this function
   def isUnread(id: Long, time: ReadableProperty[ZonedDateTime]): ReadableProperty[Boolean] = {
     model.subProp(_.unreadInfo).combine(time)(_ -> _).combine(model.subProp(_.unreadInfoFrom))(_ -> _).transform { case ((unread, time), unreadFrom ) =>
@@ -65,20 +74,6 @@ class PageView(
   buttonOnClick(editOKButton) {presenter.editOK()}
   buttonOnClick(editCancelButton) {presenter.editCancel()}
 
-  def issueLink(id: ArticleIdModel) = {
-    id.id.map { commentId =>
-      a(
-        href := s"https://www.github.com/${id.owner}/${id.repo}/issues/${id.issueNumber}#issuecomment-${commentId._2}",
-        s"(${commentId._1})"
-      )
-    }.getOrElse {
-      a(
-        href := s"https://www.github.com/${id.owner}/${id.repo}/issues/${id.issueNumber}",
-        s"#${id.issueNumber}"
-      )
-    }
-  }
-
   def getTemplate: Modifier = {
 
     // value is a callback
@@ -104,7 +99,7 @@ class PageView(
       TableFactory.TableAttrib("#", (ar, _, _) =>
         div(
           ar.id.id.map(_ => style := "margin-left: 20px"),
-          issueLink(ar.id)
+          ar.id.issueLink
         ).render, style = width(5, 5, 10)
       ),
       //TableFactory.TableAttrib("Parent", (ar, _, _) => ar.parentId.map(_.toString).getOrElse("").render, style = width(5, 5, 10), shortName = Some("")),
@@ -212,7 +207,7 @@ class PageView(
                     s.flexRow,
                     div(
                       s.selectedArticle,
-                      h4(`class`:="title", span(row.title), span(`class`:= "link", issueLink(row.id))),
+                      h4(`class`:="title", span(row.title), span(`class`:= "link", row.id.issueLink)),
                       div(span(`class`:= "createdBy", row.createdBy))
                     ),
                     div(s.useFlex1),
@@ -245,22 +240,27 @@ class PageView(
 
         )
       )
-    ).tap { _ =>
-      import facade.BootstrapMenu._
-      new BootstrapMenu(".custom-context-menu", new Options[ArticleIdModel] {
-        def fetchElementData(e: JQuery): ArticleIdModel = {
-          val issueNumber = e.attr("issue-number").get.toLong
-          val replyNumber = e.attr("reply-number").map(_.toInt)
-          val commentNumber = e.attr("comment-number").map(_.toLong)
-          val context = repoUrl.get
-          val commentId = (replyNumber zip commentNumber).headOption
-          ArticleIdModel(context.organization, context.repository, issueNumber, commentId)
+    ).render.tap { t =>
+      import facade.JQueryMenu
+      jQ(t).asInstanceOf[js.Dynamic].contextMenu(
+        new JQueryMenu.Options {
+          override val selector = ".custom-context-menu"
+          override val build = js.defined { (item, key) =>
+            val data = fetchElementData(item)
+            new JQueryMenu.Build(
+              items = js.Dictionary(
+                "markAsRead" -> JQueryMenu.BuildItem(s"Mark #${data.issueNumber} as read", presenter.markAsRead(data)),
+                "reply" -> JQueryMenu.BuildItem("Reply", presenter.reply(data)),
+                "sep2" -> "------",
+                "close" -> JQueryMenu.BuildItem("Close", presenter.closeIssue(data)),
+                "sep1" -> "------",
+                "link" -> JQueryMenu.BuildItem("Copy link to " + data.issueLink.render.outerHTML, presenter.copyLink(data), isHtmlName = true),
+                "openGitHub" -> JQueryMenu.BuildItem("Open on GitHub", presenter.gotoGithub(data)),
+              )
+            )
+          }
         }
-        val actions = js.Array(
-          MenuItem.par(x => s"Mark #${x.issueNumber} as read", presenter.markAsRead),
-          MenuItem("Reply", presenter.reply)
-        )
-      })
+      )
     }
   }
 }
