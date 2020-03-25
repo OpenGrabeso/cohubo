@@ -26,8 +26,17 @@ import scala.math.Ordered._
 class PageView(
   model: ModelProperty[PageModel],
   presenter: PagePresenter,
-  val globals: ModelProperty[SettingsModel]
+  globals: ModelProperty[SettingsModel]
 ) extends FinalView with CssView with PageUtils with TimeFormatting {
+
+  def fetchElementData(e: JQuery): ArticleIdModel = {
+    val issueNumber = e.attr("issue-number").get.toLong
+    val replyNumber = e.attr("reply-number").map(_.toInt)
+    val commentNumber = e.attr("comment-number").map(_.toLong)
+    val context = globals.subModel(_.context).get
+    val commentId = (replyNumber zip commentNumber).headOption
+    ArticleIdModel(context.organization, context.repository, issueNumber, commentId)
+  }
 
   // each row is checking dynamically in the list of unread rows using a property created by this function
   def isUnread(id: Long, time: ReadableProperty[ZonedDateTime]): ReadableProperty[Boolean] = {
@@ -231,25 +240,25 @@ class PageView(
 
         )
       )
-    ).tap { _ =>
-      import facade.BootstrapMenu._
-      new BootstrapMenu(".custom-context-menu", new Options[ArticleIdModel] {
-        def fetchElementData(e: JQuery): ArticleIdModel = {
-          val issueNumber = e.attr("issue-number").get.toLong
-          val replyNumber = e.attr("reply-number").map(_.toInt)
-          val commentNumber = e.attr("comment-number").map(_.toLong)
-          val context = repoUrl.get
-          val commentId = (replyNumber zip commentNumber).headOption
-          ArticleIdModel(context.organization, context.repository, issueNumber, commentId)
+    ).render.tap { t =>
+      import facade.JQueryMenu
+      jQ(t).asInstanceOf[js.Dynamic].contextMenu(
+        new JQueryMenu.Options {
+          override val selector = ".custom-context-menu"
+          override val build = js.defined { (item, key) =>
+            val data = fetchElementData(item)
+            new JQueryMenu.Build(
+              items = js.Dictionary(
+                "markAsRead" -> JQueryMenu.BuildItem(s"Mark #${data.issueNumber} as read", presenter.markAsRead(data)),
+                "reply" -> JQueryMenu.BuildItem("Reply", presenter.reply(data)),
+                "sep1" -> "------",
+                "copyLink" -> JQueryMenu.BuildItem("Copy link", presenter.copyLink(data)),
+                "openGitHub" -> JQueryMenu.BuildItem("Open on GitHub", presenter.gotoGithub(data))
+              )
+            )
+          }
         }
-        val actionsGroups =  js.Array(js.Array("copyLink", "openGitHub"))
-        val actions: js.Object = js.Dynamic.literal(
-          "markAsRead" -> MenuItem.par[ArticleIdModel](x => s"Mark #${x.issueNumber} as read", presenter.markAsRead),
-          "reply" -> MenuItem[ArticleIdModel]("Reply", presenter.reply),
-          "copyLink" -> MenuItem("Copy link", presenter.copyLink),
-          "openGitHub" -> MenuItem("Open on GitHub", presenter.gotoGithub)
-        )
-      })
+      )
     }
   }
 }
