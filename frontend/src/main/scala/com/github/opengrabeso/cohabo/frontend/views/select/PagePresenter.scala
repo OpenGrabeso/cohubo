@@ -529,6 +529,29 @@ class PagePresenter(
     dom.window.location.href = id.issueUri
   }
 
+  def closeIssue(id: ArticleIdModel): Unit = {
+    val context = props.subProp(_.context).get
+    userService.call { api =>
+      val issueAPI = api.repos(context.organization, context.repository).issuesAPI(id.issueNumber)
+      issueAPI.get.flatMap { i =>
+        issueAPI.update(
+          i.title,
+          i.body,
+          "closed",
+          Option(i.milestone).map(_.number).getOrElse(-1),
+          i.labels.map(_.name),
+          i.assignees.map(_.login)
+        )
+      }.map(_.body)
+    }.onComplete {
+      case Success(_) =>
+      case Failure(ex) =>
+        println(s"Error closing #${id.issueNumber}: $ex")
+    }
+
+  }
+
+
   def gotoSettings(): Unit = {
     application.goTo(SettingsPageState)
   }

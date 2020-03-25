@@ -16,7 +16,7 @@ trait IssuesAPI {
     title: String,
     body: String,
     state: String,
-    milestone: Int,
+    @transientDefault milestone: Int = -1,
     labels: Array[String],
     assignees: Array[String]
   ): Future[Issue]

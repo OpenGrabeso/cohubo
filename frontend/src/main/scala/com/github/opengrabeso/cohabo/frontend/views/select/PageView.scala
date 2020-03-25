@@ -251,9 +251,11 @@ class PageView(
               items = js.Dictionary(
                 "markAsRead" -> JQueryMenu.BuildItem(s"Mark #${data.issueNumber} as read", presenter.markAsRead(data)),
                 "reply" -> JQueryMenu.BuildItem("Reply", presenter.reply(data)),
+                "sep2" -> "------",
+                "close" -> JQueryMenu.BuildItem("Close", presenter.closeIssue(data)),
                 "sep1" -> "------",
                 "link" -> JQueryMenu.BuildItem("Copy link to " + data.issueLink.render.outerHTML, presenter.copyLink(data), isHtmlName = true),
-                "openGitHub" -> JQueryMenu.BuildItem("Open on GitHub", presenter.gotoGithub(data))
+                "openGitHub" -> JQueryMenu.BuildItem("Open on GitHub", presenter.gotoGithub(data)),
               )
             )
           }
