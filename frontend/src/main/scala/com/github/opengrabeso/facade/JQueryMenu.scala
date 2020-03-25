@@ -17,13 +17,21 @@ object JQueryMenu {
     val build: js.UndefOr[js.Function2[JQuery, js.Any, Build]] = js.undefined
   }
 
-  class Item(val name: String, val callback: js.ThisFunction3[JQuery, Int, js.Any, js.Any, Boolean]) extends js.Object
+  class Item(
+    val name: String,
+    val callback: js.ThisFunction3[JQuery, Int, js.Any, js.Any, Boolean],
+    val isHtmlName: js.UndefOr[Boolean] = js.undefined
+  ) extends js.Object
   trait ABuildItem extends js.Object
-  class BuildItem(val name: String, val callback: js.ThisFunction3[JQuery, String, js.Any, js.Any, Boolean]) extends ABuildItem
+  class BuildItem(
+    val name: String,
+    val callback: js.ThisFunction3[JQuery, String, js.Any, js.Any, Boolean],
+    val isHtmlName: js.UndefOr[Boolean] = js.undefined
+  ) extends ABuildItem
 
   object BuildItem {
-    def apply(name: String, callback: => Unit): BuildItem = {
-      new BuildItem(name, (_, _, _, _) => {callback;true})
+    def apply(name: String, callback: => Unit, isHtmlName: js.UndefOr[Boolean] = js.undefined): BuildItem = {
+      new BuildItem(name, (_, _, _, _) => {callback;true}, isHtmlName)
     }
   }
 

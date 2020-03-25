@@ -252,7 +252,7 @@ class PageView(
                 "markAsRead" -> JQueryMenu.BuildItem(s"Mark #${data.issueNumber} as read", presenter.markAsRead(data)),
                 "reply" -> JQueryMenu.BuildItem("Reply", presenter.reply(data)),
                 "sep1" -> "------",
-                "copyLink" -> JQueryMenu.BuildItem("Copy link", presenter.copyLink(data)),
+                "link" -> JQueryMenu.BuildItem("Copy link to " + data.issueLink.render.outerHTML, presenter.copyLink(data), isHtmlName = true),
                 "openGitHub" -> JQueryMenu.BuildItem("Open on GitHub", presenter.gotoGithub(data))
               )
             )
