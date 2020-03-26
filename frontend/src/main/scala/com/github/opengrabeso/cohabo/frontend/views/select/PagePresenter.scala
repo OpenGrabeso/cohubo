@@ -239,15 +239,13 @@ class PagePresenter(
       if (log) println(s"Hierarchy ${h.map(_.id)}")
     }
 
-    val a = model.subProp(_.articles)
-
+    val a = model.subSeq(_.articles)
     val (before, issueAndAfter) = a.get.span(_.id.issueNumber != issue.id.issueNumber)
     if (issueAndAfter.isEmpty) { // a new issue
-      a.set(hierarchyWithComments ++ before)
+      a.replace(0, 0, hierarchyWithComments:_*)
     } else { // replace the one we have loaded
       val after = issueAndAfter.dropWhile(_.id.issueNumber == issue.id.issueNumber)
-      a.set(before ++ hierarchyWithComments ++ after)
-      // TODO: we may have to re-sort the issues
+      a.replace(before.length, issueAndAfter.length - after.length, hierarchyWithComments:_*)
     }
   }
 
@@ -294,8 +292,8 @@ class PagePresenter(
       // preview the issues
       val preview = issuesOrdered.map(rowFromIssue(_, context))
 
-      model.subProp(_.articles).tap { a =>
-        a.set(a.get ++ preview)
+      model.subSeq(_.articles).tap { a =>
+        a.replace(a.get.length, 0, preview:_*)
       }
       model.subProp(_.loading).set(false)
 
@@ -489,11 +487,10 @@ class PagePresenter(
       case Success(body) =>
         model.subProp(_.editing).set((false, false))
         renderMarkdown(body)
-        model.subProp(_.articles).tap { as =>
-          as.set(as.get.map { a =>
-            if (a.id == selectedId) a.copy(body = body)
-            else a
-          })
+        model.subSeq(_.articles).tap { as =>
+          val index = as.get.indexWhere(_.id == selectedId)
+          val a = as.get(index)
+          as.replace(index, 1, a.copy(body = body))
         }
     }
   }
@@ -635,8 +632,12 @@ class PagePresenter(
       case Success(_) =>
         // by default we do not display closed issues - the default reaction is to remove the one we have closed
         // TODO: we could probably mark is somehow instead, that would be less distruptive
-        val a = model.subProp(_.articles)
-        a.set(a.get.filter(_.id.issueNumber != id.issueNumber))
+        val a = model.subSeq(_.articles)
+        val as = a.get
+        val before = as.indexWhere(_.id.issueNumber == id.issueNumber)
+        val after = as.indexWhere(_.id.issueNumber != id.issueNumber, before)
+
+        a.replace(before, after - before)
 
       case Failure(ex) =>
         println(s"Error closing #${id.issueNumber}: $ex")

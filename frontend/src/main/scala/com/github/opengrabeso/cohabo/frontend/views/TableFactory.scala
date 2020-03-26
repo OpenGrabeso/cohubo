@@ -50,7 +50,9 @@ object TableFactory {
     sel: Property[Option[SelType]],
     attribs: Seq[TableAttrib[ItemType]]
   )(implicit rowHandler: TableRowHandler[ItemType, SelType]): (CastableProperty[ItemType], NestedInterceptor) => Element = { (el,_) =>
-    val level = rowHandler.indent(el.get)
+    val start = System.currentTimeMillis()
+    val elData = el.get
+    val level = rowHandler.indent(elData)
     val row = tr(
       CssStyleName(s.tr.className),
       CssStyleName("table-fold"),
@@ -77,7 +79,7 @@ object TableFactory {
           val tr = jQ(td).closest("tr")
           val wasSelected = tr.hasClass("selected")
           if (!wasSelected) {
-            val selId = rowHandler.id(el.get)
+            val selId = rowHandler.id(elData)
             tr.addClass("selected")
             sel.set(Some(selId))
 
@@ -132,6 +134,8 @@ object TableFactory {
       }
 
     })
+    
+    println(s"Row $elData took ${System.currentTimeMillis()-start}")
     row
   }
 }
