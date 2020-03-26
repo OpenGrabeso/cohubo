@@ -428,7 +428,7 @@ class PagePresenter(
               i.title,
               i.body,
               i.state,
-              i.milestone.number,
+              Option(i.milestone).map(_.number).getOrElse(-1),
               i.labels.map(_.name),
               i.assignees.map(_.login)
             )
