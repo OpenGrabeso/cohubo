@@ -116,16 +116,16 @@ class PageView(
         style = widthWide(50, 50),
         modifier = Some(ar => style := s"padding-left: ${8 + ar.indent * 16}px") // item (td) style
       ),
-      TableFactory.TableAttrib("Milestone", (ar, _, _) => div(ar.milestone.getOrElse("").render).render, style = width(10, 15, 20), shortName = Some("")),
+      TableFactory.TableAttrib("Milestone", (ar, _, _) => div(ar.milestone.getOrElse("").render).render, style = width(5, 10, 15), shortName = Some("")),
       TableFactory.TableAttrib("Posted by", (ar, _, _) => div(ar.createdBy).render, style = width(10, 15, 20), shortName = Some("")),
-      TableFactory.TableAttrib("Created at", (ar, _, _) => div(formatDateTime(ar.createdAt.toJSDate)).render, style = width(10, 15, 20)),
+      TableFactory.TableAttrib("Created at", (ar, _, _) => div(formatDateTime(ar.createdAt.toJSDate)).render, style = width(5, 10, 15)),
       TableFactory.TableAttrib("Updated at", { (ar, _, _) =>
         if (ar.updatedAt != ar.createdAt) {
           div(formatDateTime(ar.updatedAt.toJSDate)).render
         } else {
           div().render
         }
-      }, style = width(10, 15, 20)),
+      }, style = width(5, 10, 15)),
       //TableFactory.TableAttrib("", (ar, _, _) => div("\u22EE").render, style = width(5, 5, 5)),
     )
 

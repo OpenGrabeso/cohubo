@@ -50,6 +50,7 @@ object TableFactory {
     sel: Property[Option[SelType]],
     attribs: Seq[TableAttrib[ItemType]]
   )(implicit rowHandler: TableRowHandler[ItemType, SelType]): (CastableProperty[ItemType], NestedInterceptor) => Element = { (el,_) =>
+    val timing = true
     val start = System.currentTimeMillis()
     val elData = el.get
     val level = rowHandler.indent(elData)
@@ -134,8 +135,8 @@ object TableFactory {
       }
 
     })
-    
-    println(s"Row $elData took ${System.currentTimeMillis()-start}")
+
+    if (timing) println(s"Row $elData took ${System.currentTimeMillis()-start}")
     row
   }
 }
