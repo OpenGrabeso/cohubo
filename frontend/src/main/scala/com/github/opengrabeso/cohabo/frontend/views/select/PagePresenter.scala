@@ -475,7 +475,7 @@ class PagePresenter(
           issueAPI.get.flatMap { i =>
             issueAPI.update(
               i.title,
-              i.body,
+              body,
               i.state,
               Option(i.milestone).map(_.number).getOrElse(-1),
               i.labels.map(_.name),
