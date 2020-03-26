@@ -31,8 +31,15 @@ trait PageUtils extends common.Formatting with CssView {
     )
   }
 
-  def button(disabled: ReadableProperty[Boolean], buttonText: ReadableProperty[String]): UdashButton = {
-    UdashButton(disabled = disabled) { _ => Seq[Modifier](
+  def button(
+    buttonText: ReadableProperty[String],
+    disabled: ReadableProperty[Boolean] = false.toProperty,
+    buttonStyle: ReadableProperty[BootstrapStyles.Color] = UdashBootstrap.ColorSecondary
+  ): UdashButton = {
+    UdashButton(
+      disabled = disabled,
+      buttonStyle =  buttonStyle
+    ) { _ => Seq[Modifier](
       bind(buttonText),
       Spacing.margin(size = SpacingSize.Small)
     )}

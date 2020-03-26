@@ -3,7 +3,7 @@ package frontend
 package views
 package select
 
-import java.time.ZonedDateTime
+import java.time.{ZoneId, ZonedDateTime}
 
 import rest.DataWithHeaders._
 import com.softwaremill.sttp.Method
@@ -25,6 +25,7 @@ import io.udash.wrappers.jquery.jQ
 import org.scalajs.dom
 
 import scala.scalajs.js
+import scala.util.matching.Regex
 
 
 object PagePresenter {
@@ -81,6 +82,8 @@ class PagePresenter(
 )(implicit ec: ExecutionContext) extends Presenter[SelectPageState.type] {
 
   def props = userService.properties
+  def context = userService.properties.get.context
+
   val sourceParameters = props.subProp(_.token).combine(props.subProp(_.context))(_ -> _)
   var lastNotifications =  Option.empty[String]
   var scheduled = Option.empty[SetTimeoutHandle]
@@ -94,15 +97,7 @@ class PagePresenter(
         model.subProp(_.selectedArticle).set(Some(s))
         model.subProp(_.selectedArticleParent).set(Some(p))
         model.subProp(_.articleContent).set("...")
-        val content = s.body
-        val props = userService.properties.get
-        val context = props.context.relativeUrl
-        val renderMarkdown = userService.call(_.markdown.markdown(content, "gfm", context))
-        renderMarkdown.map { html =>
-          model.subProp(_.articleContent).set(html.data)
-        }.failed.foreach { ex =>
-          model.subProp(_.articleContent).set(s"Markdown error $ex")
-        }
+        renderMarkdown(s.body)
       case _ =>
         model.subProp(_.selectedArticle).set(None)
         model.subProp(_.selectedArticleParent).set(None)
@@ -196,11 +191,15 @@ class PagePresenter(
     }
 
     val a = model.subProp(_.articles)
-    // replace the one we have loaded
+
     val (before, issueAndAfter) = a.get.span(_.id.issueNumber != issue.id.issueNumber)
-    val after = issueAndAfter.dropWhile(_.id.issueNumber == issue.id.issueNumber)
-    a.set(before ++ hierarchyWithComments ++ after)
-    // TODO: we may have to re-sort the issues
+    if (issueAndAfter.isEmpty) { // a new issue
+      a.set(hierarchyWithComments ++ before)
+    } else { // replace the one we have loaded
+      val after = issueAndAfter.dropWhile(_.id.issueNumber == issue.id.issueNumber)
+      a.set(before ++ hierarchyWithComments ++ after)
+      // TODO: we may have to re-sort the issues
+    }
   }
 
   private def focusEdit(): Unit = {
@@ -384,9 +383,26 @@ class PagePresenter(
     }
   }
 
+  def renderMarkdown(body: String): Unit = {
+    val html = userService.call(_.markdown.markdown(body, "gfm", context.relativeUrl))
+    // update the local data: article display and article content in the article table
+    html.map { html =>
+      model.subProp(_.articleContent).set(html.data)
+    }.failed.foreach { ex =>
+      model.subProp(_.articleContent).set(s"Markdown error $ex")
+    }
+  }
+
+  def editCancel(): Unit = {
+    model.subProp(_.editing).set((false, false))
+  }
+
+  private def wasEditing(): Boolean = model.subProp(_.editing).get._1
+
+  def isEditingProperty: ReadableProperty[Boolean] = model.subProp(_.editing).transform(_._1)
+
   def editCurrentArticle(): Unit = {
-    val wasEditing = model.subProp(_.editing).get._1
-    if (!wasEditing) {
+    if (!wasEditing()) {
       for {
         id <- model.subProp(_.selectedArticleId).get
         sel <- model.subProp(_.articles).get.find(id == _.id)
@@ -398,78 +414,92 @@ class PagePresenter(
     }
   }
 
-  def editCancel(): Unit = {
-    model.subProp(_.editing).set((false, false))
+  def editDone(selectedId: ArticleIdModel, body: String): Unit = {
+    println(s"Edit $selectedId")
+    // plain edit
+    userService.call { api =>
+      selectedId match {
+        case ArticleIdModel(_, _, issueId, Some((_, commentId))) =>
+          api.repos(context.organization, context.repository).editComment(commentId, body).map(_.body)
+        case ArticleIdModel(_, _, issueId, None) =>
+          val issueAPI = api.repos(context.organization, context.repository).issuesAPI(issueId)
+          issueAPI.get.flatMap { i =>
+            issueAPI.update(
+              i.title,
+              i.body,
+              i.state,
+              i.milestone.number,
+              i.labels.map(_.name),
+              i.assignees.map(_.login)
+            )
+          }.map(_.body)
+      }
+    }.onComplete {
+      case Failure(ex) =>
+        println(s"Edit failure $ex")
+      case Success(body) =>
+        model.subProp(_.editing).set((false, false))
+        renderMarkdown(body)
+        model.subProp(_.articles).tap { as =>
+          as.set(as.get.map { a =>
+            if (a.id == selectedId) a.copy(body = body)
+            else a
+          })
+        }
+    }
   }
 
-  def editOK(): Unit = {
-    for {
-      selectedId <- model.subProp(_.selectedArticleId).get
-      if model.subProp(_.editing).get._1
-      context = userService.properties.get.context
-    } {
-      val body = model.subProp(_.editedArticleMarkdown).get
-      if (!model.subProp(_.editing).get._2) {
-        println(s"Edit $selectedId")
-        // plain edit
-        userService.call { api =>
-          selectedId match {
-            case ArticleIdModel(_, _, issueId, Some((_, commentId))) =>
-              api.repos(context.organization, context.repository).editComment(commentId, body).map(_.body)
-            case ArticleIdModel(_, _, issueId, None) =>
-              val issueAPI = api.repos(context.organization, context.repository).issuesAPI(issueId)
-              issueAPI.get.flatMap { i =>
-                issueAPI.update(
-                  i.title,
-                  i.body,
-                  i.state,
-                  i.milestone.number,
-                  i.labels.map(_.name),
-                  i.assignees.map(_.login)
-                )
-              }.map(_.body)
-          }
-        }.onComplete {
-          case Failure(ex) =>
-            println(s"Edit failure $ex")
-          case Success(body) =>
-            model.subProp(_.editing).set((false, false))
-            val renderMarkdown = userService.call(_.markdown.markdown(body, "gfm", context.relativeUrl))
-            // update the local data: article display and article content in the article table
-            renderMarkdown.map { html =>
-              model.subProp(_.articleContent).set(html.data)
-            }.failed.foreach { ex =>
-              model.subProp(_.articleContent).set(s"Markdown error $ex")
-            }
-            model.subProp(_.articles).tap { as =>
-              as.set(as.get.map { a =>
-                if (a.id == selectedId) a.copy(body = body)
-                else a
-              })
-            }
+  def replyDone(selectedId: ArticleIdModel, body: String): Unit = {
+    // reply (create a new comment)
+    userService.call { api =>
+      api.repos(context.organization, context.repository).issuesAPI(selectedId.issueNumber).createComment(body).map { c =>
+        // add the comment to the article list
+        val articles = model.subProp(_.articles).get
+        for {
+          i <- articles.find(_.id == ArticleIdModel(context.organization, context.repository, selectedId.issueNumber, None))
+          comments = articles.filter(a => a.id.issueNumber == selectedId.issueNumber && a.id.id.nonEmpty)
+        } {
+          val newId = ArticleIdModel(context.organization, context.repository, selectedId.issueNumber, Some(comments.length, c.id))
+          val newRow = rowFromComment(newId, c)
+          processIssueComments(i, comments :+ newRow, context)
         }
-      } else {
-        // reply (create a new comment)
-        userService.call { api =>
-          api.repos(context.organization, context.repository).issuesAPI(selectedId.issueNumber).createComment(body).map { c =>
-            // add the comment to the article list
-            val articles = model.subProp(_.articles).get
-            for {
-              i <- articles.find(_.id == ArticleIdModel(context.organization, context.repository, selectedId.issueNumber, None))
-              comments = articles.filter(a => a.id.issueNumber == selectedId.issueNumber && a.id.id.nonEmpty)
-            } {
-              val newId = ArticleIdModel(context.organization, context.repository, selectedId.issueNumber, Some(comments.length, c.id))
-              val newRow = rowFromComment(newId, c)
-              processIssueComments(i, comments :+ newRow, context)
-            }
-          }
-        }
-      }.onComplete {
-        case Failure(ex) =>
-          println(s"Reply failure $ex")
-        case Success(s) =>
-          model.subProp(_.editing).set((false, false))
       }
+    }.onComplete {
+      case Failure(ex) =>
+        println(s"Reply failure $ex")
+      case Success(s) =>
+        model.subProp(_.editing).set((false, false))
+    }
+  }
+
+  def newIssueDone(body: String): Unit = {
+    userService.call { api =>
+      api.repos(context.organization, context.repository).createIssue(
+        bodyAbstract(body), // TODO: proper title
+        body
+        // TODO: allow providing more properties
+      )
+    }.onComplete {
+      case Failure(ex) =>
+        println(s"New issue failure $ex")
+      case Success(s) =>
+        val newRow = rowFromIssue(s, context)
+        processIssueComments(newRow, Seq.empty, context)
+        model.subProp(_.editing).set((false, false))
+    }
+
+  }
+  def editOK(): Unit = {
+    if (!model.subProp(_.editing).get._1) return
+    val editedId = model.subProp(_.selectedArticleId).get
+    val body = model.subProp(_.editedArticleMarkdown).get
+    (editedId,model.subProp(_.editing).get._2) match {
+      case (Some(selectedId), false) =>
+        editDone(selectedId, body)
+      case (Some(selectedId), true) =>
+        replyDone(selectedId, body)
+      case (None, _) => // New issue
+        newIssueDone(body)
     }
   }
 
@@ -488,8 +518,7 @@ class PagePresenter(
   }
 
   def reply(id: ArticleIdModel): Unit = {
-    val wasEditing = model.subProp(_.editing).get._1
-    if (!wasEditing) {
+    if (!wasEditing()) {
       // TODO: autoquote if needed
       // check all existing replies to the issue
       val replies = model.subProp(_.articles).get.filter(a => a.id.issueNumber == id.issueNumber)
@@ -515,6 +544,16 @@ class PagePresenter(
       model.subProp(_.editing).set((true, true))
       model.subProp(_.selectedArticleId).set(Some(id))
       model.subProp(_.editedArticleMarkdown).set(quote)
+      model.subProp(_.editedArticleHTML).set("")
+      focusEdit()
+    }
+  }
+
+  def newIssue(): Unit = {
+    if (!wasEditing()) {
+      model.subProp(_.editing).set((true, true))
+      model.subProp(_.selectedArticleId).set(None)
+      model.subProp(_.editedArticleMarkdown).set("")
       model.subProp(_.editedArticleHTML).set("")
       focusEdit()
     }

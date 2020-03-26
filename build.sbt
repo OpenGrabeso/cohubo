@@ -50,7 +50,8 @@ lazy val sharedJs = crossProject(JSPlatform, JVMPlatform)
     jsLibs,
     // "jquery.js" is provided by "udash-jquery" dependency
     jsDependencies += "org.webjars" % "bootstrap" % bootstrapVersion / "bootstrap.bundle.js" minified "bootstrap.bundle.min.js" dependsOn "jquery.js",
-    jsDependencies += "org.webjars.npm" % "js-joda" % "1.10.1" / "dist/js-joda.js" minified "dist/js-joda.min.js"
+    jsDependencies += "org.webjars.npm" % "js-joda" % "1.10.1" / "dist/js-joda.js" minified "dist/js-joda.min.js",
+    jsDependencies += "org.webjars.npm" % "js-joda-timezone" % "1.1.5" / "dist/js-joda-timezone.js" minified "dist/js-joda-timezone.min.js"
   )
 
 lazy val sharedJs_JVM = sharedJs.jvm

@@ -60,14 +60,18 @@ class PageView(
 
   val s = SelectPageStyles
 
-  private val settingsButton = UdashButton()(_ => "Settings")
-  private val nextPageButton = button(model.subProp(_.pagingUrls).transform(_.isEmpty), "Load more issues".toProperty)
-  private val refreshNotifications = button(false.toProperty, "Refresh notifications".toProperty)
-  private val editButton = button(model.subProp(_.editing).transform(_._1), "Edit".toProperty)
-  private val editOKButton = button(false.toProperty, "OK".toProperty)
-  private val editCancelButton = button(false.toProperty, "Cancel".toProperty)
+  private val settingsButton = button("Settings".toProperty)
+  private val newIssueButton = button("New issue".toProperty, buttonStyle = BootstrapStyles.Color.Success.toProperty)
+
+  private val nextPageButton = button("Load more issues".toProperty, model.subProp(_.pagingUrls).transform(_.isEmpty))
+  private val refreshNotifications = button("Refresh notifications".toProperty)
+  private val editButton = button("Edit".toProperty, model.subProp(_.editing).transform(_._1))
+  private val editOKButton = button("OK".toProperty, buttonStyle = BootstrapStyles.Color.Success.toProperty)
+  private val editCancelButton = button("Cancel".toProperty)
 
   buttonOnClick(settingsButton) {presenter.gotoSettings()}
+  buttonOnClick(newIssueButton) {presenter.newIssue()}
+
   buttonOnClick(nextPageButton) {presenter.loadMore()}
   buttonOnClick(refreshNotifications) {presenter.refreshNotifications()}
   buttonOnClick(editButton) {presenter.editCurrentArticle()}
@@ -135,7 +139,11 @@ class PageView(
 
     val table = UdashTable(model.subSeq(_.articles), bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
       headerFactory = Some(TableFactory.headerFactory(attribs)),
-      rowFactory = TableFactory.rowFactory[ArticleRowModel, ArticleIdModel](model.subProp(_.selectedArticleId), attribs)
+      rowFactory = TableFactory.rowFactory[ArticleRowModel, ArticleIdModel](
+        presenter.isEditingProperty,
+        model.subProp(_.selectedArticleId),
+        attribs
+      )
     )
 
     val repoUrl = globals.subModel(_.context)
@@ -171,7 +179,9 @@ class PageView(
               )
             }
           ).render
-        )
+        ),
+        div(s.useFlex1),
+        newIssueButton,
       ),
 
       div(

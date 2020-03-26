@@ -35,9 +35,7 @@ class PageView(
               bind(model.subProp(_.content))
             ),
             h4("Result"),
-            div(
-              button(false.toProperty, "OK".toProperty).onClick(presenter.edited())
-            )
+            button("OK".toProperty).onClick(presenter.edited())
           ).render
         )
       )

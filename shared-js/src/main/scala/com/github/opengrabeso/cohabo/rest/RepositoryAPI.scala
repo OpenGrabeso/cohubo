@@ -13,6 +13,15 @@ trait RepositoryAPI {
   @GET
   def issues(state: String = "open", @transientDefault creator: String = null): Future[DataWithHeaders[Seq[Issue]]]
 
+  @POST("issues")
+  def createIssue(
+    title: String,
+    body: String,
+    @transientDefault milestone: Int = -1,
+    @transientDefault labels: Array[String] = Array.empty,
+    @transientDefault assignees: Array[String] = Array.empty
+  ): Future[Issue]
+
   @GET
   def notifications(
     @transientDefault @Header("If-Modified-Since") ifModifiedSince: String = null,

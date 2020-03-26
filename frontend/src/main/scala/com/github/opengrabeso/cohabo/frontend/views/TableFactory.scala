@@ -46,7 +46,9 @@ object TableFactory {
   }.render
 
   def rowFactory[ItemType: ModelPropertyCreator, SelType](
-    sel: Property[Option[SelType]], attribs: Seq[TableAttrib[ItemType]]
+    selDisabled: ReadableProperty[Boolean],
+    sel: Property[Option[SelType]],
+    attribs: Seq[TableAttrib[ItemType]]
   )(implicit rowHandler: TableRowHandler[ItemType, SelType]): (CastableProperty[ItemType], NestedInterceptor) => Element = { (el,_) =>
     val level = rowHandler.indent(el.get)
     val row = tr(
@@ -69,24 +71,25 @@ object TableFactory {
       attr("data-depth") := level,
 
       onclick :+= { e: Event =>
-        val td = e.target.asInstanceOf[Element]
-        // e.target may be a td inside of tr, we need to find a tr parent in such case
+        if (!selDisabled.get) {
+          val td = e.target.asInstanceOf[Element]
+          // e.target may be a td inside of tr, we need to find a tr parent in such case
+          val tr = jQ(td).closest("tr")
+          val wasSelected = tr.hasClass("selected")
+          if (!wasSelected) {
+            val selId = rowHandler.id(el.get)
+            tr.addClass("selected")
+            sel.set(Some(selId))
 
-        val tr = jQ(td).closest("tr")
-        val wasSelected = tr.hasClass("selected")
-        if (!wasSelected) {
-          val selId = rowHandler.id(el.get)
-          tr.addClass("selected")
-          sel.set(Some(selId))
-
-          // once the selection is changed from us, unselect us
-          def listenCallback(newId: Option[SelType]): Unit = {
-            if (newId.contains(selId)) sel.listenOnce(listenCallback) // listen again
-            else {
-              tr.removeClass("selected")
+            // once the selection is changed from us, unselect us
+            def listenCallback(newId: Option[SelType]): Unit = {
+              if (newId.contains(selId)) sel.listenOnce(listenCallback) // listen again
+              else {
+                tr.removeClass("selected")
+              }
             }
+            sel.listenOnce(listenCallback)
           }
-          sel.listenOnce(listenCallback)
         }
 
         false
