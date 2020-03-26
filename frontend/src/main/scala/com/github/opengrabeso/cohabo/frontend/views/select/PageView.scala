@@ -118,7 +118,14 @@ class PageView(
       ),
       TableFactory.TableAttrib("Milestone", (ar, _, _) => div(ar.milestone.getOrElse("").render).render, style = width(10, 15, 20), shortName = Some("")),
       TableFactory.TableAttrib("Posted by", (ar, _, _) => div(ar.createdBy).render, style = width(10, 15, 20), shortName = Some("")),
-      TableFactory.TableAttrib("Date", (ar, _, _) => div(formatDateTime(ar.updatedAt.toJSDate)).render, style = width(10, 15, 20)),
+      TableFactory.TableAttrib("Created at", (ar, _, _) => div(formatDateTime(ar.createdAt.toJSDate)).render, style = width(10, 15, 20)),
+      TableFactory.TableAttrib("Updated at", { (ar, _, _) =>
+        if (ar.updatedAt != ar.createdAt) {
+          div(formatDateTime(ar.updatedAt.toJSDate)).render
+        } else {
+          div().render
+        }
+      }, style = width(10, 15, 20)),
       //TableFactory.TableAttrib("", (ar, _, _) => div("\u22EE").render, style = width(5, 5, 5)),
     )
 

@@ -16,7 +16,9 @@ case class ArticleRowModel(
   createdAt: ZonedDateTime,
   lastEditedAt: ZonedDateTime,
   updatedAt: ZonedDateTime // for an issue includes its children
-)
+) {
+  override def toString = (id, createdAt, lastEditedAt, updatedAt).toString()
+}
 
 object ArticleRowModel extends HasModelPropertyCreator[ArticleRowModel]
 
