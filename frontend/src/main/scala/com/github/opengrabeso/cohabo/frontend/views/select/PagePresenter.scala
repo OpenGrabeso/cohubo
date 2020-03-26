@@ -123,19 +123,55 @@ class PagePresenter(
     RestAPIClient.requestWithHeaders[Issue](link, token)
   }
 
-  private def rowFromIssue(id: Issue, context: ContextModel) = {
-    val p = ArticleIdModel(context.organization, context.repository, id.number, None)
+  private def localZoneId: ZoneId = {
+    // it seems ZoneId.systemDefault is not implemented properly, we provide our own implementation
+    ZoneId.of(new DateTimeFormatX().resolvedOptions().timeZone.getOrElse("Etc/GMT"))
+  }
+
+  private def overrideCreatedAt(body: String): Option[ZonedDateTime] = {
+    // search for an article header in a form > **<Login>** <MM>/<DD>/<YYYY> <hh>:<mm>:<ss> **Tags:** <tags>
+    val regex = "> \\*+[A-Za-z0-9_]+\\*+ _([0-9]+)\\/([0-9]+)\\/([0-9]+) ([0-9]+):([0-9]+):([0-9]+)_ \\*+Tags:\\*+ .*".r
+    body.linesIterator.flatMap(regex.findFirstMatchIn).flatMap {
+      case Regex.Groups(month,day,year,hour,minute,second) =>
+        Try(
+          ZonedDateTime.of(year.toInt, month.toInt, day.toInt, hour.toInt, minute.toInt, second.toInt, 0, localZoneId)
+        ).toOption
+      case _ =>
+        None
+    }.toSeq.headOption
+  }
+
+  private def overrideEditedAt(body: String): Option[ZonedDateTime] = {
+    val regex = "> [⭗⌇▽]\\*+[A-Za-z0-9_]+ ([0-9]+)\\.([0-9]+)\\.([0-9]+) ([0-9]+):([0-9]+):([0-9]+)\\*+".r
+    body.linesIterator.flatMap(regex.findFirstMatchIn).flatMap {
+      case Regex.Groups(day,month,year,hour,minute,second) =>
+        Some(
+          ZonedDateTime.of(year.toInt, month.toInt, day.toInt, hour.toInt, minute.toInt, second.toInt, 0, localZoneId)
+        )
+      case _ =>
+        None
+    }.toSeq.lastOption
+  }
+
+  private def rowFromIssue(i: Issue, context: ContextModel) = {
+    val p = ArticleIdModel(context.organization, context.repository, i.number, None)
+    val explicitCreated = overrideCreatedAt(i.body)
+    val explicitEdited = overrideEditedAt(i.body).orElse(explicitCreated)
     ArticleRowModel(
-      p, id.comments > 0, true, 0, id.title, id.body, Option(id.milestone).map(_.title), id.user.displayName,
-      id.created_at, id.created_at, id.updated_at
+      p, i.comments > 0, true, 0, i.title, i.body, Option(i.milestone).map(_.title), i.user.displayName,
+      explicitCreated.getOrElse(i.created_at), explicitEdited.getOrElse(i.created_at), explicitEdited.getOrElse(i.updated_at)
     )
   }
 
 
-  private def rowFromComment(articleId: ArticleIdModel, i: Comment) = ArticleRowModel(
-    articleId, false, false, 0, bodyAbstract(i.body), i.body, None, i.user.displayName,
-    i.created_at, i.updated_at, i.updated_at
-  )
+  private def rowFromComment(articleId: ArticleIdModel, i: Comment) = {
+    val explicitCreated = overrideCreatedAt(i.body)
+    val explicitEdited = overrideEditedAt(i.body).orElse(explicitCreated)
+    ArticleRowModel(
+      articleId, false, false, 0, bodyAbstract(i.body), i.body, None, i.user.displayName,
+      explicitCreated.getOrElse(i.created_at), explicitEdited.getOrElse(i.updated_at), explicitEdited.getOrElse(i.updated_at)
+    )
+  }
 
   private def findByQuote(quote: String, findIn: List[ArticleRowModel]): List[ArticleRowModel] = {
     findIn.filter { i =>
