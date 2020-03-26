@@ -129,9 +129,10 @@ class PagePresenter(
   }
 
   private def overrideCreatedAt(body: String): Option[ZonedDateTime] = {
-    // search for an article header in a form > **<Login>** <MM>/<DD>/<YYYY> <hh>:<mm>:<ss> **Tags:** <tags>
-    val regex = "> \\*+[A-Za-z0-9_]+\\*+ _([0-9]+)\\/([0-9]+)\\/([0-9]+) ([0-9]+):([0-9]+):([0-9]+)_ \\*+Tags:\\*+ .*".r
-    body.linesIterator.flatMap(regex.findFirstMatchIn).flatMap {
+    // search for an article header in a form > **<Login>** _<MM>/<DD>/<YYYY> <hh>:<mm>:<ss>_ **Tags:** <tags>
+    val regexOld = "> \\*+[A-Za-z0-9_]+\\*+ _([0-9]+)\\/([0-9]+)\\/([0-9]+) ([0-9]+):([0-9]+):([0-9]+)_ \\*+Tags:\\*+ .*".r
+    val regexNew = "> \\*+[A-Za-z0-9_]+\\*+ _([0-9]+)\\.([0-9]+)\\.([0-9]+) ([0-9]+):([0-9]+):([0-9]+)_ \\*+Tags:\\*+ .*".r
+    val oldTime = body.linesIterator.flatMap(line => regexOld.findFirstMatchIn(line)).flatMap {
       case Regex.Groups(month,day,year,hour,minute,second) =>
         Try(
           ZonedDateTime.of(year.toInt, month.toInt, day.toInt, hour.toInt, minute.toInt, second.toInt, 0, localZoneId)
@@ -139,6 +140,18 @@ class PagePresenter(
       case _ =>
         None
     }.toSeq.headOption
+
+    val newTime = body.linesIterator.flatMap(line => regexNew.findFirstMatchIn(line)).flatMap {
+      case Regex.Groups(day,month,year,hour,minute,second) =>
+        Try(
+          ZonedDateTime.of(year.toInt, month.toInt, day.toInt, hour.toInt, minute.toInt, second.toInt, 0, localZoneId)
+        ).toOption
+      case _ =>
+        None
+    }.toSeq.headOption
+
+    // TODO: once new time is introduced, remove old time support
+    oldTime.orElse(newTime)
   }
 
   private def overrideEditedAt(body: String): Option[ZonedDateTime] = {
