@@ -418,12 +418,17 @@ class PagePresenter(
     }
   }
 
+  val markdownCache = new Cache[String, Future[String]](100, source =>
+    userService.call(_.markdown.markdown(source, "gfm", context.relativeUrl)).map(_.data)
+  )
+
   def renderMarkdown(body: String): Unit = {
-    val html = userService.call(_.markdown.markdown(body, "gfm", context.relativeUrl))
+    val htmlResult = markdownCache(body)
     // update the local data: article display and article content in the article table
-    html.map { html =>
-      model.subProp(_.articleContent).set(html.data)
+    htmlResult.map { html =>
+      model.subProp(_.articleContent).set(html)
     }.failed.foreach { ex =>
+      markdownCache.remove(body) // avoid caching failed requests
       model.subProp(_.articleContent).set(s"Markdown error $ex")
     }
   }
