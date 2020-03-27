@@ -149,17 +149,48 @@ object SelectPageStyles extends CssBase {
     // inspired by GitHub css
     unsafeRoot(".article-content") (
       unsafeChild("pre") (
-        padding(16 px),
-        overflow.auto,
-        fontSize(85 %%),
-        lineHeight(1.45),
-        backgroundColor(c"#f6f8fa"),
-        borderRadius(3 px)
       ),
       unsafeChild("blockquote") (
         padding(`0`, 1 em),
         color(c"#6a737d"),
         borderLeft(.25 em, solid, c"#dfe2e5")
+      ),
+      unsafeChild("pre") (
+        backgroundColor(rgba(27,31,35,.05))
+      ),
+      unsafeChild("pre code, pre tt") (
+        color(c"#000000"),
+        padding.`0`,
+        margin.`0`,
+        overflow.auto,
+        fontSize(85 %%),
+        lineHeight(1.45),
+        backgroundColor.initial,
+        borderRadius(3 px),
+        border.`0`
+      ),
+      unsafeChild("pre>code") (
+        fontSize(100 %%),
+        wordBreak.normal,
+        whiteSpace.pre,
+        backgroundColor.transparent
+      ),
+      unsafeChild("code") (
+        color(c"#000000"),
+        margin.`0`,
+        padding(0.2 em, 0.4 em),
+        backgroundColor(rgba(27,31,35,.05)),
+        fontSize(85 %%),
+        borderRadius(3 px)
+      ),
+      unsafeChild("table") (
+        unsafeChild("td, th") (
+          padding(6 px, 13 px),
+          border(1 px, solid, c"#dfe2e5"),
+        ),
+        unsafeChild("tr:nth-child(2n)") (
+          backgroundColor(c"#f6f8fa"),
+        )
       )
 
     )
