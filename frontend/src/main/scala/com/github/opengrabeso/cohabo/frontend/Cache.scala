@@ -6,25 +6,38 @@ class Cache[Key, T](size: Int, get: Key => T) {
 
   val data = mutable.Map.empty[Key, T]
 
-  val lastAccess = mutable.Map.empty[Key, Long]
+  val accessTime = mutable.Map.empty[Key, Long]
+
+  implicit object keyOrdering extends Ordering[Key] {
+    override def compare(x: Key, y: Key) = {
+      java.lang.Long.compare(accessTime(x), accessTime(y))
+    }
+  }
+
+  val lastAccess = mutable.SortedSet.empty[Key]
 
   def apply(key: Key): T = {
     val now = System.currentTimeMillis()
-    val exists = data.get(key)
-    if (exists.isDefined) {
-      lastAccess += key -> now
-      exists.get
-    } else {
-      val item = get(key)
-      data += key -> item
-      lastAccess += key -> now
-      if (data.size > size) {
-        // TODO: some smart data structure for this?
-        val oldest = lastAccess.maxBy(a => now - a._2)._1
-        data -= oldest
-        lastAccess -= oldest
-      }
-      item
+    data.get(key) match {
+      case Some(existing) =>
+        lastAccess -= key
+        accessTime += key -> now
+        lastAccess += key
+        existing
+      case None =>
+        val item = get(key)
+        data += key -> item
+        accessTime += key -> now // must be added before lastAccess, because its ordering will use it
+        lastAccess += key
+        if (data.size > size) {
+          val first = lastAccess.firstKey
+          val oldest = accessTime.minBy(_._2)._1
+          assert(first == oldest)
+          data -= first
+          lastAccess -= first
+          accessTime -= first
+        }
+        item
     }
   }
 
