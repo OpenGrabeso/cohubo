@@ -24,6 +24,7 @@ jobs:
           cp frontend/target/scala-2.12/*-jsdeps.js public/.
           cp frontend/target/scala-2.12/index.html public/.
           cp frontend/target/scala-2.12/*.css public/.
+          cp frontend/target/scala-2.12/favicon.ico public/.
       - name: Deploy
         if: success()
         uses: crazy-max/ghaction-github-pages@v1
