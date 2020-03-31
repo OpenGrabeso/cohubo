@@ -20,6 +20,7 @@ object GlobalStyles extends CommonStyle {
   val rootContainer = style(
     display.grid,
     height(100 vh),
+    minHeight(500 px),
     gridTemplateRows := "auto minmax(0, 1fr) auto",
     gridTemplateAreas("header", "main", "footer"),
 
