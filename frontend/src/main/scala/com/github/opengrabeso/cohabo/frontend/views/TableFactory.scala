@@ -50,7 +50,7 @@ object TableFactory {
     sel: Property[Option[SelType]],
     attribs: Seq[TableAttrib[ItemType]]
   )(implicit rowHandler: TableRowHandler[ItemType, SelType]): (CastableProperty[ItemType], NestedInterceptor) => Element = { (el,_) =>
-    val timing = true
+    val timing = false
     val start = System.currentTimeMillis()
     val elData = el.get
     val level = rowHandler.indent(elData)
