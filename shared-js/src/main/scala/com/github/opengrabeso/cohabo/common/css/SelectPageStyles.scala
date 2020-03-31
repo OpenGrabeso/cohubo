@@ -25,6 +25,14 @@ object SelectPageStyles extends CommonStyle {
     borderWidth(1 px)
   )
 
+  val settingsContainer = style(
+    display.flex,
+    flexDirection.column,
+    margin.auto,
+    containerBorder,
+    height(100 %%),
+  )
+
   val container: CssStyle = style(
     display.grid,
     margin.auto,

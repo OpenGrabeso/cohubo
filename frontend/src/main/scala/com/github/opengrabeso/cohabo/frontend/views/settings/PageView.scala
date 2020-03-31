@@ -29,7 +29,8 @@ class PageView(
   def getTemplate: Modifier = {
 
     div(
-      s.container,s.limitWidth,
+      s.settingsContainer,
+      s.limitWidth,
       template(model.subModel(_.s), presenter),
       submitButton
     )
