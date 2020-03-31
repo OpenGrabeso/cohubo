@@ -199,8 +199,15 @@ class PageView(
       ),
       div(
         s.gridAreaFilters,
-        div(s.useFlex1),
-        newIssueButton,
+        showIfElse(model.subProp(_.loading))(
+          Seq.empty,
+          Seq[Node](
+            nextPageButton.render,
+            refreshNotifications.render,
+            div(s.useFlex1).render,
+            newIssueButton.render,
+          )
+        )
       ),
 
       div(
@@ -220,8 +227,7 @@ class PageView(
             div(
               s.flexRow,
               s.gridAreaTableButtons,
-              nextPageButton.render,
-              refreshNotifications.render
+              // any buttons below the table may be added here - not displayed while loading
             ).render,
 
             div(
