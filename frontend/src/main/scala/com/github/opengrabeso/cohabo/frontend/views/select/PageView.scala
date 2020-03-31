@@ -27,7 +27,7 @@ class PageView(
   model: ModelProperty[PageModel],
   presenter: PagePresenter,
   globals: ModelProperty[SettingsModel]
-) extends FinalView with CssView with PageUtils with TimeFormatting {
+) extends FinalView with CssView with PageUtils with TimeFormatting with CssBase {
 
   def fetchElementData(e: JQuery): ArticleIdModel = {
     val issueNumber = e.attr("issue-number").get.toLong
@@ -156,7 +156,9 @@ class PageView(
     val repoUrl = globals.subModel(_.context)
     div(
       s.container,
-      div(Grid.row)(
+      div(
+        s.gridAreaFilters,
+        s.flexRow,
         Spacing.margin(size = SpacingSize.Small),
         settingsButton.render,
         TextInput(repoUrl.subProp(_.organization), debounce = 500.millis)(),
@@ -192,31 +194,28 @@ class PageView(
       ),
 
       div(
-        s.useFlex1,
+        s.gridAreaTableContainer,
+        //s.passFlex1,
         showIfElse(model.subProp(_.loading))(
           p("Loading...").render,
-          div(
-            s.useFlex1,
-            bind(model.subProp(_.error).transform(_.map(ex => p(s"Error loading issues ${ex.toString}")).orNull)),
+          Seq[Node](
             div(
               s.selectTableContainer,
               table.render.tap { t =>
                 jQ(t).attr("style", "display: flex; flex-direction: column; flex: 0")
                 jQ(t).asInstanceOf[js.Dynamic].resizableColumns()
               }
-            ),
-            hr(),
-
-            UdashButtonToolbar()(
-              UdashButtonGroup()(
-                nextPageButton.render,
-                refreshNotifications.render
-              ).render
-
             ).render,
 
-            hr(),
             div(
+              s.flexRow,
+              s.gridAreaTableButtons,
+              nextPageButton.render,
+              refreshNotifications.render
+            ).render,
+
+            div(
+              s.gridAreaArticle,
               s.useFlex0,
               produce(model.subProp(_.selectedArticleParent)) {
                 case Some(row) =>
@@ -235,8 +234,10 @@ class PageView(
               },
               showIfElse(model.subProp(_.editing).transform(_._1))(
                 div(
+                  s.editArea,
                   TextArea(model.subProp(_.editedArticleMarkdown))(Form.control, s.editTextArea, id := "edit-text-area"),
                   div(
+                    s.editButtons,
                     s.flexRow,
                     div(s.useFlex1),
                     editOKButton,
@@ -252,8 +253,8 @@ class PageView(
                   }
                 ).render
               )
-            )
-          ).render
+            ).render
+          )
 
         )
       )

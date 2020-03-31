@@ -4,7 +4,7 @@ import io.udash.css._
 
 import scala.language.postfixOps
 
-object SelectPageStyles extends CssBase {
+object SelectPageStyles extends CommonStyle {
 
   import dsl._
 
@@ -25,33 +25,44 @@ object SelectPageStyles extends CssBase {
     borderWidth(1 px)
   )
 
-  val passFlex = mixin(
-    flexGrow(1),
-    display.flex,
-    flexDirection.column
+  val container: CssStyle = style(
+    display.grid,
+    margin.auto,
+    containerBorder,
+    height(100 %%),
+    gridTemplateRows := "auto minmax(0, 1fr)",
+    gridTemplateAreas("filters", "table-container"),
   )
 
-  val flexRow = style(
+
+  val gridAreaFilters = style(
+    gridArea := "filters",
     display.flex,
     flexDirection.row
   )
 
-  val useFlex1 = style(
-    passFlex
-  )
-  val useFlex0 = style(
-    flexGrow(0)
+  val gridAreaTableContainer = style(
+    gridArea := "table-container",
+    display.grid,
+    gridTemplateRows := "minmax(0, 1fr) auto minmax(0, 1fr)",
+    gridTemplateAreas("table", "table-buttons", "article"),
   )
 
-  val container: CssStyle = style(
-    passFlex,
-    margin.auto,
-    containerBorder,
+  val gridAreaArticle = style(
+    gridArea := "article",
+    display.flex,
+    flexDirection.column,
+    maxWidth(60 em),
+  )
+
+  val gridAreaTableButtons = style(
+    gridArea := "table-buttons",
+    display.flex,
+    flexDirection.row
   )
 
   val selectTableContainer: CssStyle = style(
-    passFlex,
-    maxHeight(40 vh),
+    gridArea := "table",
     overflow.auto,
     border(2 px, solid, darkgray),
     // see https://stackoverflow.com/a/56998444/16673
@@ -243,17 +254,32 @@ object SelectPageStyles extends CssBase {
 
   val articleContentTextArea: CssStyle = style(
     overflow.auto,
-    minHeight(20 vh),
-    maxHeight(30 vh),
+    height(100 %%),
     borderStyle.solid,
     borderWidth(1 px),
-    borderColor(c"#8080c0")
+    borderColor(c"#8080c0"),
+    marginTop(4 px),
+    marginBottom(6 px), // avoid overflowing into the footer
+    //unsafeChild(".article-content") (height(100 %%))
+  )
+
+  val editArea = style(
+    display.grid,
+    height(100 %%),
+    gridTemplateRows := "1fr auto",
+    gridTemplateAreas("text", "buttons")
   )
 
   val editTextArea = style(
+    gridArea := "text",
     overflow.auto,
     width(100 %%),
-    boxSizing.borderBox
+    height(100 %%),
+    boxSizing.borderBox,
+    resize.none
+  )
+  val editButtons = style(
+    gridArea := "buttons",
   )
 
   val selectedArticle = style(

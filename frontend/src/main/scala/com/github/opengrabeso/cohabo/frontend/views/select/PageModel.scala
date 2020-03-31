@@ -18,7 +18,6 @@ case class PageModel(
   selectedArticle: Option[ArticleRowModel] = None,
   articleContent: String = "",
   pagingUrls: Map[String, String] = Map.empty,
-  error: Option[Throwable] = None,
   editing: (Boolean, Boolean) = (false, false), // editing, editing is reply
   editedArticleMarkdown: String = "",
   editedArticleHTML: String = "",

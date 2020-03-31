@@ -73,18 +73,6 @@ object Root {
 
     import scalatags.JsDom.all._
 
-    private val logoutButton = UdashButton(
-      //buttonStyle = ButtonStyle.Default,
-      block = true.toProperty, componentId = ComponentId("logout-button")
-    )("Log Out")
-
-    logoutButton.listen {
-      case UdashButton.ButtonClickEvent(_, _) =>
-        println("Logout submit pressed")
-        presenter.logout()
-    }
-
-
     val header: Seq[HTMLElement] = {
       val name = model.subProp(_.userName)
       val userId = model.subProp(_.userId)
@@ -119,11 +107,6 @@ object Root {
               case None =>
                 "".render
             }
-          ),
-          div(
-            `class`:="ml-auto px-2",
-            GlobalStyles.logoutButton,
-            logoutButton
           )
         ).render
       )
@@ -134,18 +117,16 @@ object Root {
       div(
         Spacing.margin(size = SpacingSize.Small),
         id := "footer",
-        /*
         a(
-          href := "http://labs.strava.com/",
-          id := "powered_by_strava",
+          href := "https://www.github.com",
+          id := "powered_by_github",
           rel := "nofollow",
-          img(
-            GlobalStyles.stravaImg,
-            attr("align") := "left",
-            src :="static/api_logo_pwrdBy_strava_horiz_white.png",
-          )
+          i(cls := "fab fa-github"),
+          "Powered by GitHub"
         ),
-       */
+        div(
+          GlobalStyles.useFlex1,
+        ),
         p(
           GlobalStyles.footerText,
           " © 2020 ",
@@ -153,8 +134,7 @@ object Root {
             href := s"https://github.com/OndrejSpanel/$gitHubName",
             GlobalStyles.footerLink,
             "Ondřej Španěl"
-          ),
-          div()
+          )
         )
       ).render
     )
@@ -165,7 +145,7 @@ object Root {
       // loads Bootstrap and FontAwesome styles from CDN
       UdashBootstrap.loadBootstrapStyles(),
       UdashBootstrap.loadFontAwesome(),
-      BootstrapStyles.container,
+      GlobalStyles.rootContainer,
       header,
       childViewContainer,
       footer

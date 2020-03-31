@@ -4,9 +4,41 @@ import io.udash.css._
 
 import scala.language.postfixOps
 
-object GlobalStyles extends CssBase {
+object GlobalStyles extends CommonStyle {
 
   import dsl._
+
+  val headerFooterCommon = mixin(
+    backgroundColor(c"#def"),
+    overflow.hidden,
+    display.flex,
+    flexGrow(0),
+    flexDirection.row
+  )
+
+
+  val rootContainer = style(
+    display.grid,
+    height(100 vh),
+    minHeight(500 px),
+    gridTemplateRows := "auto minmax(0, 1fr) auto",
+    gridTemplateAreas("header", "main", "footer"),
+
+    unsafeChild("#header") (
+      headerFooterCommon,
+      gridArea := "header"
+    ),
+
+    unsafeChild("#footer") (
+      headerFooterCommon,
+      height(24 px),
+      gridArea := "footer"
+    ),
+
+    unsafeChild("> div") (
+      gridArea := "main"
+    )
+  )
 
   val floatRight: CssStyle = style(
     float.right
@@ -17,10 +49,6 @@ object GlobalStyles extends CssBase {
   )
   val footerLink: CssStyle = style(
     color.inherit
-  )
-
-  val logoutButton: CssStyle = style(
-    justifyContent.spaceBetween
   )
 
   style(
@@ -56,20 +84,6 @@ object GlobalStyles extends CssBase {
 
   )
 
-  val headerFooterCommon = mixin(
-    backgroundColor(c"#def"),
-    overflow.auto,
-    flexGrow(0),
-    flexDirection.row
-  )
-
-  val header = style(
-    unsafeRoot("#header") (headerFooterCommon)
-  )
-
-  val footer = style(
-    unsafeRoot("#footer") (headerFooterCommon)
-  )
 
   val table = style(
     // we want the tables to be quite compact
