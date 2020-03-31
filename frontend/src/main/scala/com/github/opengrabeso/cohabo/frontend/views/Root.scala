@@ -134,18 +134,16 @@ object Root {
       div(
         Spacing.margin(size = SpacingSize.Small),
         id := "footer",
-        /*
         a(
-          href := "http://labs.strava.com/",
-          id := "powered_by_strava",
+          href := "https://www.github.com",
+          id := "powered_by_github",
           rel := "nofollow",
-          img(
-            GlobalStyles.stravaImg,
-            attr("align") := "left",
-            src :="static/api_logo_pwrdBy_strava_horiz_white.png",
-          )
+          i(cls := "fab fa-github"),
+          "Powered by GitHub"
         ),
-       */
+        div(
+          GlobalStyles.useFlex1,
+        ),
         p(
           GlobalStyles.footerText,
           " © 2020 ",
@@ -153,8 +151,7 @@ object Root {
             href := s"https://github.com/OndrejSpanel/$gitHubName",
             GlobalStyles.footerLink,
             "Ondřej Španěl"
-          ),
-          div()
+          )
         )
       ).render
     )

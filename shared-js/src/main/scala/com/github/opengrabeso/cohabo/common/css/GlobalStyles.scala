@@ -4,7 +4,7 @@ import io.udash.css._
 
 import scala.language.postfixOps
 
-object GlobalStyles extends CssBase {
+object GlobalStyles extends CommonStyle {
 
   import dsl._
 

@@ -192,11 +192,11 @@ class PageView(
       ),
 
       div(
-        s.useFlex1,
+        s.passFlex1,
         showIfElse(model.subProp(_.loading))(
           p("Loading...").render,
           div(
-            s.useFlex1,
+            s.passFlex1,
             bind(model.subProp(_.error).transform(_.map(ex => p(s"Error loading issues ${ex.toString}")).orNull)),
             div(
               s.selectTableContainer,

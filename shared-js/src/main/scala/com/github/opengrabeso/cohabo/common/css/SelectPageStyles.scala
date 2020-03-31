@@ -4,7 +4,7 @@ import io.udash.css._
 
 import scala.language.postfixOps
 
-object SelectPageStyles extends CssBase {
+object SelectPageStyles extends CommonStyle {
 
   import dsl._
 
@@ -23,24 +23,6 @@ object SelectPageStyles extends CssBase {
     borderRadius(10 px),
     borderStyle.solid,
     borderWidth(1 px)
-  )
-
-  val passFlex = mixin(
-    flexGrow(1),
-    display.flex,
-    flexDirection.column
-  )
-
-  val flexRow = style(
-    display.flex,
-    flexDirection.row
-  )
-
-  val useFlex1 = style(
-    passFlex
-  )
-  val useFlex0 = style(
-    flexGrow(0)
   )
 
   val container: CssStyle = style(
