@@ -142,11 +142,11 @@ class PagePresenter(
     }.headOption
   }
 
-  private def extractTriangleHeader(body: String): Option[ZonedDateTime] = {
-    // search for an article header in a form ***▽ <Login> <DD>.<MM>.<YYYY> <hh>:<mm>:<ss>***
-    // this must be on a first or a second line
-    val regex = "\\*+▽ [A-Za-z0-9_]+ ([0-9]+)\\.([0-9]+)\\.([0-9]+) ([0-9]+):([0-9]+):([0-9]+)\\*+".r
-    body.linesIterator.toSeq.take(2).flatMap(line => regex.findFirstMatchIn(line)).flatMap {
+  private def extractCommentNoteHeader(body: String): Option[ZonedDateTime] = {
+    // search for an article header in a form > ***<Login> <DD>.<MM>.<YYYY> <hh>:<mm>:<ss>***
+    // this must be on a first line only
+    val regex = "> \\*+[A-Za-z0-9_]+ ([0-9]+)\\.([0-9]+)\\.([0-9]+) ([0-9]+):([0-9]+):([0-9]+)\\*+".r
+    body.linesIterator.toSeq.take(1).flatMap(line => regex.findFirstMatchIn(line)).flatMap {
       case Regex.Groups(day,month,year,hour,minute,second) =>
         Try(
           ZonedDateTime.of(year.toInt, month.toInt, day.toInt, hour.toInt, minute.toInt, second.toInt, 0, localZoneId)
@@ -169,7 +169,7 @@ class PagePresenter(
   }
 
   private def overrideCreatedAt(body: String): Option[ZonedDateTime] = {
-    extractQuoteHeader(body).orElse(extractTriangleHeader(body))
+    extractQuoteHeader(body).orElse(extractCommentNoteHeader(body))
   }
 
   private def overrideEditedAt(body: String): Option[ZonedDateTime] = {
