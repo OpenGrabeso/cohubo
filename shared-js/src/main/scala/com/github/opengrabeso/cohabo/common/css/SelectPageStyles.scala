@@ -51,7 +51,8 @@ object SelectPageStyles extends CommonStyle {
   val gridAreaArticle = style(
     gridArea := "article",
     display.flex,
-    flexDirection.column
+    flexDirection.column,
+    maxWidth(60 em),
   )
 
   val gridAreaTableButtons = style(
