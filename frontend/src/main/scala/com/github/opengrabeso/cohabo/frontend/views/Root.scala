@@ -162,7 +162,7 @@ object Root {
       // loads Bootstrap and FontAwesome styles from CDN
       UdashBootstrap.loadBootstrapStyles(),
       UdashBootstrap.loadFontAwesome(),
-      BootstrapStyles.container,
+      GlobalStyles.rootContainer,
       header,
       childViewContainer,
       footer

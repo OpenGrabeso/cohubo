@@ -26,14 +26,42 @@ object SelectPageStyles extends CommonStyle {
   )
 
   val container: CssStyle = style(
-    passFlex,
+    display.grid,
     margin.auto,
     containerBorder,
+    height(100 %%),
+    gridTemplateRows := "auto minmax(0, 1fr)",
+    gridTemplateAreas("filters", "table-container"),
+  )
+
+
+  val gridAreaFilters = style(
+    gridArea := "filters",
+    display.flex,
+    flexDirection.row
+  )
+
+  val gridAreaTableContainer = style(
+    gridArea := "table-container",
+    display.grid,
+    gridTemplateRows := "minmax(0, 1fr) auto minmax(0, 1fr)",
+    gridTemplateAreas("table", "table-buttons", "article"),
+  )
+
+  val gridAreaArticle = style(
+    gridArea := "article",
+    display.flex,
+    flexDirection.column
+  )
+
+  val gridAreaTableButtons = style(
+    gridArea := "table-buttons",
+    display.flex,
+    flexDirection.row
   )
 
   val selectTableContainer: CssStyle = style(
-    passFlex,
-    maxHeight(40 vh),
+    gridArea := "table",
     overflow.auto,
     border(2 px, solid, darkgray),
     // see https://stackoverflow.com/a/56998444/16673
@@ -225,11 +253,11 @@ object SelectPageStyles extends CommonStyle {
 
   val articleContentTextArea: CssStyle = style(
     overflow.auto,
-    minHeight(20 vh),
-    maxHeight(30 vh),
+    height(100 %%),
     borderStyle.solid,
     borderWidth(1 px),
-    borderColor(c"#8080c0")
+    borderColor(c"#8080c0"),
+    //unsafeChild(".article-content") (height(100 %%))
   )
 
   val editTextArea = style(

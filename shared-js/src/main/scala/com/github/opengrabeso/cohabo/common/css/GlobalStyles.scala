@@ -8,6 +8,36 @@ object GlobalStyles extends CommonStyle {
 
   import dsl._
 
+  val headerFooterCommon = mixin(
+    backgroundColor(c"#def"),
+    overflow.auto,
+    display.flex,
+    flexGrow(0),
+    flexDirection.row
+  )
+
+
+  val rootContainer = style(
+    display.grid,
+    height(100 vh),
+    gridTemplateRows := "auto minmax(0, 1fr) auto",
+    gridTemplateAreas("header", "main", "footer"),
+
+    unsafeChild("#header") (
+      headerFooterCommon,
+      gridArea := "header"
+    ),
+
+    unsafeChild("#footer") (
+      headerFooterCommon,
+      gridArea := "footer"
+    ),
+
+    unsafeChild("> div") (
+      gridArea := "main"
+    )
+  )
+
   val floatRight: CssStyle = style(
     float.right
   )
@@ -56,20 +86,6 @@ object GlobalStyles extends CommonStyle {
 
   )
 
-  val headerFooterCommon = mixin(
-    backgroundColor(c"#def"),
-    overflow.auto,
-    flexGrow(0),
-    flexDirection.row
-  )
-
-  val header = style(
-    unsafeRoot("#header") (headerFooterCommon)
-  )
-
-  val footer = style(
-    unsafeRoot("#footer") (headerFooterCommon)
-  )
 
   val table = style(
     // we want the tables to be quite compact
