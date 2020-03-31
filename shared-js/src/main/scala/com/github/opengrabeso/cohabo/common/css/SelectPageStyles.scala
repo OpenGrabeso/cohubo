@@ -260,10 +260,23 @@ object SelectPageStyles extends CommonStyle {
     //unsafeChild(".article-content") (height(100 %%))
   )
 
+  val editArea = style(
+    display.grid,
+    height(100 %%),
+    gridTemplateRows := "1fr auto",
+    gridTemplateAreas("text", "buttons")
+  )
+
   val editTextArea = style(
+    gridArea := "text",
     overflow.auto,
     width(100 %%),
-    boxSizing.borderBox
+    height(100 %%),
+    boxSizing.borderBox,
+    resize.none
+  )
+  val editButtons = style(
+    gridArea := "buttons",
   )
 
   val selectedArticle = style(

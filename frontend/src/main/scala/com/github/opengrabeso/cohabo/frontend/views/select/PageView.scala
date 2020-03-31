@@ -234,8 +234,10 @@ class PageView(
               },
               showIfElse(model.subProp(_.editing).transform(_._1))(
                 div(
+                  s.editArea,
                   TextArea(model.subProp(_.editedArticleMarkdown))(Form.control, s.editTextArea, id := "edit-text-area"),
                   div(
+                    s.editButtons,
                     s.flexRow,
                     div(s.useFlex1),
                     editOKButton,
