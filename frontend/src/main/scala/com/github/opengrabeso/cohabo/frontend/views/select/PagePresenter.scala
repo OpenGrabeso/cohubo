@@ -31,7 +31,7 @@ import scala.util.matching.Regex
 object PagePresenter {
   def removeQuotes(text: String): Iterator[String] = {
     val Mention = "(?:@[^ ]+ )+(.*)".r
-    text.linesIterator.filterNot(_.startsWith(">")).map {
+    text.linesIterator.filterNot(_.startsWith(">")).filterNot(_.startsWith("***▽ ")).map {
       case Mention(rest) =>
         rest
       case s =>
@@ -128,8 +128,8 @@ class PagePresenter(
     ZoneId.of(new DateTimeFormatX().resolvedOptions().timeZone.getOrElse("Etc/GMT"))
   }
 
-  private def overrideCreatedAt(body: String): Option[ZonedDateTime] = {
-    // search for an article header in a form > **<Login>** _<MM>/<DD>/<YYYY> <hh>:<mm>:<ss>_ **Tags:** <tags>
+  private def extractQuoteHeader(body: String): Option[ZonedDateTime] = {
+    // search for an article header in a form > **<Login>** _<DD>.<MM>.<YYYY> <hh>:<mm>:<ss>_ **Tags:** <tags>
     // this must be on a first or a second line
     val regex = "> \\*+[A-Za-z0-9_]+\\*+ _([0-9]+)\\.([0-9]+)\\.([0-9]+) ([0-9]+):([0-9]+):([0-9]+)_ \\*+Tags:\\*+ .*".r
     body.linesIterator.toSeq.take(2).flatMap(line => regex.findFirstMatchIn(line)).flatMap {
@@ -142,7 +142,21 @@ class PagePresenter(
     }.headOption
   }
 
-  private def overrideEditedAt(body: String): Option[ZonedDateTime] = {
+  private def extractTriangleHeader(body: String): Option[ZonedDateTime] = {
+    // search for an article header in a form ***▽ <Login> <DD>.<MM>.<YYYY> <hh>:<mm>:<ss>***
+    // this must be on a first or a second line
+    val regex = "\\*+▽ [A-Za-z0-9_]+ ([0-9]+)\\.([0-9]+)\\.([0-9]+) ([0-9]+):([0-9]+):([0-9]+)\\*+".r
+    body.linesIterator.toSeq.take(2).flatMap(line => regex.findFirstMatchIn(line)).flatMap {
+      case Regex.Groups(day,month,year,hour,minute,second) =>
+        Try(
+          ZonedDateTime.of(year.toInt, month.toInt, day.toInt, hour.toInt, minute.toInt, second.toInt, 0, localZoneId)
+        ).toOption
+      case _ =>
+        None
+    }.headOption
+  }
+
+  private def extractNoteHeader(body: String): Option[ZonedDateTime] = {
     val regex = "> [⭗⌇▽]\\*+[A-Za-z0-9_]+ ([0-9]+)\\.([0-9]+)\\.([0-9]+) ([0-9]+):([0-9]+):([0-9]+)\\*+".r
     body.linesIterator.flatMap(regex.findFirstMatchIn).flatMap {
       case Regex.Groups(day,month,year,hour,minute,second) =>
@@ -154,6 +168,13 @@ class PagePresenter(
     }.toSeq.lastOption
   }
 
+  private def overrideCreatedAt(body: String): Option[ZonedDateTime] = {
+    extractQuoteHeader(body).orElse(extractTriangleHeader(body))
+  }
+
+  private def overrideEditedAt(body: String): Option[ZonedDateTime] = {
+    extractNoteHeader(body)
+  }
   private def rowFromIssue(i: Issue, context: ContextModel) = {
     val p = ArticleIdModel(context.organization, context.repository, i.number, None)
     val explicitCreated = overrideCreatedAt(i.body)
