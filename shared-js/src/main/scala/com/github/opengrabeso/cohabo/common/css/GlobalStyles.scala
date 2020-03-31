@@ -49,10 +49,6 @@ object GlobalStyles extends CommonStyle {
     color.inherit
   )
 
-  val logoutButton: CssStyle = style(
-    justifyContent.spaceBetween
-  )
-
   style(
     unsafeRoot("body")(
       display.flex,

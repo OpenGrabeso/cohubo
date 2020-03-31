@@ -73,18 +73,6 @@ object Root {
 
     import scalatags.JsDom.all._
 
-    private val logoutButton = UdashButton(
-      //buttonStyle = ButtonStyle.Default,
-      block = true.toProperty, componentId = ComponentId("logout-button")
-    )("Log Out")
-
-    logoutButton.listen {
-      case UdashButton.ButtonClickEvent(_, _) =>
-        println("Logout submit pressed")
-        presenter.logout()
-    }
-
-
     val header: Seq[HTMLElement] = {
       val name = model.subProp(_.userName)
       val userId = model.subProp(_.userId)
@@ -119,11 +107,6 @@ object Root {
               case None =>
                 "".render
             }
-          ),
-          div(
-            `class`:="ml-auto px-2",
-            GlobalStyles.logoutButton,
-            logoutButton
           )
         ).render
       )
