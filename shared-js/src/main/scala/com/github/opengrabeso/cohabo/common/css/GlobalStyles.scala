@@ -10,7 +10,7 @@ object GlobalStyles extends CommonStyle {
 
   val headerFooterCommon = mixin(
     backgroundColor(c"#def"),
-    overflow.auto,
+    overflow.hidden,
     display.flex,
     flexGrow(0),
     flexDirection.row
@@ -31,6 +31,7 @@ object GlobalStyles extends CommonStyle {
 
     unsafeChild("#footer") (
       headerFooterCommon,
+      height(24 px),
       gridArea := "footer"
     ),
 

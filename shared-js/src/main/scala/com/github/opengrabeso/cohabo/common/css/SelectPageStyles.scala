@@ -257,6 +257,8 @@ object SelectPageStyles extends CommonStyle {
     borderStyle.solid,
     borderWidth(1 px),
     borderColor(c"#8080c0"),
+    marginTop(4 px),
+    marginBottom(6 px), // avoid overflowing into the footer
     //unsafeChild(".article-content") (height(100 %%))
   )
 
