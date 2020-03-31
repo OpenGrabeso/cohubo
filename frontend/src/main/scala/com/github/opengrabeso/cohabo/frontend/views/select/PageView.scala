@@ -171,8 +171,7 @@ class PageView(
     div(
       s.container,
       div(
-        s.gridAreaFilters,
-        s.flexRow,
+        s.gridAreaNavigation,
         Spacing.margin(size = SpacingSize.Small),
         settingsButton.render,
         TextInput(repoContextProperty, debounce = 500.millis)(),
@@ -182,11 +181,6 @@ class PageView(
             produce(repoUrl) { context =>
               val ro = context.relativeUrl
               Seq[Node](
-                a(
-                  Spacing.margin(size = SpacingSize.Small),
-                  href := s"https://www.github.com/$ro",
-                  ro
-                ).render,
                 a(
                   Spacing.margin(size = SpacingSize.Small),
                   href := s"https://www.github.com/$ro/issues",
@@ -202,6 +196,9 @@ class PageView(
             }
           ).render
         ),
+      ),
+      div(
+        s.gridAreaFilters,
         div(s.useFlex1),
         newIssueButton,
       ),

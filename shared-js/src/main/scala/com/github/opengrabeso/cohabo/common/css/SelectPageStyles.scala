@@ -30,10 +30,20 @@ object SelectPageStyles extends CommonStyle {
     margin.auto,
     containerBorder,
     height(100 %%),
+    gridTemplateColumns := "auto minmax(0, 1fr)",
     gridTemplateRows := "auto minmax(0, 1fr)",
-    gridTemplateAreas("filters", "table-container"),
+    gridTemplateAreas(
+      "nav filters",
+      "nav table-container"
+    ),
   )
 
+
+  val gridAreaNavigation = style(
+    gridArea := "nav",
+    display.flex,
+    flexDirection.column
+  )
 
   val gridAreaFilters = style(
     gridArea := "filters",
