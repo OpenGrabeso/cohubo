@@ -29,14 +29,17 @@ import scala.util.matching.Regex
 
 
 object PagePresenter {
-  def removeQuotes(text: String): Iterator[String] = {
-    val Mention = "(?:@[^ ]+ )+(.*)".r
-    text.linesIterator.filterNot(_.startsWith(">")).filterNot(_.startsWith("***▽ ")).map {
-      case Mention(rest) =>
-        rest
-      case s =>
-        s
+  implicit class ProcessLines(lines: Iterator[String]) {
+    def removeQuotes: Iterator[String] = {
+      val Mention = "(?:@[^ ]+ )+(.*)".r
+      lines.filterNot(_.startsWith(">")).filterNot(_.startsWith("***▽ ")).map {
+        case Mention(rest) =>
+          rest
+        case s =>
+          s
+      }
     }
+    def removeCodePrefix: Iterator[String] = lines.filterNot(_.startsWith("```"))
   }
 
   def removeHeading(text: String): String = {
@@ -48,21 +51,42 @@ object PagePresenter {
         text
     }
   }
-  @scala.annotation.tailrec
-  def removeMarkdown(text: String): String = {
-    val Link = "(.*)\\[([^\\]]+)\\]\\([^)]+\\)(.*)".r
-    text match {
-      case Link(prefix, link, postfix) =>
-        removeMarkdown(prefix + link + postfix) // there may be multiple links on one line
-      case _ =>
-        text
+
+  implicit final class MarkdownTransform(val text: String) {
+    @scala.annotation.tailrec
+    def removeMarkdown: String = {
+      val Link = "(.*)\\[([^\\]]+)\\]\\([^)]+\\)(.*)".r
+      text match {
+        case Link(prefix, link, postfix) =>
+          (prefix + link + postfix).removeMarkdown // there may be multiple links on one line
+        case _ =>
+          text
+      }
+    }
+    def decodeEntities: String = {
+      js.Dynamic.global.he.decode(text).asInstanceOf[String]
+    }
+    @scala.annotation.tailrec
+    def removeHTMLTags: String = {
+      val Link = "(.*)</?[a-zA-Z]/?>(.*)".r
+      text match {
+        case Link(prefix, postfix) =>
+          (prefix + postfix).removeHTMLTags // there may be multiple links on one line
+        case _ =>
+          text
+      }
     }
   }
 
+
   def bodyAbstract(text: String): String = {
-    val dropQuotes = removeQuotes(text).map(removeHeading).filterNot(_.isEmpty)
+    val dropQuotes = text.linesIterator.removeQuotes.removeCodePrefix.map(removeHeading).filterNot(_.isEmpty)
     // TODO: smarter abstracts
-    removeMarkdown(dropQuotes.toSeq.headOption.getOrElse("")).take(120)
+    dropQuotes.toSeq.headOption.getOrElse("")
+      .removeMarkdown
+      .removeHTMLTags
+      .decodeEntities
+      .take(120)
   }
 
   def extractQuotes(text: String): Seq[String] = {
@@ -197,7 +221,7 @@ class PagePresenter(
 
   private def findByQuote(quote: String, findIn: List[ArticleRowModel]): List[ArticleRowModel] = {
     findIn.filter { i =>
-      val withoutQuotes = removeQuotes(i.body)
+      val withoutQuotes = i.body.linesIterator.removeQuotes
       withoutQuotes.exists(_.contains(quote))
     }
   }
