@@ -154,6 +154,20 @@ class PageView(
     )
 
     val repoUrl = globals.subModel(_.context)
+
+    val repoContextProperty = Property[String](repoUrl.get.relativeUrl)
+
+    repoContextProperty.listen { orgAndRepo =>
+      orgAndRepo.split('/').toSeq match {
+        case Seq(org) =>
+          repoUrl.set(ContextModel(org, ""))
+        case Seq(org, repo) =>
+          repoUrl.set(ContextModel(org, repo))
+        case _ =>
+          repoUrl.set(ContextModel("", ""))
+      }
+    }
+
     div(
       s.container,
       div(
@@ -161,8 +175,7 @@ class PageView(
         s.flexRow,
         Spacing.margin(size = SpacingSize.Small),
         settingsButton.render,
-        TextInput(repoUrl.subProp(_.organization), debounce = 500.millis)(),
-        TextInput(repoUrl.subProp(_.repository), debounce = 500.millis)(),
+        TextInput(repoContextProperty, debounce = 500.millis)(),
         showIfElse(model.subProp(_.repoError))(
           p("???").render,
           div(
