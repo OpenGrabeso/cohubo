@@ -30,6 +30,12 @@ case class ArticleIdModel(owner: String, repo: String, issueNumber: Long, id: Op
       id.map(commentId => s"(${commentId._1})").getOrElse(s"#$issueNumber").render
     )
   }
+  def issueLinkFull: JsDom.TypedTag[Anchor] = {
+    a(
+      href := issueUri,
+      id.map(commentId => s"#$issueNumber(${commentId._1})").getOrElse(s"#$issueNumber").render
+    )
+  }
 }
 
 

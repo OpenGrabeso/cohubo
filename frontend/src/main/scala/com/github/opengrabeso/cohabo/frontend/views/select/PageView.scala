@@ -233,19 +233,21 @@ class PageView(
             div(
               s.gridAreaArticle,
               s.useFlex0,
-              produce(model.subProp(_.selectedArticleParent)) {
-                case Some(row) =>
+              produce(model.subProp(_.selectedArticle).combine(model.subProp(_.selectedArticleParent))(_ -> _)) {
+                case (Some(row), Some(parent)) =>
+                  // if we are the issue, use our own title. If we are a comment, try extracting the title from a body
+                  val title = if (row.id.id.isDefined) PagePresenter.rowTitle(row.body, parent.title) else row.title
                   div(
                     s.flexRow,
                     div(
                       s.selectedArticle,
-                      h4(`class`:="title", span(row.title), span(`class`:= "link", row.id.issueLink)),
+                      h4(`class`:="title", span(title), span(`class`:= "link", row.id.issueLinkFull)),
                       div(span(`class`:= "createdBy", row.createdBy))
                     ),
                     div(s.useFlex1),
                     div(editButton)
                   ).render
-                case None =>
+                case _ =>
                   div().render
               },
               showIfElse(model.subProp(_.editing).transform(_._1))(
@@ -288,7 +290,7 @@ class PageView(
                 "sep2" -> "------",
                 "close" -> JQueryMenu.BuildItem("Close", presenter.closeIssue(data)),
                 "sep1" -> "------",
-                "link" -> JQueryMenu.BuildItem("Copy link to " + data.issueLink.render.outerHTML, presenter.copyLink(data), isHtmlName = true),
+                "link" -> JQueryMenu.BuildItem("Copy link to " + data.issueLinkFull.render.outerHTML, presenter.copyLink(data), isHtmlName = true),
                 "openGitHub" -> JQueryMenu.BuildItem("Open on GitHub", presenter.gotoGithub(data)),
               )
             )
