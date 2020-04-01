@@ -141,10 +141,6 @@ class PagePresenter(
     }
   }
 
-  def repoValid(valid: Boolean): Unit = {
-    model.subProp(_.repoError).set(!valid)
-  }
-
 
   private def initArticles(context: ContextModel): Future[DataWithHeaders[Seq[Issue]]] = {
     userService.call(_.repos(context.organization, context.repository).issues())
@@ -333,6 +329,7 @@ class PagePresenter(
       val start = notFoundAtEnd(articles.indexWhere(_.id.from(context)))
       val end = notFoundAtEnd(articles.indexWhere(!_.id.from(context), start))
       if (end > start) {
+        println(s"Remove articles $start.$end")
         as.replace(start, end - start)
         removeRecurse()
       }
@@ -355,17 +352,13 @@ class PagePresenter(
             if (code != 404) {
               println(s"HTTP Error $code loading issues from ${context.relativeUrl}: $ex")
             }
-            repoValid(false)
             Failure(ex)
           case Failure(ex) =>
-            repoValid(false)
             println(s"Error loading issues from ${context.relativeUrl}: $ex")
             ex.printStackTrace()
             Failure(ex)
-          case x =>
+          case _ =>
             // settings valid, store them
-            SettingsModel.store(userService.properties.get)
-            repoValid(true)
         })
     }
 
@@ -494,7 +487,7 @@ class PagePresenter(
 
 
   private def doLoadArticles(token: String, context: ContextModel): Unit = {
-    model.subProp(_.articles).set(Seq.empty)
+    println(s"Load articles $context $token")
     loadArticlesPage(token, context, "init")
     //lastNotifications = None
     //loadNotifications(token, context)
@@ -508,7 +501,6 @@ class PagePresenter(
       println("Token changed")
       clearAllArticles()
       for (context <- props.subProp(_.contexts).get) {
-        println(s"Load articles $context $token")
         doLoadArticles(token, context)
       }
     }
@@ -576,6 +568,29 @@ class PagePresenter(
 
   def editCancel(): Unit = {
     model.subProp(_.editing).set((false, false))
+  }
+
+  def addRepository(): Unit = {
+    val repos = props.subSeq(_.contexts)
+    val repo = model.subProp(_.newRepo).get
+    Try(ContextModel.parse(repo)).foreach { ctx =>
+      if (!repos.get.contains(ctx)) {
+        repos.replace(repos.size, 0, ctx)
+        SettingsModel.store(props.get)
+      }
+    }
+  }
+
+  def removeRepository(): Unit = {
+    val repos = props.subSeq(_.contexts)
+    val repo = model.subProp(_.newRepo).get
+    Try(ContextModel.parse(repo)).foreach { ctx =>
+      val find = repos.get.indexOf(ctx)
+      if (find >= 0) {
+        repos.replace(find, 1)
+        SettingsModel.store(props.get)
+      }
+    }
   }
 
   private def wasEditing(): Boolean = model.subProp(_.editing).get._1

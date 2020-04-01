@@ -11,8 +11,9 @@ import io.udash._
 /** The form's model structure. */
 case class PageModel(
   loading: Boolean,
-  repoError: Boolean = false,
   articles: Seq[ArticleRowModel] = Seq.empty,
+  newRepo: String = "",
+  selectedContext: Option[ContextModel] = None,
   selectedArticleId: Option[ArticleIdModel] = None,
   selectedArticleParent: Option[ArticleRowModel] = None,
   selectedArticle: Option[ArticleRowModel] = None,

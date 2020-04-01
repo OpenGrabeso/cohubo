@@ -69,6 +69,9 @@ class PageView(
   private val editOKButton = button("OK".toProperty, buttonStyle = BootstrapStyles.Color.Success.toProperty)
   private val editCancelButton = button("Cancel".toProperty)
 
+  private val addRepoButton = button("Add".toProperty, buttonStyle = BootstrapStyles.Color.Success.toProperty)
+  private val removeRepoButton = button("Remove".toProperty, buttonStyle = BootstrapStyles.Color.Danger.toProperty)
+
   buttonOnClick(settingsButton) {presenter.gotoSettings()}
   buttonOnClick(newIssueButton) {presenter.newIssue()}
 
@@ -77,6 +80,9 @@ class PageView(
   buttonOnClick(editButton) {presenter.editCurrentArticle()}
   buttonOnClick(editOKButton) {presenter.editOK()}
   buttonOnClick(editCancelButton) {presenter.editCancel()}
+
+  buttonOnClick(addRepoButton) {presenter.addRepository()}
+  buttonOnClick(removeRepoButton) {presenter.removeRepository()}
 
   def getTemplate: Modifier = {
 
@@ -156,18 +162,45 @@ class PageView(
 
     val repoUrl = globals.subSeq(_.contexts)
 
-    val repoContextProperty = Property[String](repoUrl.get.headOption.map(_.relativeUrl).getOrElse(""))
+    val repoAttribs = Seq[TableFactory.TableAttrib[ContextModel]](
+      TableFactory.TableAttrib("Repository", {(ar, _, _) =>
+        val ro = ar.relativeUrl
+        div(
+          ro,
+          br(),
+          a(
+            Spacing.margin(size = SpacingSize.Small),
+            href := s"https://www.github.com/$ro/issues",
+            "Issues"
+          ).render,
+          a(
+            Spacing.margin(size = SpacingSize.Small),
+            href := s"https://www.github.com/$ro/milestones",
+            "Milestones"
+          ).render
 
-    repoContextProperty.listen { orgAndRepo =>
-      orgAndRepo.split('/').toSeq match {
-        case Seq(org) =>
-          repoUrl.set(Seq(ContextModel(org, "")))
-        case Seq(org, repo) =>
-          repoUrl.set(Seq(ContextModel(org, repo)))
-        case _ =>
-          repoUrl.set(Seq(ContextModel("", "")))
-      }
+        ).render
+      }, style = width(5, 5, 10)),
+      //TableFactory.TableAttrib("", (ar, _, _) => div("\u22EE").render, style = width(5, 5, 5)),
+    )
+
+    implicit object repoRowHandler extends views.TableFactory.TableRowHandler[ContextModel, ContextModel] {
+      override def id(item: ContextModel) = item
+      override def indent(item: ContextModel) = 0
+      override def rowModifier(itemModel: ModelProperty[ContextModel]) = Seq.empty[Node]
     }
+
+
+    val repoTable = UdashTable(repoUrl, bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
+      headerFactory = Some(TableFactory.headerFactory(repoAttribs)),
+      rowFactory = TableFactory.rowFactory[ContextModel, ContextModel](
+        false.toProperty,
+        model.subProp(_.selectedContext),
+        repoAttribs
+      )
+    )
+
+
 
     div(
       s.container,
@@ -175,23 +208,14 @@ class PageView(
         s.gridAreaNavigation,
         Spacing.margin(size = SpacingSize.Small),
         settingsButton.render,
-        TextInput(repoContextProperty, debounce = 1000.millis)(),
-        repeat(repoUrl) { c =>
-          val context = c.get
-          val ro = context.relativeUrl
-          div(
-            a(
-              Spacing.margin(size = SpacingSize.Small),
-              href := s"https://www.github.com/$ro/issues",
-              "Issues"
-            ).render,
-            a(
-              Spacing.margin(size = SpacingSize.Small),
-              href := s"https://www.github.com/$ro/milestones",
-              "Milestones"
-            ).render
-          ).render
-        }
+        div(cls:="row") (
+          TextInput(model.subProp(_.newRepo))(),
+        ),
+        div(cls:="row") (
+          addRepoButton,
+          removeRepoButton,
+        ),
+        repoTable.render
       ),
       div(
         s.gridAreaFilters,
