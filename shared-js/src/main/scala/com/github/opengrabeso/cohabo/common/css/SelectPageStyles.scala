@@ -38,6 +38,7 @@ object SelectPageStyles extends CommonStyle {
     margin.auto,
     containerBorder,
     height(100 %%),
+    backgroundColor(c"#f7fcff"),
     gridTemplateColumns := "auto minmax(0, 1fr)",
     gridTemplateRows := "auto minmax(0, 1fr)",
     gridTemplateAreas(
@@ -80,6 +81,7 @@ object SelectPageStyles extends CommonStyle {
   )
 
   val selectTableContainer: CssStyle = style(
+    backgroundColor.white,
     gridArea := "table",
     overflow.auto,
     border(2 px, solid, darkgray),
@@ -276,6 +278,7 @@ object SelectPageStyles extends CommonStyle {
     borderStyle.solid,
     borderWidth(1 px),
     borderColor(c"#8080c0"),
+    backgroundColor.white,
     marginTop(4 px),
     marginBottom(6 px), // avoid overflowing into the footer
     //unsafeChild(".article-content") (height(100 %%))
