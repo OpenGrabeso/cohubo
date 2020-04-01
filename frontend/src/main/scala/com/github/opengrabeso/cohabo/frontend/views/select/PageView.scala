@@ -33,7 +33,7 @@ class PageView(
     val issueNumber = e.attr("issue-number").get.toLong
     val replyNumber = e.attr("reply-number").map(_.toInt)
     val commentNumber = e.attr("comment-number").map(_.toLong)
-    val context = globals.subModel(_.context).get
+    val context = e.attr("issue-context").map(ContextModel.parse).get
     val commentId = (replyNumber zip commentNumber).headOption
     ArticleIdModel(context.organization, context.repository, issueNumber, commentId)
   }
@@ -137,6 +137,7 @@ class PageView(
         Seq[Modifier](
           rowStyle(itemModel),
           CssStyleName("custom-context-menu"),
+          attr("issue-context") := id.context.relativeUrl,
           attr("issue-number") := id.issueNumber,
           id.id.map(attr("reply-number") := _._1), // include only when the value is present
           id.id.map(attr("comment-number") := _._2) // include only when the value is present
@@ -153,18 +154,18 @@ class PageView(
       )
     )
 
-    val repoUrl = globals.subModel(_.context)
+    val repoUrl = globals.subSeq(_.contexts)
 
-    val repoContextProperty = Property[String](repoUrl.get.relativeUrl)
+    val repoContextProperty = Property[String](repoUrl.get.headOption.map(_.relativeUrl).getOrElse(""))
 
     repoContextProperty.listen { orgAndRepo =>
       orgAndRepo.split('/').toSeq match {
         case Seq(org) =>
-          repoUrl.set(ContextModel(org, ""))
+          repoUrl.set(Seq(ContextModel(org, "")))
         case Seq(org, repo) =>
-          repoUrl.set(ContextModel(org, repo))
+          repoUrl.set(Seq(ContextModel(org, repo)))
         case _ =>
-          repoUrl.set(ContextModel("", ""))
+          repoUrl.set(Seq(ContextModel("", "")))
       }
     }
 
@@ -175,27 +176,22 @@ class PageView(
         Spacing.margin(size = SpacingSize.Small),
         settingsButton.render,
         TextInput(repoContextProperty, debounce = 500.millis)(),
-        showIfElse(model.subProp(_.repoError))(
-          p("???").render,
+        repeat(repoUrl) { c =>
+          val context = c.get
+          val ro = context.relativeUrl
           div(
-            produce(repoUrl) { context =>
-              val ro = context.relativeUrl
-              Seq[Node](
-                a(
-                  Spacing.margin(size = SpacingSize.Small),
-                  href := s"https://www.github.com/$ro/issues",
-                  "Issues"
-                ).render,
-                a(
-                  Spacing.margin(size = SpacingSize.Small),
-                  href := s"https://www.github.com/$ro/milestones",
-                  "Milestones"
-                ).render
-
-              )
-            }
+            a(
+              Spacing.margin(size = SpacingSize.Small),
+              href := s"https://www.github.com/$ro/issues",
+              "Issues"
+            ).render,
+            a(
+              Spacing.margin(size = SpacingSize.Small),
+              href := s"https://www.github.com/$ro/milestones",
+              "Milestones"
+            ).render
           ).render
-        ),
+        }
       ),
       div(
         s.gridAreaFilters,

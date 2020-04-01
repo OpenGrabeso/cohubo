@@ -114,9 +114,8 @@ class PagePresenter(
 )(implicit ec: ExecutionContext) extends Presenter[SelectPageState.type] {
 
   def props = userService.properties
-  def pageContext = userService.properties.get.context
+  def pageContexts = userService.properties.subSeq(_.contexts).get
 
-  val sourceParameters = props.subProp(_.token).combine(props.subProp(_.context))(_ -> _)
   var lastNotifications =  Option.empty[String]
   var scheduled = Option.empty[SetTimeoutHandle]
 
@@ -129,7 +128,7 @@ class PagePresenter(
         model.subProp(_.selectedArticle).set(Some(s))
         model.subProp(_.selectedArticleParent).set(Some(p))
         model.subProp(_.articleContent).set("...")
-        renderMarkdown(s.body)
+        renderMarkdown(s.body, s.id.context)
       case _ =>
         model.subProp(_.selectedArticle).set(None)
         model.subProp(_.selectedArticleParent).set(None)
@@ -252,8 +251,8 @@ class PagePresenter(
 
   private def processIssueComments(issue: ArticleRowModel, comments: Seq[ArticleRowModel], context: ContextModel): Unit = { // the comments
 
-    if (context != pageContext) {
-      println(s"Discard pending issue for $context- repository changed to $pageContext")
+    if (!pageContexts.contains(context)) {
+      println(s"Discard pending issue for $context- repository changed to $pageContexts")
       return
     }
 
@@ -316,11 +315,31 @@ class PagePresenter(
   }
 
 
-  def clearArticles(): Unit = {
+  def clearAllArticles(): Unit = {
+    println("clearAllArticles")
     model.subSeq(_.articles).tap { a =>
       a.replace(0, a.get.length)
     }
-    model.subProp(_.loading).set(false)
+  }
+
+  def clearArticles(context: ContextModel): Unit = {
+    println(s"clearArticles $context")
+    // using as.get.filter would be much simpler, but .replace on seq. property is much faster
+    val as = model.subSeq(_.articles)
+    @scala.annotation.tailrec
+    def removeRecurse(): Unit = {
+      val articles = as.get
+      def notFoundAtEnd(i: Int) = if (i < 0) articles.length else i
+      val start = notFoundAtEnd(articles.indexWhere(_.id.from(context)))
+      val end = notFoundAtEnd(articles.indexWhere(!_.id.from(context), start))
+      if (end > start) {
+        println(s"Remove $start..$end")
+        as.replace(start, end - start)
+        removeRecurse()
+      }
+    }
+
+    removeRecurse()
   }
 
   def loadArticlesPage(token: String, context: ContextModel, mode: String): Unit = {
@@ -474,54 +493,76 @@ class PagePresenter(
   }
 
 
+  private def doLoadArticles(token: String, context: ContextModel): Unit = {
+    model.subProp(_.loading).set(true)
+    model.subProp(_.articles).set(Seq.empty)
+    loadArticlesPage(token, context, "init")
+    //lastNotifications = None
+    //loadNotifications(token, context)
+  }
 
   def loadArticles(): Unit = {
     // install the handler
-    sourceParameters.listen(
-      { case (token, context) =>
-        println(s"loadArticles $token:$context")
-        if (token.nonEmpty && context.repository.nonEmpty && context.organization.nonEmpty) {
-          model.subProp(_.loading).set(true)
-          model.subProp(_.articles).set(Seq.empty)
-          loadArticlesPage(token, context, "init")
-          lastNotifications = None
-          loadNotifications(token, context)
-        } else {
-          clearArticles()
-          clearNotifications()
-          lastNotifications = None
-        }
-      }, initUpdate = true
-    )
+    props.subProp(_.token).listen { token =>
+      clearAllArticles()
+      for (context <- props.subProp(_.contexts).get) {
+        doLoadArticles(token, context)
+      }
+    }
+
+    props.subSeq(_.contexts).listenStructure { patch =>
+      if (patch.clearsProperty) {
+        // completely empty - we can do much simpler cleanup (and shutdown any periodic handlers)
+        clearAllArticles()
+      } else {
+        val token = props.subProp(_.token).get
+        patch.removed.map(_.get).filter(_.valid).foreach(clearArticles)
+        patch.added.map(_.get).filter(_.valid).foreach(doLoadArticles(token, _))
+        // TODO: handle notifications properly
+        /*
+        loadArticlesPage(token, context, "init")
+        lastNotifications = None
+         */
+        clearNotifications()
+        lastNotifications = None
+      }
+    }
   }
 
   override def handleState(state: SelectPageState.type): Unit = {}
 
   def loadMore(): Unit = {
+    // TODO: how to handle paging with multiple repositories?
+    /*
     val (token, context) = sourceParameters.get
     loadArticlesPage(token, context, "next")
+
+     */
   }
 
 
   def refreshNotifications(): Unit = {
+    /*
     println("refreshNotifications")
     sourceParameters.get.tap {
       case (token, context) =>
         loadNotifications(token, context)
     }
+    */
   }
 
-  val markdownCache = new Cache[String, Future[String]](100, source =>
-    userService.call(_.markdown.markdown(source, "gfm", pageContext.relativeUrl)).map(_.data)
+  val markdownCache = new Cache[(String, ContextModel), Future[String]](100, source =>
+    userService.call(_.markdown.markdown(source._1, "gfm", source._2.relativeUrl)).map(_.data)
   )
 
-  def renderMarkdown(body: String): Unit = {
-    val htmlResult = markdownCache(removeColaboHeaders(body))
+  def renderMarkdown(body: String, context: ContextModel): Unit = {
+    val strippedBody = removeColaboHeaders(body)
+    val htmlResult = markdownCache(strippedBody -> context)
     // update the local data: article display and article content in the article table
     htmlResult.map { html =>
       model.subProp(_.articleContent).set(html)
     }.failed.foreach { ex =>
-      markdownCache.remove(body) // avoid caching failed requests
+      markdownCache.remove(strippedBody -> context) // avoid caching failed requests
       model.subProp(_.articleContent).set(s"Markdown error $ex")
     }
   }
@@ -550,12 +591,13 @@ class PagePresenter(
   def editDone(selectedId: ArticleIdModel, body: String): Unit = {
     println(s"Edit $selectedId")
     // plain edit
+    val context = selectedId.context
     userService.call { api =>
       selectedId match {
         case ArticleIdModel(_, _, issueId, Some((_, commentId))) =>
-          api.repos(pageContext.organization, pageContext.repository).editComment(commentId, body).map(_.body)
+          api.repos(context.organization, context.repository).editComment(commentId, body).map(_.body)
         case ArticleIdModel(_, _, issueId, None) =>
-          val issueAPI = api.repos(pageContext.organization, pageContext.repository).issuesAPI(issueId)
+          val issueAPI = api.repos(context.organization, context.repository).issuesAPI(issueId)
           issueAPI.get.flatMap { i =>
             issueAPI.update(
               i.title,
@@ -571,19 +613,22 @@ class PagePresenter(
       case Failure(ex) =>
         println(s"Edit failure $ex")
       case Success(body) =>
-        model.subProp(_.editing).set((false, false))
-        renderMarkdown(body)
-        model.subSeq(_.articles).tap { as =>
-          val index = as.get.indexWhere(_.id == selectedId)
-          val a = as.get(index)
-          as.replace(index, 1, a.copy(body = body))
+        // if the selection has changed while the Future was flying, ignore the result
+        if (model.subProp(_.selectedArticleId).get.contains(selectedId)) {
+          model.subProp(_.editing).set((false, false))
+          renderMarkdown(body, context)
+          model.subSeq(_.articles).tap { as =>
+            val index = as.get.indexWhere(_.id == selectedId)
+            val a = as.get(index)
+            as.replace(index, 1, a.copy(body = body))
+          }
         }
     }
   }
 
   def replyDone(selectedId: ArticleIdModel, body: String): Unit = {
     // reply (create a new comment)
-    val context = pageContext
+    val context = selectedId.context
     userService.call { api =>
       api.repos(context.organization, context.repository).issuesAPI(selectedId.issueNumber).createComment(body).map { c =>
         // add the comment to the article list
@@ -606,20 +651,22 @@ class PagePresenter(
   }
 
   def newIssueDone(body: String): Unit = {
-    val context = pageContext  // remember the context across the futures, so that we can verify it has not changed
-    userService.call { api =>
-      api.repos(pageContext.organization, pageContext.repository).createIssue(
-        bodyAbstract(body), // TODO: proper title
-        body
-        // TODO: allow providing more properties
-      )
-    }.onComplete {
-      case Failure(ex) =>
-        println(s"New issue failure $ex")
-      case Success(s) =>
-        val newRow = rowFromIssue(s, context)
-        processIssueComments(newRow, Seq.empty, context)
-        model.subProp(_.editing).set((false, false))
+    // TODO: which repository?
+    for (context <- pageContexts.headOption) { // remember the context across the futures, so that we can verify it has not changed
+      userService.call { api =>
+        api.repos(context.organization, context.repository).createIssue(
+          bodyAbstract(body), // TODO: proper title
+          body
+          // TODO: allow providing more properties
+        )
+      }.onComplete {
+        case Failure(ex) =>
+          println(s"New issue failure $ex")
+        case Success(s) =>
+          val newRow = rowFromIssue(s, context)
+          processIssueComments(newRow, Seq.empty, context)
+          model.subProp(_.editing).set((false, false))
+      }
     }
 
   }
@@ -703,7 +750,7 @@ class PagePresenter(
   }
 
   def closeIssue(id: ArticleIdModel): Unit = {
-    val context = props.subProp(_.context).get
+    val context = id.context
     userService.call { api =>
       val issueAPI = api.repos(context.organization, context.repository).issuesAPI(id.issueNumber)
       issueAPI.get.flatMap { i =>
