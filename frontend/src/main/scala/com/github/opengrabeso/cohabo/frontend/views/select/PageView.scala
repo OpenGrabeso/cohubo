@@ -38,6 +38,10 @@ class PageView(
     ArticleIdModel(context.organization, context.repository, issueNumber, commentId)
   }
 
+  def fetchRepoData(e: JQuery): ContextModel = {
+    ContextModel.parse(e.attr("repository").get)
+  }
+
   // each row is checking dynamically in the list of unread rows using a property created by this function
   def isUnread(id: Long, time: ReadableProperty[ZonedDateTime]): ReadableProperty[Boolean] = {
     model.subProp(_.unreadInfo).combine(time)(_ -> _).combine(model.subProp(_.unreadInfoFrom))(_ -> _).transform { case ((unread, time), unreadFrom ) =>
@@ -70,7 +74,6 @@ class PageView(
   private val editCancelButton = button("Cancel".toProperty)
 
   private val addRepoButton = button("Add".toProperty, buttonStyle = BootstrapStyles.Color.Success.toProperty)
-  private val removeRepoButton = button("Remove".toProperty, buttonStyle = BootstrapStyles.Color.Danger.toProperty)
 
   buttonOnClick(settingsButton) {presenter.gotoSettings()}
   buttonOnClick(newIssueButton) {presenter.newIssue()}
@@ -82,7 +85,6 @@ class PageView(
   buttonOnClick(editCancelButton) {presenter.editCancel()}
 
   buttonOnClick(addRepoButton) {presenter.addRepository()}
-  buttonOnClick(removeRepoButton) {presenter.removeRepository()}
 
   def getTemplate: Modifier = {
 
@@ -163,7 +165,7 @@ class PageView(
     val repoUrl = globals.subSeq(_.contexts)
 
     val repoAttribs = Seq[TableFactory.TableAttrib[ContextModel]](
-      TableFactory.TableAttrib("Repository", {(ar, _, _) =>
+      TableFactory.TableAttrib("Repository", { (ar, _, _) =>
         val ro = ar.relativeUrl
         div(
           ro,
@@ -180,14 +182,19 @@ class PageView(
           ).render
 
         ).render
-      }, style = width(5, 5, 10)),
+      } /*, style = width(5, 5, 10)*/),
       //TableFactory.TableAttrib("", (ar, _, _) => div("\u22EE").render, style = width(5, 5, 5)),
     )
 
     implicit object repoRowHandler extends views.TableFactory.TableRowHandler[ContextModel, ContextModel] {
       override def id(item: ContextModel) = item
       override def indent(item: ContextModel) = 0
-      override def rowModifier(itemModel: ModelProperty[ContextModel]) = Seq.empty[Node]
+      override def rowModifier(itemModel: ModelProperty[ContextModel]) = {
+        val id = itemModel.get
+        Seq[Modifier](
+          attr("repository") := id.relativeUrl,
+        )
+      }
     }
 
 
@@ -201,21 +208,41 @@ class PageView(
     )
 
 
-
     div(
       s.container,
       div(
         s.gridAreaNavigation,
         Spacing.margin(size = SpacingSize.Small),
         settingsButton.render,
-        div(cls:="row") (
+        div(cls := "row")(
           TextInput(model.subProp(_.newRepo))(),
         ),
-        div(cls:="row") (
-          addRepoButton,
-          removeRepoButton,
+        div(cls := "row")(
+          addRepoButton
         ),
-        repoTable.render
+        repoTable.render.tap { t =>
+          import facade.JQueryMenu._
+          jQ(t).addContextMenu(
+            new Options {
+              override val selector = "tr"
+              override val build = js.defined { (item, key) =>
+                val data = fetchRepoData(item)
+                val link = a(
+                  href := data.absoluteUrl,
+                  data.relativeUrl
+                ).render.outerHTML
+                new Build(
+                  items = js.Dictionary(
+                    "remove" -> BuildItem(s"Remove ${data.relativeUrl}", presenter.removeRepository(data)),
+                    "sep2" -> "------",
+                    "link" -> BuildItem(s"Copy link to $link", presenter.copyToClipboard(data.absoluteUrl), isHtmlName = true),
+                    "openGitHub" -> BuildItem("Open on GitHub", presenter.gotoUrl(data.absoluteUrl)),
+                  )
+                )
+              }
+            }
+          )
+        }
       ),
       div(
         s.gridAreaFilters,
@@ -241,6 +268,27 @@ class PageView(
               table.render.tap { t =>
                 jQ(t).attr("style", "display: flex; flex-direction: column; flex: 0")
                 jQ(t).asInstanceOf[js.Dynamic].resizableColumns()
+              }.tap { t =>
+                import facade.JQueryMenu._
+                jQ(t).addContextMenu(
+                  new Options {
+                    override val selector = ".custom-context-menu"
+                    override val build = js.defined { (item, key) =>
+                      val data = fetchElementData(item)
+                      new Build(
+                        items = js.Dictionary(
+                          "markAsRead" -> BuildItem(s"Mark #${data.issueNumber} as read", presenter.markAsRead(data)),
+                          "reply" -> BuildItem("Reply", presenter.reply(data)),
+                          "sep2" -> "------",
+                          "close" -> BuildItem("Close", presenter.closeIssue(data)),
+                          "sep1" -> "------",
+                          "link" -> BuildItem("Copy link to " + data.issueLinkFull.render.outerHTML, presenter.copyLink(data), isHtmlName = true),
+                          "openGitHub" -> BuildItem("Open on GitHub", presenter.gotoGithub(data)),
+                        )
+                      )
+                    }
+                  }
+                )
               }
             ).render,
 
@@ -261,8 +309,8 @@ class PageView(
                     s.flexRow,
                     div(
                       s.selectedArticle,
-                      h4(`class`:="title", span(title), span(`class`:= "link", row.id.issueLinkFull)),
-                      div(span(`class`:= "createdBy", row.createdBy))
+                      h4(`class` := "title", span(title), span(`class` := "link", row.id.issueLinkFull)),
+                      div(span(`class` := "createdBy", row.createdBy))
                     ),
                     div(s.useFlex1),
                     div(editButton)
@@ -284,7 +332,7 @@ class PageView(
                 ).render,
                 div(
                   s.articleContentTextArea,
-                  div(`class`:="article-content").render.tap { ac =>
+                  div(`class` := "article-content").render.tap { ac =>
                     model.subProp(_.articleContent).listen { content =>
                       ac.asInstanceOf[js.Dynamic].innerHTML = content
                     }
@@ -296,27 +344,6 @@ class PageView(
 
         )
       )
-    ).render.tap { t =>
-      import facade.JQueryMenu
-      jQ(t).asInstanceOf[js.Dynamic].contextMenu(
-        new JQueryMenu.Options {
-          override val selector = ".custom-context-menu"
-          override val build = js.defined { (item, key) =>
-            val data = fetchElementData(item)
-            new JQueryMenu.Build(
-              items = js.Dictionary(
-                "markAsRead" -> JQueryMenu.BuildItem(s"Mark #${data.issueNumber} as read", presenter.markAsRead(data)),
-                "reply" -> JQueryMenu.BuildItem("Reply", presenter.reply(data)),
-                "sep2" -> "------",
-                "close" -> JQueryMenu.BuildItem("Close", presenter.closeIssue(data)),
-                "sep1" -> "------",
-                "link" -> JQueryMenu.BuildItem("Copy link to " + data.issueLinkFull.render.outerHTML, presenter.copyLink(data), isHtmlName = true),
-                "openGitHub" -> JQueryMenu.BuildItem("Open on GitHub", presenter.gotoGithub(data)),
-              )
-            )
-          }
-        }
-      )
-    }
+    ).render
   }
 }

@@ -39,4 +39,9 @@ object JQueryMenu {
     val callback: js.UndefOr[js.ThisFunction3[JQuery, String, js.Any, js.Any, Boolean]] = js.undefined,
     val items: js.Dictionary[BuildItem | String]
   ) extends js.Object
+
+  implicit class JQueryOp(jQ: JQuery) {
+    // name contextMenu already used (for a deprecated nullary method)
+    def addContextMenu(options: JQueryMenu.Options): Unit = jQ.asInstanceOf[js.Dynamic].contextMenu(options)
+  }
 }

@@ -5,7 +5,8 @@ import io.udash.properties.HasGenCodecAndModelPropertyCreator
 case class ContextModel(organization: String = null, repository: String = null) {
   def valid = organization != null && organization.nonEmpty && repository != null && repository.nonEmpty
 
-  def relativeUrl = organization + "/" + repository
+  def relativeUrl: String = organization + "/" + repository
+  def absoluteUrl: String = "https://www.github.com/" + relativeUrl
 
 }
 

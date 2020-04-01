@@ -581,15 +581,12 @@ class PagePresenter(
     }
   }
 
-  def removeRepository(): Unit = {
+  def removeRepository(context: ContextModel): Unit = {
     val repos = props.subSeq(_.contexts)
-    val repo = model.subProp(_.newRepo).get
-    Try(ContextModel.parse(repo)).foreach { ctx =>
-      val find = repos.get.indexOf(ctx)
-      if (find >= 0) {
-        repos.replace(find, 1)
-        SettingsModel.store(props.get)
-      }
+    val find = repos.get.indexOf(context)
+    if (find >= 0) {
+      repos.replace(find, 1)
+      SettingsModel.store(props.get)
     }
   }
 
@@ -762,13 +759,21 @@ class PagePresenter(
     }
   }
 
+  def copyToClipboard(text: String): Unit = {
+    dom.window.navigator.asInstanceOf[js.Dynamic].clipboard.writeText(text)
+  }
+
   def copyLink(id: ArticleIdModel): Unit = {
     val link: String = id.issueUri
-    dom.window.navigator.asInstanceOf[js.Dynamic].clipboard.writeText(link)
+    copyToClipboard(link)
+  }
+
+  def gotoUrl(url: String): Unit = {
+    dom.window.location.href = url
   }
 
   def gotoGithub(id: ArticleIdModel): Unit = {
-    dom.window.location.href = id.issueUri
+    gotoUrl(id.issueUri)
   }
 
   def closeIssue(id: ArticleIdModel): Unit = {
