@@ -175,7 +175,7 @@ class PageView(
         s.gridAreaNavigation,
         Spacing.margin(size = SpacingSize.Small),
         settingsButton.render,
-        TextInput(repoContextProperty, debounce = 500.millis)(),
+        TextInput(repoContextProperty, debounce = 1000.millis)(),
         repeat(repoUrl) { c =>
           val context = c.get
           val ro = context.relativeUrl

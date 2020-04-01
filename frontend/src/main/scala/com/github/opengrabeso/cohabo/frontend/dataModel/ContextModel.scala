@@ -1,7 +1,6 @@
 package com.github.opengrabeso.cohabo.frontend.dataModel
 
-import io.udash.HasModelPropertyCreator
-import org.scalajs.dom
+import io.udash.properties.HasGenCodecAndModelPropertyCreator
 
 case class ContextModel(organization: String = null, repository: String = null) {
   def valid = organization != null && organization.nonEmpty && repository != null && repository.nonEmpty
@@ -10,7 +9,7 @@ case class ContextModel(organization: String = null, repository: String = null) 
 
 }
 
-object ContextModel extends HasModelPropertyCreator[ContextModel] {
+object ContextModel extends HasGenCodecAndModelPropertyCreator[ContextModel] {
   def parse(str: String): ContextModel = {
     str.split('/').toSeq match {
       case Seq(owner, repo) =>

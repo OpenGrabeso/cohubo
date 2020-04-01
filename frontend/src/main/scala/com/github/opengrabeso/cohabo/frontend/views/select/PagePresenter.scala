@@ -333,7 +333,6 @@ class PagePresenter(
       val start = notFoundAtEnd(articles.indexWhere(_.id.from(context)))
       val end = notFoundAtEnd(articles.indexWhere(!_.id.from(context), start))
       if (end > start) {
-        println(s"Remove $start..$end")
         as.replace(start, end - start)
         removeRecurse()
       }
@@ -354,13 +353,14 @@ class PagePresenter(
         initArticles(context).tap(_.onComplete {
           case Failure(ex@HttpErrorException(code, _, _)) =>
             if (code != 404) {
-              println(s"Error loading issues from ${context.relativeUrl}: $ex")
+              println(s"HTTP Error $code loading issues from ${context.relativeUrl}: $ex")
             }
             repoValid(false)
             Failure(ex)
           case Failure(ex) =>
             repoValid(false)
             println(s"Error loading issues from ${context.relativeUrl}: $ex")
+            ex.printStackTrace()
             Failure(ex)
           case x =>
             // settings valid, store them
@@ -494,28 +494,32 @@ class PagePresenter(
 
 
   private def doLoadArticles(token: String, context: ContextModel): Unit = {
-    model.subProp(_.loading).set(true)
     model.subProp(_.articles).set(Seq.empty)
     loadArticlesPage(token, context, "init")
     //lastNotifications = None
     //loadNotifications(token, context)
   }
 
-  def loadArticles(): Unit = {
+  def init(): Unit = {
     // install the handler
+    println("Install loadArticles handlers")
     props.subProp(_.token).listen { token =>
+      model.subProp(_.loading).set(true)
+      println("Token changed")
       clearAllArticles()
       for (context <- props.subProp(_.contexts).get) {
+        println(s"Load articles $context $token")
         doLoadArticles(token, context)
       }
     }
 
     props.subSeq(_.contexts).listenStructure { patch =>
-      if (patch.clearsProperty) {
+      val token = props.subProp(_.token).get
+      println(s"listenStructure add ${patch.added.map(_.get).mkString(",")} remove ${patch.removed.map(_.get).mkString(",")} token: $token")
+      if (patch.clearsProperty || token.isEmpty) {
         // completely empty - we can do much simpler cleanup (and shutdown any periodic handlers)
         clearAllArticles()
       } else {
-        val token = props.subProp(_.token).get
         patch.removed.map(_.get).filter(_.valid).foreach(clearArticles)
         patch.added.map(_.get).filter(_.valid).foreach(doLoadArticles(token, _))
         // TODO: handle notifications properly
@@ -527,7 +531,10 @@ class PagePresenter(
         lastNotifications = None
       }
     }
+    // handlers installed, load the settings
+    props.set(SettingsModel.load)
   }
+
 
   override def handleState(state: SelectPageState.type): Unit = {}
 

@@ -1,5 +1,6 @@
 package com.github.opengrabeso.cohabo.frontend.dataModel
 
+import com.avsystem.commons.serialization.json.{JsonStringInput, JsonStringOutput}
 import io.udash.HasModelPropertyCreator
 import org.scalajs.dom
 
@@ -11,11 +12,15 @@ case class SettingsModel(
 )
 
 object SettingsModel extends HasModelPropertyCreator[SettingsModel] {
+  import ContextModel._
+  def loadContexts(s: String): Seq[ContextModel] = JsonStringInput.read[Seq[ContextModel]](s)
+  def saveContexts(c: Seq[ContextModel]): String = JsonStringOutput.write(c)
+
   val ls = dom.window.localStorage
   val ss = dom.window.sessionStorage
   val values = Map[String, (SettingsModel => String, (SettingsModel, String) => SettingsModel)](
     "cohubo.token" -> (_.token, (m, s) => m.copy(token = s)),
-    // TODO: store / load contexts
+    "cohubo.contexts" -> (s => saveContexts(s.contexts), (m, s) => m.copy(contexts = loadContexts(s)))
   )
 
   def load: SettingsModel = {
