@@ -167,29 +167,26 @@ class PagePresenter(
   }
 
   private def extractCommentNoteHeader(body: String): Option[ZonedDateTime] = {
-    // search for an article header in a form > ***<Login> <DD>.<MM>.<YYYY> <hh>:<mm>:<ss>***
-    // this must be on a first line only
-    val regex = "> \\*+[A-Za-z0-9_]+ ([0-9]+)\\.([0-9]+)\\.([0-9]+) ([0-9]+):([0-9]+):([0-9]+)\\*+".r
-    body.linesIterator.toSeq.take(1).flatMap(line => regex.findFirstMatchIn(line)).flatMap {
-      case Regex.Groups(day,month,year,hour,minute,second) =>
+    // search for an article header in a form
+    // > ***<Login>*** <DD>.<MM>.<YYYY> _<hh>:<mm>:<ss>_
+    // or
+    // > ***<Login> <DD>/<MM>/<YYYY> <hh>:<mm>:<ss>***
+
+    // this must be on a first or a second line
+    val RegexDot = "> \\*+[A-Za-z0-9_]+\\** _*([0-9]+)\\.([0-9]+)\\.([0-9]+) ([0-9]+):([0-9]+):([0-9]+)_*\\**".r
+    val RegexSlash = "> \\*+[A-Za-z0-9_]+\\** _*([0-9]+)/([0-9]+)/([0-9]+) ([0-9]+):([0-9]+):([0-9]+)_*\\**".r
+    body.linesIterator.toSeq.take(2).flatMap {
+      case RegexDot(day,month,year,hour,minute,second) =>
         Try(
           ZonedDateTime.of(year.toInt, month.toInt, day.toInt, hour.toInt, minute.toInt, second.toInt, 0, localZoneId)
         ).toOption
-      case _ =>
+      case RegexSlash(month,day,year,hour,minute,second) =>
+        Try(
+          ZonedDateTime.of(year.toInt, month.toInt, day.toInt, hour.toInt, minute.toInt, second.toInt, 0, localZoneId)
+        ).toOption
+      case x =>
         None
     }.headOption
-  }
-
-  private def extractNoteHeader(body: String): Option[ZonedDateTime] = {
-    val regex = "> [⭗⌇▽]\\*+[A-Za-z0-9_]+ ([0-9]+)\\.([0-9]+)\\.([0-9]+) ([0-9]+):([0-9]+):([0-9]+)\\*+".r
-    body.linesIterator.flatMap(regex.findFirstMatchIn).flatMap {
-      case Regex.Groups(day,month,year,hour,minute,second) =>
-        Some(
-          ZonedDateTime.of(year.toInt, month.toInt, day.toInt, hour.toInt, minute.toInt, second.toInt, 0, localZoneId)
-        )
-      case _ =>
-        None
-    }.toSeq.lastOption
   }
 
   private def overrideCreatedAt(body: String): Option[ZonedDateTime] = {
@@ -197,7 +194,7 @@ class PagePresenter(
   }
 
   private def overrideEditedAt(body: String): Option[ZonedDateTime] = {
-    extractNoteHeader(body)
+    None
   }
   private def rowFromIssue(i: Issue, context: ContextModel) = {
     val p = ArticleIdModel(context.organization, context.repository, i.number, None)
