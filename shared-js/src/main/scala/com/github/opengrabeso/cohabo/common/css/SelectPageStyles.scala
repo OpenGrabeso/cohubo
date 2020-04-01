@@ -25,15 +25,33 @@ object SelectPageStyles extends CommonStyle {
     borderWidth(1 px)
   )
 
+  val settingsContainer = style(
+    display.flex,
+    flexDirection.column,
+    margin.auto,
+    containerBorder,
+    height(100 %%),
+  )
+
   val container: CssStyle = style(
     display.grid,
     margin.auto,
     containerBorder,
     height(100 %%),
+    gridTemplateColumns := "auto minmax(0, 1fr)",
     gridTemplateRows := "auto minmax(0, 1fr)",
-    gridTemplateAreas("filters", "table-container"),
+    gridTemplateAreas(
+      "nav filters",
+      "nav table-container"
+    ),
   )
 
+
+  val gridAreaNavigation = style(
+    gridArea := "nav",
+    display.flex,
+    flexDirection.column
+  )
 
   val gridAreaFilters = style(
     gridArea := "filters",

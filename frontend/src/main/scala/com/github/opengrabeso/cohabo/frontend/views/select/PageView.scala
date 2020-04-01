@@ -154,26 +154,33 @@ class PageView(
     )
 
     val repoUrl = globals.subModel(_.context)
+
+    val repoContextProperty = Property[String](repoUrl.get.relativeUrl)
+
+    repoContextProperty.listen { orgAndRepo =>
+      orgAndRepo.split('/').toSeq match {
+        case Seq(org) =>
+          repoUrl.set(ContextModel(org, ""))
+        case Seq(org, repo) =>
+          repoUrl.set(ContextModel(org, repo))
+        case _ =>
+          repoUrl.set(ContextModel("", ""))
+      }
+    }
+
     div(
       s.container,
       div(
-        s.gridAreaFilters,
-        s.flexRow,
+        s.gridAreaNavigation,
         Spacing.margin(size = SpacingSize.Small),
         settingsButton.render,
-        TextInput(repoUrl.subProp(_.organization), debounce = 500.millis)(),
-        TextInput(repoUrl.subProp(_.repository), debounce = 500.millis)(),
+        TextInput(repoContextProperty, debounce = 500.millis)(),
         showIfElse(model.subProp(_.repoError))(
           p("???").render,
           div(
             produce(repoUrl) { context =>
               val ro = context.relativeUrl
               Seq[Node](
-                a(
-                  Spacing.margin(size = SpacingSize.Small),
-                  href := s"https://www.github.com/$ro",
-                  ro
-                ).render,
                 a(
                   Spacing.margin(size = SpacingSize.Small),
                   href := s"https://www.github.com/$ro/issues",
@@ -189,8 +196,18 @@ class PageView(
             }
           ).render
         ),
-        div(s.useFlex1),
-        newIssueButton,
+      ),
+      div(
+        s.gridAreaFilters,
+        showIfElse(model.subProp(_.loading))(
+          Seq.empty,
+          Seq[Node](
+            nextPageButton.render,
+            refreshNotifications.render,
+            div(s.useFlex1).render,
+            newIssueButton.render,
+          )
+        )
       ),
 
       div(
@@ -210,8 +227,7 @@ class PageView(
             div(
               s.flexRow,
               s.gridAreaTableButtons,
-              nextPageButton.render,
-              refreshNotifications.render
+              // any buttons below the table may be added here - not displayed while loading
             ).render,
 
             div(
