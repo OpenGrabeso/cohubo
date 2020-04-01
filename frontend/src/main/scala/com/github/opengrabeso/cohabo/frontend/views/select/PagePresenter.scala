@@ -79,6 +79,14 @@ object PagePresenter {
   }
 
 
+  def rowTitle(text: String, parentTitle: String): String = {
+    // if there is a comment title (Colabo export, but anyone can do it as well), use it
+    val lines = text.linesIterator
+    val heading = lines.removeQuotes.dropWhile(_.isEmpty).takeWhile(_.startsWith("#")).map(removeHeading).toSeq.headOption
+    // otherwise use the parent issue title
+    heading.getOrElse(parentTitle)
+  }
+
   def bodyAbstract(text: String): String = {
     val dropQuotes = text.linesIterator.removeQuotes.removeCodePrefix.map(removeHeading).filterNot(_.isEmpty)
     // TODO: smarter abstracts
@@ -152,12 +160,33 @@ class PagePresenter(
     ZoneId.of(new DateTimeFormatX().resolvedOptions().timeZone.getOrElse("Etc/GMT"))
   }
 
+  private val FullCommentHeader = "> \\*+[A-Za-z0-9_]+\\*+ _([0-9]+)\\.([0-9]+)\\.([0-9]+) ([0-9]+):([0-9]+):([0-9]+)_ \\*+Tags:\\*+ .*".r
+  private val DotNoteHeader = "> \\*+[A-Za-z0-9_]+\\** _*([0-9]+)\\.([0-9]+)\\.([0-9]+) ([0-9]+):([0-9]+):([0-9]+)_*\\**".r
+  private val SlashNoteHeader = "> \\*+[A-Za-z0-9_]+\\** _*([0-9]+)/([0-9]+)/([0-9]+) ([0-9]+):([0-9]+):([0-9]+)_*\\**".r
+
+  def removeColaboHeaders(body: String): String = {
+    val Title = "####.*".r
+    val bodyLines = body.linesIterator.toSeq
+    val linesWithoutHeaders = bodyLines.take(2).map {
+      case FullCommentHeader(_*) => None
+      case DotNoteHeader(_*) => None
+      case SlashNoteHeader(_*) => None
+      case x =>
+        Some(x)
+    } match {
+      case Seq(Some(Title(_*)), None) => bodyLines.drop(2)// second line is a timestamp, first line is a title - drop both
+      case Seq(None, _) => bodyLines.drop(1) // first line is a timestamp, drop it
+      case s => bodyLines
+    }
+    linesWithoutHeaders.mkString("\n")
+
+  }
+
   private def extractQuoteHeader(body: String): Option[ZonedDateTime] = {
     // search for an article header in a form > **<Login>** _<DD>.<MM>.<YYYY> <hh>:<mm>:<ss>_ **Tags:** <tags>
     // this must be on a first or a second line
-    val regex = "> \\*+[A-Za-z0-9_]+\\*+ _([0-9]+)\\.([0-9]+)\\.([0-9]+) ([0-9]+):([0-9]+):([0-9]+)_ \\*+Tags:\\*+ .*".r
-    body.linesIterator.toSeq.take(2).flatMap(line => regex.findFirstMatchIn(line)).flatMap {
-      case Regex.Groups(day,month,year,hour,minute,second) =>
+    body.linesIterator.toSeq.take(2).flatMap {
+      case FullCommentHeader(day,month,year,hour,minute,second) =>
         Try(
           ZonedDateTime.of(year.toInt, month.toInt, day.toInt, hour.toInt, minute.toInt, second.toInt, 0, localZoneId)
         ).toOption
@@ -167,29 +196,24 @@ class PagePresenter(
   }
 
   private def extractCommentNoteHeader(body: String): Option[ZonedDateTime] = {
-    // search for an article header in a form > ***<Login> <DD>.<MM>.<YYYY> <hh>:<mm>:<ss>***
-    // this must be on a first line only
-    val regex = "> \\*+[A-Za-z0-9_]+ ([0-9]+)\\.([0-9]+)\\.([0-9]+) ([0-9]+):([0-9]+):([0-9]+)\\*+".r
-    body.linesIterator.toSeq.take(1).flatMap(line => regex.findFirstMatchIn(line)).flatMap {
-      case Regex.Groups(day,month,year,hour,minute,second) =>
+    // search for an article header in a form
+    // > ***<Login>*** <DD>.<MM>.<YYYY> _<hh>:<mm>:<ss>_
+    // or
+    // > ***<Login> <DD>/<MM>/<YYYY> <hh>:<mm>:<ss>***
+
+    // this must be on a first or a second line
+    body.linesIterator.toSeq.take(2).flatMap {
+      case DotNoteHeader(day,month,year,hour,minute,second) =>
         Try(
           ZonedDateTime.of(year.toInt, month.toInt, day.toInt, hour.toInt, minute.toInt, second.toInt, 0, localZoneId)
         ).toOption
-      case _ =>
+      case SlashNoteHeader(month,day,year,hour,minute,second) =>
+        Try(
+          ZonedDateTime.of(year.toInt, month.toInt, day.toInt, hour.toInt, minute.toInt, second.toInt, 0, localZoneId)
+        ).toOption
+      case x =>
         None
     }.headOption
-  }
-
-  private def extractNoteHeader(body: String): Option[ZonedDateTime] = {
-    val regex = "> [⭗⌇▽]\\*+[A-Za-z0-9_]+ ([0-9]+)\\.([0-9]+)\\.([0-9]+) ([0-9]+):([0-9]+):([0-9]+)\\*+".r
-    body.linesIterator.flatMap(regex.findFirstMatchIn).flatMap {
-      case Regex.Groups(day,month,year,hour,minute,second) =>
-        Some(
-          ZonedDateTime.of(year.toInt, month.toInt, day.toInt, hour.toInt, minute.toInt, second.toInt, 0, localZoneId)
-        )
-      case _ =>
-        None
-    }.toSeq.lastOption
   }
 
   private def overrideCreatedAt(body: String): Option[ZonedDateTime] = {
@@ -197,7 +221,7 @@ class PagePresenter(
   }
 
   private def overrideEditedAt(body: String): Option[ZonedDateTime] = {
-    extractNoteHeader(body)
+    None
   }
   private def rowFromIssue(i: Issue, context: ContextModel) = {
     val p = ArticleIdModel(context.organization, context.repository, i.number, None)
@@ -492,7 +516,7 @@ class PagePresenter(
   )
 
   def renderMarkdown(body: String): Unit = {
-    val htmlResult = markdownCache(body)
+    val htmlResult = markdownCache(removeColaboHeaders(body))
     // update the local data: article display and article content in the article table
     htmlResult.map { html =>
       model.subProp(_.articleContent).set(html)
