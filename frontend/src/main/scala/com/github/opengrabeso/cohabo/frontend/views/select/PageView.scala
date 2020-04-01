@@ -184,12 +184,12 @@ class PageView(
                 a(
                   Spacing.margin(size = SpacingSize.Small),
                   href := s"https://www.github.com/$ro/issues",
-                  s"Issues"
+                  "Issues"
                 ).render,
                 a(
                   Spacing.margin(size = SpacingSize.Small),
                   href := s"https://www.github.com/$ro/milestones",
-                  s"Milestones"
+                  "Milestones"
                 ).render
 
               )

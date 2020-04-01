@@ -106,7 +106,7 @@ class PagePresenter(
 )(implicit ec: ExecutionContext) extends Presenter[SelectPageState.type] {
 
   def props = userService.properties
-  def context = userService.properties.get.context
+  def pageContext = userService.properties.get.context
 
   val sourceParameters = props.subProp(_.token).combine(props.subProp(_.context))(_ -> _)
   var lastNotifications =  Option.empty[String]
@@ -228,6 +228,11 @@ class PagePresenter(
 
   private def processIssueComments(issue: ArticleRowModel, comments: Seq[ArticleRowModel], context: ContextModel): Unit = { // the comments
 
+    if (context != pageContext) {
+      println(s"Discard pending issue for $context- repository changed to $pageContext")
+      return
+    }
+
     val log = false
 
     // hasChildren will be set later in traverseDepthFirst if necessary
@@ -286,6 +291,13 @@ class PagePresenter(
     jQ(dom.document).find("#edit-text-area").trigger("focus")
   }
 
+
+  def clearArticles(): Unit = {
+    model.subSeq(_.articles).tap { a =>
+      a.replace(0, a.get.length)
+    }
+    model.subProp(_.loading).set(false)
+  }
 
   def loadArticlesPage(token: String, context: ContextModel, mode: String): Unit = {
     val loadIssue = mode match {
@@ -364,10 +376,15 @@ class PagePresenter(
 
   }
 
-  def loadNotifications(token: String, context: ContextModel): Unit  = {
-    val logging = true
+  def clearNotifications(): Unit = {
     scheduled.foreach(clearTimeout)
     scheduled = None
+  }
+
+  def loadNotifications(token: String, context: ContextModel): Unit  = {
+    val logging = true
+
+    clearNotifications()
 
     val defaultInterval = 60
     def scheduleNext(sec: Int): Unit = {
@@ -438,11 +455,18 @@ class PagePresenter(
     // install the handler
     sourceParameters.listen(
       { case (token, context) =>
-        model.subProp(_.loading).set(true)
-        model.subProp(_.articles).set(Seq.empty)
-        loadArticlesPage(token, context, "init")
-        lastNotifications = None
-        loadNotifications(token, context)
+        println(s"loadArticles $token:$context")
+        if (token.nonEmpty && context.repository.nonEmpty && context.organization.nonEmpty) {
+          model.subProp(_.loading).set(true)
+          model.subProp(_.articles).set(Seq.empty)
+          loadArticlesPage(token, context, "init")
+          lastNotifications = None
+          loadNotifications(token, context)
+        } else {
+          clearArticles()
+          clearNotifications()
+          lastNotifications = None
+        }
       }, initUpdate = true
     )
   }
@@ -464,7 +488,7 @@ class PagePresenter(
   }
 
   val markdownCache = new Cache[String, Future[String]](100, source =>
-    userService.call(_.markdown.markdown(source, "gfm", context.relativeUrl)).map(_.data)
+    userService.call(_.markdown.markdown(source, "gfm", pageContext.relativeUrl)).map(_.data)
   )
 
   def renderMarkdown(body: String): Unit = {
@@ -505,9 +529,9 @@ class PagePresenter(
     userService.call { api =>
       selectedId match {
         case ArticleIdModel(_, _, issueId, Some((_, commentId))) =>
-          api.repos(context.organization, context.repository).editComment(commentId, body).map(_.body)
+          api.repos(pageContext.organization, pageContext.repository).editComment(commentId, body).map(_.body)
         case ArticleIdModel(_, _, issueId, None) =>
-          val issueAPI = api.repos(context.organization, context.repository).issuesAPI(issueId)
+          val issueAPI = api.repos(pageContext.organization, pageContext.repository).issuesAPI(issueId)
           issueAPI.get.flatMap { i =>
             issueAPI.update(
               i.title,
@@ -535,6 +559,7 @@ class PagePresenter(
 
   def replyDone(selectedId: ArticleIdModel, body: String): Unit = {
     // reply (create a new comment)
+    val context = pageContext
     userService.call { api =>
       api.repos(context.organization, context.repository).issuesAPI(selectedId.issueNumber).createComment(body).map { c =>
         // add the comment to the article list
@@ -557,8 +582,9 @@ class PagePresenter(
   }
 
   def newIssueDone(body: String): Unit = {
+    val context = pageContext  // remember the context across the futures, so that we can verify it has not changed
     userService.call { api =>
-      api.repos(context.organization, context.repository).createIssue(
+      api.repos(pageContext.organization, pageContext.repository).createIssue(
         bodyAbstract(body), // TODO: proper title
         body
         // TODO: allow providing more properties
