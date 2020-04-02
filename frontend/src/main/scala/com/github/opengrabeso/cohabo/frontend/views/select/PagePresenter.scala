@@ -120,6 +120,8 @@ class PagePresenter(
   var lastNotifications =  Option.empty[String]
   var scheduled = Option.empty[SetTimeoutHandle]
 
+  var shortRepoIds = Map.empty[ContextModel, String]
+
 
   model.subProp(_.selectedArticleId).listen { id =>
     val sel = model.subProp(_.articles).get.find(id contains _.id)
@@ -532,6 +534,14 @@ class PagePresenter(
     }
 
     props.subSeq(_.contexts).listenStructure { patch =>
+      // it seems listenStructure handler is called before the table is displayed, listen is not
+      // update short names
+      val contexts = props.subSeq(_.contexts).get
+
+      val names = contexts.map(c => Seq(c.organization, c.repository))
+      val shortNames = ShortIds.compute(names)
+      shortRepoIds = (contexts zip shortNames).toMap
+
       val token = props.subProp(_.token).get
       println(s"listenStructure add ${patch.added.map(_.get).mkString(",")} remove ${patch.removed.map(_.get).mkString(",")} token: $token")
       if (patch.clearsProperty || token.isEmpty) {

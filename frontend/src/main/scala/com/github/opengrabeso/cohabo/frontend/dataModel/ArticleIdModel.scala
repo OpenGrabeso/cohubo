@@ -28,16 +28,16 @@ case class ArticleIdModel(owner: String, repo: String, issueNumber: Long, id: Op
     }
   }
 
-  def issueLink: JsDom.TypedTag[Anchor] = {
+  def issueLink(prefix: String): JsDom.TypedTag[Anchor] = {
     a(
       href := issueUri,
-      id.map(commentId => s"(${commentId._1})").getOrElse(s"#$issueNumber").render
+      id.map(commentId => s"(${commentId._1})").getOrElse(s"$prefix#$issueNumber").render
     )
   }
-  def issueLinkFull: JsDom.TypedTag[Anchor] = {
+  def issueLinkFull(prefix: String): JsDom.TypedTag[Anchor] = {
     a(
       href := issueUri,
-      id.map(commentId => s"#$issueNumber(${commentId._1})").getOrElse(s"#$issueNumber").render
+      id.map(commentId => s"$prefix#$issueNumber(${commentId._1})").getOrElse(s"$prefix#$issueNumber").render
     )
   }
 }

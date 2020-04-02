@@ -29,6 +29,8 @@ class PageView(
   globals: ModelProperty[SettingsModel]
 ) extends FinalView with CssView with PageUtils with TimeFormatting with CssBase {
 
+  def shortId(context: ContextModel): String = presenter.shortRepoIds.get(context).getOrElse("??")
+
   def fetchElementData(e: JQuery): ArticleIdModel = {
     val issueNumber = e.attr("issue-number").get.toLong
     val replyNumber = e.attr("reply-number").map(_.toInt)
@@ -111,7 +113,7 @@ class PageView(
       TableFactory.TableAttrib("#", (ar, _, _) =>
         div(
           ar.id.id.map(_ => style := "margin-left: 20px"),
-          ar.id.issueLink
+          ar.id.issueLink(shortId(ar.id.context))
         ).render, style = width(5, 5, 10)
       ),
       //TableFactory.TableAttrib("Parent", (ar, _, _) => ar.parentId.map(_.toString).getOrElse("").render, style = width(5, 5, 10), shortName = Some("")),
@@ -165,7 +167,16 @@ class PageView(
     val repoUrl = globals.subSeq(_.contexts)
 
     val repoAttribs = Seq[TableFactory.TableAttrib[ContextModel]](
-      TableFactory.TableAttrib("Repository", { (ar, _, _) =>
+      TableFactory.TableAttrib(
+        "", { (ar, _, _) =>
+          val shortName = shortId(ar)
+          div(
+            shortName
+          ).render
+        }
+      ),
+      TableFactory.TableAttrib(
+        "Repository", { (ar, _, _) =>
         val ro = ar.relativeUrl
         div(
           ro,
@@ -182,8 +193,8 @@ class PageView(
           ).render
 
         ).render
-      } /*, style = width(5, 5, 10)*/),
-      //TableFactory.TableAttrib("", (ar, _, _) => div("\u22EE").render, style = width(5, 5, 5)),
+      } /*, style = width(5, 5, 10)*/
+      ),
     )
 
     implicit object repoRowHandler extends views.TableFactory.TableRowHandler[ContextModel, ContextModel] {
@@ -210,16 +221,10 @@ class PageView(
 
     div(
       s.container,
+      settingsButton.render,
       div(
         s.gridAreaNavigation,
         Spacing.margin(size = SpacingSize.Small),
-        settingsButton.render,
-        div(cls := "row")(
-          TextInput(model.subProp(_.newRepo))(),
-        ),
-        div(cls := "row")(
-          addRepoButton
-        ),
         repoTable.render.tap { t =>
           import facade.JQueryMenu._
           jQ(t).addContextMenu(
@@ -242,7 +247,13 @@ class PageView(
               }
             }
           )
-        }
+        },
+        div(cls := "row")(
+          TextInput(model.subProp(_.newRepo))(),
+        ),
+        div(cls := "row")(
+          addRepoButton
+        ),
       ),
       div(
         s.gridAreaFilters,
@@ -282,7 +293,7 @@ class PageView(
                           "sep2" -> "------",
                           "close" -> BuildItem("Close", presenter.closeIssue(data)),
                           "sep1" -> "------",
-                          "link" -> BuildItem("Copy link to " + data.issueLinkFull.render.outerHTML, presenter.copyLink(data), isHtmlName = true),
+                          "link" -> BuildItem("Copy link to " + data.issueLinkFull(shortId(data.context)).render.outerHTML, presenter.copyLink(data), isHtmlName = true),
                           "openGitHub" -> BuildItem("Open on GitHub", presenter.gotoGithub(data)),
                         )
                       )
@@ -309,7 +320,7 @@ class PageView(
                     s.flexRow,
                     div(
                       s.selectedArticle,
-                      h4(`class` := "title", span(title), span(`class` := "link", row.id.issueLinkFull)),
+                      h4(`class` := "title", span(title), span(`class` := "link", row.id.issueLinkFull(shortId(row.id.context)))),
                       div(span(`class` := "createdBy", row.createdBy))
                     ),
                     div(s.useFlex1),
