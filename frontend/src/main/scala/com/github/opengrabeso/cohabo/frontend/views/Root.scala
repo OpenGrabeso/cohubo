@@ -86,7 +86,8 @@ object Root {
           div(
             produce(globals.subProp(_.rateLimits)) {
               case Some((limit, remaining, reset)) =>
-                s"Remaining $remaining of $limit".render
+                val now = System.currentTimeMillis() / 1000
+                s"Remaining $remaining of $limit, reset in ${(reset - now) / 60} min".render
               case None =>
                 "".render
             }

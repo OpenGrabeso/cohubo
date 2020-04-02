@@ -24,9 +24,8 @@ import TimeFormatting._
 import io.udash.wrappers.jquery.jQ
 import org.scalajs.dom
 
+import scala.collection.mutable
 import scala.scalajs.js
-import scala.util.matching.Regex
-
 
 object PagePresenter {
   implicit class ProcessLines(lines: Iterator[String]) {
@@ -116,8 +115,11 @@ class PagePresenter(
   def props = userService.properties
   def pageContexts = userService.properties.subSeq(_.contexts).get
 
+  val pagingUrls =  mutable.Map.empty[ContextModel, Map[String, String]]
+
   var lastNotifications =  Option.empty[String]
   var scheduled = Option.empty[SetTimeoutHandle]
+
 
   model.subProp(_.selectedArticleId).listen { id =>
     val sel = model.subProp(_.articles).get.find(id contains _.id)
@@ -135,6 +137,9 @@ class PagePresenter(
         model.subProp(_.articleContent).set("")
     }
 
+  }
+
+  private def updateRateLimits(): Unit = {
     userService.call(_.rate_limit).foreach { limits =>
       val c = limits.resources.core
       userService.properties.subProp(_.rateLimits).set(Some(c.limit, c.remaining, c.reset))
@@ -312,10 +317,11 @@ class PagePresenter(
 
 
   def clearAllArticles(): Unit = {
-    println("clearAllArticles")
+    val issues = model.subSeq(_.articles).size
     model.subSeq(_.articles).tap { a =>
       a.replace(0, a.get.length)
     }
+    println(s"clearAllArticles: cleared $issues, now ${model.subSeq(_.articles).size}")
   }
 
   def clearArticles(context: ContextModel): Unit = {
@@ -338,10 +344,21 @@ class PagePresenter(
     removeRecurse()
   }
 
+
+  var loadInProgress = mutable.Set.empty[(String, ContextModel, String)]
+
   def loadArticlesPage(token: String, context: ContextModel, mode: String): Unit = {
+    val loadId = (token, context, mode)
+    // avoid the same load flying twice
+    if (loadInProgress.contains(loadId)) {
+      return
+    }
+    loadInProgress += loadId
+
     val loadIssue = mode match {
       case "next" =>
-        model.subProp(_.pagingUrls).get.get(mode).map { link =>
+        pagingUrls.get(context).flatMap(_.get(mode)).map { link =>
+          println(s"Page $mode articles $context")
           pageArticles(context, token, link)
         }.getOrElse {
           Future.successful(DataWithHeaders(Nil))
@@ -363,7 +380,13 @@ class PagePresenter(
     }
 
     loadIssue.foreach {issuesWithHeaders =>
-      model.subProp(_.pagingUrls).set(issuesWithHeaders.headers.paging)
+
+      loadInProgress -= loadId
+
+      println(s"loadArticlesPage $context: Issues present ${model.subSeq(_.articles).size}")
+
+
+      pagingUrls += context -> issuesWithHeaders.headers.paging
 
       val is = issuesWithHeaders.data
 
@@ -378,7 +401,7 @@ class PagePresenter(
       }
       model.subProp(_.loading).set(false)
 
-      issuesOrdered.foreach { id => // parent issue
+      val issueFutures = issuesOrdered.map { id => // parent issue
 
         userService.call { api =>
 
@@ -403,10 +426,10 @@ class PagePresenter(
           api.repos(context.organization, context.repository).issuesAPI(id.number).comments.map(c => processComments(c.data, c.headers)).failed.foreach(apiDone.failure)
 
           apiDone.future
-        }.failed.foreach{ ex =>
-          ex.printStackTrace()
-        }
+        }.tap(_.failed.foreach(_.printStackTrace()))
       }
+
+      Future.sequence(issueFutures).onComplete(_ => updateRateLimits())
 
     }
 
@@ -494,11 +517,14 @@ class PagePresenter(
   }
 
   def init(): Unit = {
+    // load the settings before installing the handler
+    // otherwise both handlers are called, which makes things confusing
+    props.set(SettingsModel.load)
     // install the handler
-    println("Install loadArticles handlers")
+    println(s"Install loadArticles handlers, token ${props.subProp(_.token).get}")
     props.subProp(_.token).listen { token =>
       model.subProp(_.loading).set(true)
-      println("Token changed")
+      println(s"Token changed to $token, contexts: ${props.subSeq(_.contexts).size}")
       clearAllArticles()
       for (context <- props.subProp(_.contexts).get) {
         doLoadArticles(token, context)
@@ -523,20 +549,22 @@ class PagePresenter(
         lastNotifications = None
       }
     }
-    // handlers installed, load the settings
-    props.set(SettingsModel.load)
+    // handlers installed, execute them
+    // do not touch token, that would initiate another login
+    model.subProp(_.loading).set(true)
+    props.subSeq(_.contexts).touch()
+
   }
 
 
   override def handleState(state: SelectPageState.type): Unit = {}
 
   def loadMore(): Unit = {
-    // TODO: how to handle paging with multiple repositories?
-    /*
-    val (token, context) = sourceParameters.get
-    loadArticlesPage(token, context, "next")
-
-     */
+    // TODO: be smart, decide which repositories need more issues
+    val token = props.subProp(_.token).get
+    for (context <- pageContexts) {
+      loadArticlesPage(token, context, "next")
+    }
   }
 
 

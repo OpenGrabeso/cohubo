@@ -8,7 +8,7 @@ case class SettingsModel(
   token: String = null,
   contexts: Seq[ContextModel] = Seq(ContextModel()), // TODO: start with empty list instead
   user: UserLoginModel = UserLoginModel(),
-  rateLimits: Option[(Long, Long, Long)] = None
+  rateLimits: Option[(Long, Long, Long)] = None // limit, remaining, reset
 )
 
 object SettingsModel extends HasModelPropertyCreator[SettingsModel] {

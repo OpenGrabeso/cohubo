@@ -26,15 +26,19 @@ class UserContextService(rpc: rest.RestAPI)(implicit ec: ExecutionContext) {
 
   val properties = ModelProperty(dataModel.SettingsModel())
 
-  val userData = Promise[UserContextData]
+  var userData: Promise[UserContextData] = _
 
+  println(s"Create UserContextService, token ${properties.subProp(_.token).get}")
   properties.subProp(_.token).listen {token =>
+    println(s"listen: Start login $token")
+    userData = Promise()
+    val loginFor = userData // capture the value, in case another login starts for a different token before this one is completed
     val ctx = new UserContextData(token, rpc)
     ctx.api.user.map { u =>
       println(s"Login - new user ${u.login}:${u.name}")
       properties.subProp(_.user).set(UserLoginModel(u.login, u.name))
-      userData.success(ctx)
-    }.failed.foreach(userData.failure)
+      loginFor.success(ctx)
+    }.failed.foreach(loginFor.failure)
   }
 
   def call[T](f: AuthorizedAPI => Future[T]): Future[T] = {

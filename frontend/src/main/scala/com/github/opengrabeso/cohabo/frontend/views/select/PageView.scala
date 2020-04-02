@@ -67,7 +67,7 @@ class PageView(
   private val settingsButton = button("Settings".toProperty)
   private val newIssueButton = button("New issue".toProperty, buttonStyle = BootstrapStyles.Color.Success.toProperty)
 
-  private val nextPageButton = button("Load more issues".toProperty, model.subProp(_.pagingUrls).transform(_.isEmpty))
+  private val nextPageButton = button("Load more issues".toProperty)
   private val refreshNotifications = button("Refresh notifications".toProperty)
   private val editButton = button("Edit".toProperty, model.subProp(_.editing).transform(_._1))
   private val editOKButton = button("OK".toProperty, buttonStyle = BootstrapStyles.Color.Success.toProperty)
