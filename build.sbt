@@ -16,7 +16,8 @@ lazy val commonSettings = Seq(
   scalaVersion := "2.12.10",
   scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
 
-  libraryDependencies += "org.scalatest" %%% "scalatest" % "3.1.0" % "test",
+  libraryDependencies += "org.scalatest" %%% "scalatest" % "3.1.1" % "test",
+  libraryDependencies += "org.scalacheck" %%% "scalacheck" % "1.14.1" % "test",
 
   libraryDependencies += "io.udash" %%% "udash-core" % udashVersion,
   libraryDependencies += "io.udash" %%% "udash-rest" % udashVersion,

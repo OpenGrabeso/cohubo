@@ -11,6 +11,7 @@ import rest.{DataWithHeaders, RestAPIClient}
 import dataModel._
 import common.model._
 import common.Util._
+import common.ShortIds
 import routing._
 import io.udash._
 import io.udash.rest.raw.HttpErrorException
