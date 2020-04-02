@@ -5,16 +5,20 @@ object ShortIds {
   case class Initials(data: IndexedSeq[(String, Int)]) {
     def advance: Initials = {
       // always advance the smaller one if possible, reverse ti prefer advancing the last one
-      val minIndex = data.zipWithIndex.reverse.minBy {
-        case ((name, pos), _) =>
-          if (pos >= name.length) Int.MaxValue // nowhere to advance to
-          else pos
-      }._2
-      val current = data(minIndex)
-      Initials(data.patch(minIndex, Seq(current.copy(_2 = current._2 + 1)), 1))
+      if (data.nonEmpty) {
+        val minIndex = data.zipWithIndex.reverse.minBy {
+          case ((name, pos), _) =>
+            if (pos >= name.length - 1) Int.MaxValue // nowhere to advance to
+            else pos
+        }._2
+        val current = data(minIndex)
+        val newPos = current._2 + 1 min current._1.length - 1
+        Initials(data.patch(minIndex, Seq(current.copy(_2 = newPos)), 1))
+      } else this
     }
     def result: String = data.map { case (str, pos) =>
-      str(pos).toUpper
+      if (str.isEmpty) str
+      else str(pos).toUpper
     }.mkString
   }
 
