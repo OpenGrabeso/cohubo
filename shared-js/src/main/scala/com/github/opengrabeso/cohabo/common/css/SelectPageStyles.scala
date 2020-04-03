@@ -8,11 +8,11 @@ object SelectPageStyles extends CommonStyle {
 
   import dsl._
 
-  val textCenter: CssStyle = style(
+  val textCenter = style(
     textAlign.center
   )
 
-  val infoIcon: CssStyle = style(
+  val infoIcon = style(
     fontSize(1 rem)
   )
 
@@ -33,7 +33,7 @@ object SelectPageStyles extends CommonStyle {
     height(100 %%),
   )
 
-  val container: CssStyle = style(
+  val container = style(
     display.grid,
     margin.auto,
     containerBorder,
@@ -80,7 +80,7 @@ object SelectPageStyles extends CommonStyle {
     flexDirection.row
   )
 
-  val selectTableContainer: CssStyle = style(
+  val selectTableContainer = style(
     backgroundColor.white,
     gridArea := "table",
     overflow.auto,
@@ -104,7 +104,7 @@ object SelectPageStyles extends CommonStyle {
 
   )
 
-  val tr: CssStyle = style(
+  val tr = style(
     &.attrContains("class", "selected") (
       backgroundColor(c"#ADD8E6") // lightblue
     ),
@@ -134,22 +134,30 @@ object SelectPageStyles extends CommonStyle {
     )
   )
 
-  val td: CssStyle = style(cell)
-  val th: CssStyle = style(cell)
+  val cellRepo = mixin(
+    lineHeight(1.1 rem),
+    paddingBottom(2 px).important,
+    paddingTop(2 px).important,
+  )
+
+  val td = style(cell)
+  val th = style(cell)
+
+  val tdRepo = style(cellRepo)
 
 
   val titleStyle = style(
     marginRight(8 px)
   )
 
-  val uploading: CssStyle = style(
+  val uploading = style(
     backgroundColor.lightblue
   )
-  val error: CssStyle = style(
+  val error = style(
     backgroundColor.red
   )
 
-  val limitWidth: CssStyle = style(
+  val limitWidth = style(
     maxWidth(500 px)
   )
 
@@ -272,7 +280,7 @@ object SelectPageStyles extends CommonStyle {
     )
   )
 
-  val articleContentTextArea: CssStyle = style(
+  val articleContentTextArea = style(
     overflow.auto,
     height(100 %%),
     borderStyle.solid,

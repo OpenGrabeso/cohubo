@@ -209,7 +209,7 @@ class PageView(
           attr("repository") := id.relativeUrl,
         )
       }
-      def tdModifier: Modifier = Seq.empty[Node]
+      def tdModifier: Modifier = s.tdRepo
     }
 
     val repoTable = UdashTable(repoUrl, bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
