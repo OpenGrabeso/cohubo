@@ -29,7 +29,7 @@ class PageView(
   globals: ModelProperty[SettingsModel]
 ) extends FinalView with CssView with PageUtils with TimeFormatting with CssBase {
 
-  def shortId(context: ContextModel): String = presenter.shortRepoIds.get(context).getOrElse("??")
+  def shortId(context: ContextModel): String = presenter.shortRepoIds.getOrElse(context, "??")
 
   def fetchElementData(e: JQuery): ArticleIdModel = {
     val issueNumber = e.attr("issue-number").get.toLong
