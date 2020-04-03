@@ -145,6 +145,8 @@ class PageView(
       override def rowModifier(itemModel: ModelProperty[ArticleRowModel]) = {
         val id = itemModel.subProp(_.id).get
         Seq[Modifier](
+          CssStyleName("table-fold"),
+          CssStyleName(s.tr.className),
           rowStyle(itemModel),
           CssStyleName("custom-context-menu"),
           attr("issue-context") := id.context.relativeUrl,
@@ -153,6 +155,7 @@ class PageView(
           id.id.map(attr("comment-number") := _._2) // include only when the value is present
         )
       }
+      override def tdModifier = s.td
     }
 
     val table = UdashTable(model.subSeq(_.articles), bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
@@ -206,8 +209,8 @@ class PageView(
           attr("repository") := id.relativeUrl,
         )
       }
+      def tdModifier: Modifier = Seq.empty[Node]
     }
-
 
     val repoTable = UdashTable(repoUrl, bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
       headerFactory = Some(TableFactory.headerFactory(repoAttribs)),
