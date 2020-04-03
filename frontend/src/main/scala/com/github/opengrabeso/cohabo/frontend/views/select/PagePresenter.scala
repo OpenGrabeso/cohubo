@@ -179,7 +179,7 @@ class PagePresenter(
     } match {
       case Seq(Some(Title(_*)), None) => bodyLines.drop(2)// second line is a timestamp, first line is a title - drop both
       case Seq(None, _) => bodyLines.drop(1) // first line is a timestamp, drop it
-      case s => bodyLines
+      case _ => bodyLines
     }
     linesWithoutHeaders.mkString("\n")
 
@@ -214,7 +214,7 @@ class PagePresenter(
         Try(
           ZonedDateTime.of(year.toInt, month.toInt, day.toInt, hour.toInt, minute.toInt, second.toInt, 0, localZoneId)
         ).toOption
-      case x =>
+      case _ =>
         None
     }.headOption
   }
@@ -439,25 +439,30 @@ class PagePresenter(
   }
 
   def clearNotifications(): Unit = {
+    clearScheduled()
+    lastNotifications = None
+  }
+
+  private def clearScheduled(): Unit = {
     scheduled.foreach(clearTimeout)
     scheduled = None
   }
 
-  def loadNotifications(token: String, context: ContextModel): Unit  = {
+  def loadNotifications(token: String): Unit  = {
     val logging = true
 
-    clearNotifications()
+    clearScheduled()
 
     val defaultInterval = 60
     def scheduleNext(sec: Int): Unit = {
       if (logging) println(s"scheduleNext $sec")
       scheduled = Some(setTimeout(sec.seconds) {
         scheduled = None
-        loadNotifications(token, context)
+        loadNotifications(token)
       })
     }
     println(s"Load notifications since $lastNotifications")
-    userService.call(_.repos(context.organization, context.repository).notifications(ifModifiedSince = lastNotifications.orNull, all = false)).map { notifications =>
+    userService.call(_.notifications.get(ifModifiedSince = lastNotifications.orNull, all = false)).map { notifications =>
       // TODO:  we need paging if there are many notifications
       if (logging) println(s"Notifications ${notifications.data.size} headers ${notifications.headers}")
 
@@ -465,14 +470,14 @@ class PagePresenter(
         //println(s"Unread ${n.subject}")
         //println(s"  last_read_at ${n.last_read_at}, updated_at: ${n.updated_at}")
         // URL is like: https://api.github.com/repos/gamatron/colabo/issues/26
-        val Number = ".*/issues/([0-9]+)".r
-        val issueNumber = n.subject.url match {
-          case Number(number) =>
-            Seq(number.toLong)
+        val NotificationSource = ".*/repos/(.+)/(.+)/issues/([0-9]+)".r
+        val issueId = n.subject.url match {
+          case NotificationSource(owner, repo, number) =>
+            Seq((ContextModel(owner, repo), number.toLong))
           case _ =>
             Seq.empty
         }
-        issueNumber.map(_ -> UnreadInfo(n.updated_at, n.last_read_at, n.url))
+        issueId.map(_ -> UnreadInfo(n.updated_at, n.last_read_at, n.url))
       }.toMap
 
       if (lastNotifications.nonEmpty) {
@@ -515,8 +520,6 @@ class PagePresenter(
   private def doLoadArticles(token: String, context: ContextModel): Unit = {
     println(s"Load articles $context $token")
     loadArticlesPage(token, context, "init")
-    //lastNotifications = None
-    //loadNotifications(token, context)
   }
 
   def init(): Unit = {
@@ -548,16 +551,17 @@ class PagePresenter(
       if (patch.clearsProperty || token.isEmpty) {
         // completely empty - we can do much simpler cleanup (and shutdown any periodic handlers)
         clearAllArticles()
+        clearNotifications()
       } else {
         patch.removed.map(_.get).filter(_.valid).foreach(clearArticles)
         patch.added.map(_.get).filter(_.valid).foreach(doLoadArticles(token, _))
-        // TODO: handle notifications properly
-        /*
-        loadArticlesPage(token, context, "init")
-        lastNotifications = None
-         */
-        clearNotifications()
-        lastNotifications = None
+
+        // we currently always remember all notifications
+        // this could change if is shows there is too many of them - we could remember only the ones for the repositories we handle
+        //if (patch.added.nonEmpty) { // some repository added, we need to read full notifications as they may be relevant
+        if (scheduled.isEmpty) {
+          loadNotifications(token)
+        }
       }
     }
     // handlers installed, execute them
@@ -703,7 +707,7 @@ class PagePresenter(
     }.onComplete {
       case Failure(ex) =>
         println(s"Reply failure $ex")
-      case Success(s) =>
+      case Success(_) =>
         model.subProp(_.editing).set((false, false))
     }
   }
@@ -744,7 +748,7 @@ class PagePresenter(
 
   def markAsRead(id: ArticleIdModel): Unit = {
     val unreadInfo = model.subProp(_.unreadInfo).get
-    for (unread <- unreadInfo.get(id.issueNumber)) {
+    for (unread <- unreadInfo.get(id.context -> id.issueNumber)) {
       println(s"markAsRead $id, unread $unread")
       RestAPIClient.request[Unit](method = Method.PATCH, uri = unread.threadURL, token = props.subProp(_.token).get).map{_ =>
         println(s"markAsRead done - adjust unreadInfo")

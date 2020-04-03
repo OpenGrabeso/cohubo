@@ -22,7 +22,7 @@ case class PageModel(
   editedArticleMarkdown: String = "",
   editedArticleHTML: String = "",
   unreadInfoFrom: Option[ZonedDateTime] = None, // anything newer than the notification info must be unread
-  unreadInfo: Map[Long, UnreadInfo] = Map.empty // list unread articles (and time range when unread)
+  unreadInfo: Map[(ContextModel, Long), UnreadInfo] = Map.empty // list unread articles (and time range when unread)
 )
 
 object PageModel extends HasModelPropertyCreator[PageModel]

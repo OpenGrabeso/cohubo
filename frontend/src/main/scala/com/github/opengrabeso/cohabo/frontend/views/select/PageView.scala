@@ -8,7 +8,6 @@ import java.time.ZonedDateTime
 import com.github.opengrabeso.facade
 import common.css._
 import io.udash._
-import io.udash.bootstrap.button._
 import io.udash.bootstrap.table.UdashTable
 import io.udash.css._
 import scalatags.JsDom.all._
@@ -45,9 +44,10 @@ class PageView(
   }
 
   // each row is checking dynamically in the list of unread rows using a property created by this function
-  def isUnread(id: Long, time: ReadableProperty[ZonedDateTime]): ReadableProperty[Boolean] = {
+  def isUnread(id: ArticleIdModel, time: ReadableProperty[ZonedDateTime]): ReadableProperty[Boolean] = {
+    val key = id.context -> id.issueNumber
     model.subProp(_.unreadInfo).combine(time)(_ -> _).combine(model.subProp(_.unreadInfoFrom))(_ -> _).transform { case ((unread, time), unreadFrom ) =>
-      unread.get(id).exists(_.isUnread(time)) || unreadFrom.exists(time >= _)
+      unread.get(key).exists(_.isUnread(time)) || unreadFrom.exists(time >= _)
     }
   }
 
@@ -55,7 +55,8 @@ class PageView(
     model.subProp(_.unreadInfo).combine(row)(_ -> _).transform { case (unread, row) =>
       // when the article itself is unread, do not mark it has having unread children
       if (row.updatedAt > row.lastEditedAt) {
-        unread.get(row.id.issueNumber).exists(_.isUnread(row.updatedAt))
+        val key = row.id.context -> row.id.issueNumber
+        unread.get(key).exists(_.isUnread(row.updatedAt))
       } else {
         false
       }
@@ -97,7 +98,7 @@ class PageView(
 
     def rowStyle(row: ModelProperty[ArticleRowModel]) = {
       // we assume id.issueNumber is not changing
-      val unread = isUnread(row.get.id.issueNumber, row.subProp(_.lastEditedAt)).transform { b =>
+      val unread = isUnread(row.get.id, row.subProp(_.lastEditedAt)).transform { b =>
         // never consider unread the issue we have authored
         if (row.subProp(_.createdBy).get == globals.subProp(_.user.login).get) false
         else b
@@ -252,10 +253,8 @@ class PageView(
             }
           )
         },
-        div(cls := "row")(
+        div(cls := "row justify-content-centwer")(
           TextInput(model.subProp(_.newRepo))(),
-        ),
-        div(cls := "row")(
           addRepoButton
         ),
       ),
