@@ -221,12 +221,13 @@ class PageView(
 
     div(
       s.container,
-      settingsButton.render,
       div(
         s.gridAreaNavigation,
+        settingsButton.render,
         Spacing.margin(size = SpacingSize.Small),
         repoTable.render.tap { t =>
           import facade.JQueryMenu._
+          import facade.Resizable._
           jQ(t).addContextMenu(
             new Options {
               override val selector = "tr"
@@ -276,11 +277,10 @@ class PageView(
           Seq[Node](
             div(
               s.selectTableContainer,
-              table.render.tap { t =>
-                jQ(t).attr("style", "display: flex; flex-direction: column; flex: 0")
-                jQ(t).asInstanceOf[js.Dynamic].resizableColumns()
-              }.tap { t =>
+              table.render.tap{ t =>
+                import facade.Resizable._
                 import facade.JQueryMenu._
+                jQ(t).resizableColumns()
                 jQ(t).addContextMenu(
                   new Options {
                     override val selector = ".custom-context-menu"
