@@ -6,7 +6,7 @@ import org.scalajs.dom
 
 case class SettingsModel(
   token: String = null,
-  contexts: Seq[ContextModel] = Seq(ContextModel()), // TODO: start with empty list instead
+  contexts: Seq[ContextModel] = Seq.empty,
   user: UserLoginModel = UserLoginModel(),
   rateLimits: Option[(Long, Long, Long)] = None // limit, remaining, reset
 )
