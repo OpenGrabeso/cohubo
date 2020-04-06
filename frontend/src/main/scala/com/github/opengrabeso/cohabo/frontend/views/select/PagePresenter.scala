@@ -532,8 +532,10 @@ class PagePresenter(
       model.subProp(_.loading).set(true)
       println(s"Token changed to $token, contexts: ${props.subSeq(_.contexts).size}")
       clearAllArticles()
-      for (context <- props.subProp(_.contexts).get) {
-        doLoadArticles(token, context)
+      if (token != null) {
+        for (context <- props.subProp(_.contexts).get) {
+          doLoadArticles(token, context)
+        }
       }
     }
 
