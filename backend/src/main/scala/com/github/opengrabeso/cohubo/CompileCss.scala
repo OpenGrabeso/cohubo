@@ -1,9 +1,9 @@
 package com.github.opengrabeso.cohubo
 
 import java.io.FileOutputStream
-import org.apache.commons.io.IOUtils
 
-import com.github.opengrabeso.cohabo.common.css.{EditPageStyles, GlobalStyles, SelectPageStyles, SettingsPageStyles}
+import org.apache.commons.io.IOUtils
+import com.github.opengrabeso.cohabo.common.css._
 import io.udash.css.CssStringRenderer
 import scalacss.internal.{Renderer, StringRenderer}
 
@@ -18,6 +18,7 @@ object CompileCss {
     val styles = Seq(
       GlobalStyles,
       SelectPageStyles,
+      NameColorStyles,
       SettingsPageStyles,
       EditPageStyles
     )
