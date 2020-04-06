@@ -290,7 +290,7 @@ class PageView(
                       val data = fetchElementData(item)
                       new Build(
                         items = js.Dictionary(
-                          "markAsRead" -> BuildItem(s"Mark #${data.issueNumber} as read", presenter.markAsRead(data)),
+                          "markAsRead" -> BuildItem(s"Mark ${data.issueIdName(shortId(data.context))} as read", presenter.markAsRead(data)),
                           "reply" -> BuildItem("Reply", presenter.reply(data)),
                           "sep2" -> "------",
                           "close" -> BuildItem("Close", presenter.closeIssue(data)),
