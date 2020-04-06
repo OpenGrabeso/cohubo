@@ -8,13 +8,16 @@ import org.scalajs.dom.html.Anchor
 
 
 case class ArticleIdModel(owner: String, repo: String, issueNumber: Long, id: Option[(Int, Long)]) {
+
   def context = ContextModel(owner, repo)
+
+  def sameIssue(that: ArticleIdModel) = this.owner == that.owner && this.repo == that.repo && this.issueNumber == that.issueNumber
 
   override def toString = {
     id.map { case (index, _) =>
-      s"#$issueNumber($index)"
+      s"$owner/$repo/#$issueNumber($index)"
     }.getOrElse {
-      s"#$issueNumber($id)"
+      s"$owner/$repo/#$issueNumber($id)"
     }
   }
 
