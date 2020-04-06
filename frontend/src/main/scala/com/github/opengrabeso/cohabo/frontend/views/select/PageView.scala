@@ -115,7 +115,7 @@ class PageView(
         div(
           ar.id.id.map(_ => style := "margin-left: 20px"),
           ar.id.issueLink(shortId(ar.id.context))
-        ).render, style = width(5, 5, 10)
+        ).render, style = width(10, 10, 15)
       ),
       //TableFactory.TableAttrib("Parent", (ar, _, _) => ar.parentId.map(_.toString).getOrElse("").render, style = width(5, 5, 10), shortName = Some("")),
       TableFactory.TableAttrib("Article Title", (ar, v, _) =>

@@ -305,11 +305,13 @@ class PagePresenter(
     }
 
     val a = model.subSeq(_.articles)
-    val (before, issueAndAfter) = a.get.span(_.id.issueNumber != issue.id.issueNumber)
+    val (before, issueAndAfter) = a.get.span(!_.id.sameIssue(issue.id))
     if (issueAndAfter.isEmpty) { // a new issue
+      //println(s"Insert issue at top: ${issue.id}")
       a.replace(0, 0, hierarchyWithComments:_*)
     } else { // replace the one we have loaded
-      val after = issueAndAfter.dropWhile(_.id.issueNumber == issue.id.issueNumber)
+      val after = issueAndAfter.dropWhile(_.id.sameIssue(issue.id))
+      //println(s"Replace issue at ${before.length}: ${issue.id}")
       a.replace(before.length, issueAndAfter.length - after.length, hierarchyWithComments:_*)
     }
   }
@@ -400,7 +402,8 @@ class PagePresenter(
       val preview = issuesOrdered.map(rowFromIssue(_, context))
 
       model.subSeq(_.articles).tap { a =>
-        a.replace(a.get.length, 0, preview:_*)
+        //println(s"Insert articles at ${a.size}")
+        a.replace(a.size, 0, preview:_*)
       }
       model.subProp(_.loading).set(false)
 
@@ -699,7 +702,7 @@ class PagePresenter(
         val articles = model.subProp(_.articles).get
         for {
           i <- articles.find(_.id == ArticleIdModel(context.organization, context.repository, selectedId.issueNumber, None))
-          comments = articles.filter(a => a.id.issueNumber == selectedId.issueNumber && a.id.id.nonEmpty)
+          comments = articles.filter(a => a.id.sameIssue(selectedId) && a.id.id.nonEmpty)
         } {
           val newId = ArticleIdModel(context.organization, context.repository, selectedId.issueNumber, Some(comments.length, c.id))
           val newRow = rowFromComment(newId, c)
@@ -766,7 +769,7 @@ class PagePresenter(
     if (!wasEditing()) {
       // TODO: autoquote if needed
       // check all existing replies to the issue
-      val replies = model.subProp(_.articles).get.filter(a => a.id.issueNumber == id.issueNumber)
+      val replies = model.subProp(_.articles).get.filter(_.id.sameIssue(id))
       // there always must exists at least the reply we are replying to, it does not have to be a comment, though
       val maxReplyNumber = replies.flatMap(_.id.id).map(_._1).maxOpt
 
@@ -841,8 +844,8 @@ class PagePresenter(
         // TODO: we could probably mark is somehow instead, that would be less distruptive
         val a = model.subSeq(_.articles)
         val as = a.get
-        val before = as.indexWhere(_.id.issueNumber == id.issueNumber)
-        val after = as.indexWhere(_.id.issueNumber != id.issueNumber, before)
+        val before = as.indexWhere(_.id.sameIssue(id))
+        val after = as.indexWhere(!_.id.sameIssue(id), before)
 
         a.replace(before, after - before)
 
