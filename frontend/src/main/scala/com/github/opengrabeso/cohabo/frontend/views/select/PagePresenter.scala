@@ -87,14 +87,23 @@ object PagePresenter {
     heading.getOrElse(parentTitle)
   }
 
+  private def dropQuotes(text: String): Iterator[String] = {
+    text.linesIterator.removeQuotes.removeCodePrefix.map(removeHeading).filterNot(_.isEmpty)
+  }
+
   def bodyAbstract(text: String): String = {
-    val dropQuotes = text.linesIterator.removeQuotes.removeCodePrefix.map(removeHeading).filterNot(_.isEmpty)
     // TODO: smarter abstracts
-    dropQuotes.toSeq.headOption.getOrElse("")
+    dropQuotes(text).toSeq.headOption.getOrElse("")
       .removeMarkdown
       .removeHTMLTags
       .decodeEntities
       .take(120)
+  }
+
+  // similar to bodyAbstract, but keeps Markdown so that the quotes can be found in the original source
+  def quoteFirstLine(text: String): String = {
+    // TODO: smarter quote
+    dropQuotes(text).toSeq.headOption.getOrElse("").take(120)
   }
 
   def extractQuotes(text: String): Seq[String] = {
@@ -784,8 +793,7 @@ class PagePresenter(
 
       val quote = if (!isLast) {
         val replyTo = replies.find(_.id == id).get
-        // TODO: smarter quote
-        "> " + bodyAbstract(replyTo.body) + "\n\n"
+        "> " + quoteFirstLine(replyTo.body) + "\n\n"
       } else ""
 
       println(s"Reply to $id")
