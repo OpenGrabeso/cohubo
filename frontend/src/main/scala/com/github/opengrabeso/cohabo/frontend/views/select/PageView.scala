@@ -29,6 +29,9 @@ class PageView(
 ) extends FinalView with CssView with PageUtils with TimeFormatting with CssBase {
 
   def shortId(context: ContextModel): String = presenter.shortRepoIds.getOrElse(context, "??")
+  def repoColor(context: ContextModel): String = {
+    (shortId(context).hashCode.abs % 10).toString
+  }
 
   def fetchElementData(e: JQuery): ArticleIdModel = {
     val issueNumber = e.attr("issue-number").get.toLong
@@ -115,7 +118,9 @@ class PageView(
         div(
           ar.id.id.map(_ => style := "margin-left: 20px"),
           ar.id.issueLink(shortId(ar.id.context))
-        ).render, style = width(10, 10, 15)
+        ).render,
+        style = width(10, 10, 15),
+        modifier = Some(ar => CssStyleName("repo-color-" + repoColor(ar.id.context)))
       ),
       //TableFactory.TableAttrib("Parent", (ar, _, _) => ar.parentId.map(_.toString).getOrElse("").render, style = width(5, 5, 10), shortName = Some("")),
       TableFactory.TableAttrib("Article Title", (ar, v, _) =>
@@ -174,30 +179,29 @@ class PageView(
       TableFactory.TableAttrib(
         "", { (ar, _, _) =>
           val shortName = shortId(ar)
-          div(
-            shortName
-          ).render
-        }
+          shortName.render
+        },
+        modifier = Some(ar => CssStyleName("repo-color-" + repoColor(ar)))
       ),
       TableFactory.TableAttrib(
         "Repository", { (ar, _, _) =>
         val ro = ar.relativeUrl
-        div(
-          ro,
-          br(),
-          a(
-            Spacing.margin(size = SpacingSize.Small),
-            href := s"https://www.github.com/$ro/issues",
-            "Issues"
-          ).render,
-          a(
-            Spacing.margin(size = SpacingSize.Small),
-            href := s"https://www.github.com/$ro/milestones",
-            "Milestones"
-          ).render
+          div(
+            ro,
+            br(),
+            a(
+              Spacing.margin(size = SpacingSize.Small),
+              href := s"https://www.github.com/$ro/issues",
+              "Issues"
+            ).render,
+            a(
+              Spacing.margin(size = SpacingSize.Small),
+              href := s"https://www.github.com/$ro/milestones",
+              "Milestones"
+            ).render
 
-        ).render
-      } /*, style = width(5, 5, 10)*/
+          ).render
+        } /*, style = width(5, 5, 10)*/
       ),
     )
 

@@ -316,6 +316,7 @@ class PagePresenter(
       if (log) println(s"Hierarchy ${h.map(_.id)}")
     }
 
+    // TODO: we may reorder the issue once its comments are processed
     val a = model.subSeq(_.articles)
     val (before, issueAndAfter) = a.get.span(!_.id.sameIssue(issue.id))
     if (issueAndAfter.isEmpty) { // a new issue
@@ -413,9 +414,15 @@ class PagePresenter(
       // preview the issues
       val preview = issuesOrdered.map(rowFromIssue(_, context))
 
-      model.subSeq(_.articles).tap { a =>
+      model.subSeq(_.articles).tap { as =>
         //println(s"Insert articles at ${a.size}")
-        a.replace(a.size, 0, preview:_*)
+        for (i <- preview) { // insert the issues one by one, each at the suitable location
+          import common.Util._
+          // find an article which is not newer then we are, insert before it
+          val insertLocation = as.get.indexWhere(a => a.updatedAt <= i.updatedAt)
+          println(s"Insert location for ${i.id} $insertLocation of ${as.size}")
+          as.replace(if (insertLocation >= 0) insertLocation else as.size, 0, i)
+        }
       }
       model.subProp(_.loading).set(false)
 
