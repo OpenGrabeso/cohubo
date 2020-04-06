@@ -4,14 +4,11 @@ package frontend.views
 import common.css._
 import io.udash._
 import io.udash.bindings.modifiers.Binding.NestedInterceptor
-import io.udash.css._
 import org.scalajs.dom.{Element, Event, Node}
 import io.udash.css.CssView._
 import io.udash.properties.ModelPropertyCreator
 import io.udash.wrappers.jquery.{JQuery, jQ}
 import scalatags.JsDom.all._
-
-import scala.scalajs.js
 
 object TableFactory {
   val s = SelectPageStyles
@@ -27,7 +24,7 @@ object TableFactory {
     def id(item: ItemType): SelType
     def indent(item: ItemType): Int
     def rowModifier(itemModel: ModelProperty[ItemType]): Modifier
-
+    def tdModifier: Modifier
   }
 
   def headerFactory[ItemType](attribs: Seq[TableAttrib[ItemType]]): NestedInterceptor => Modifier = _ => tr {
@@ -55,13 +52,11 @@ object TableFactory {
     val elData = el.get
     val level = rowHandler.indent(elData)
     val row = tr(
-      CssStyleName(s.tr.className),
-      CssStyleName("table-fold"),
       rowHandler.rowModifier(el.asModel),
       produceWithNested(el) { (ha, nested) =>
         attribs.flatMap { a =>
           // existing but empty shortName means the column should be hidden on narrow view
-          val tdItem = td(s.td, a.modifier.map(_ (ha)), a.value(ha, el.asModel, nested))
+          val tdItem = td(rowHandler.tdModifier, a.modifier.map(_ (ha)), a.value(ha, el.asModel, nested))
           if (a.shortName.contains("")) {
             tdItem(s.wideMedia).render
           } else {

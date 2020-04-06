@@ -1,21 +1,26 @@
 package com.github.opengrabeso.cohabo.frontend.dataModel
 
+import com.avsystem.commons.serialization.json.{JsonStringInput, JsonStringOutput}
 import io.udash.HasModelPropertyCreator
 import org.scalajs.dom
 
 case class SettingsModel(
-  token: String = null, context: ContextModel = ContextModel(),
+  token: String = null,
+  contexts: Seq[ContextModel] = Seq(ContextModel()), // TODO: start with empty list instead
   user: UserLoginModel = UserLoginModel(),
-  rateLimits: Option[(Long, Long, Long)] = None
+  rateLimits: Option[(Long, Long, Long)] = None // limit, remaining, reset
 )
 
 object SettingsModel extends HasModelPropertyCreator[SettingsModel] {
+  import ContextModel._
+  def loadContexts(s: String): Seq[ContextModel] = JsonStringInput.read[Seq[ContextModel]](s)
+  def saveContexts(c: Seq[ContextModel]): String = JsonStringOutput.write(c)
+
   val ls = dom.window.localStorage
   val ss = dom.window.sessionStorage
   val values = Map[String, (SettingsModel => String, (SettingsModel, String) => SettingsModel)](
     "cohubo.token" -> (_.token, (m, s) => m.copy(token = s)),
-    "cohubo.organization" -> (_.context.organization, (m, s) => m.copy(context = m.context.copy(organization = s))),
-    "cohubo.repository" -> (_.context.repository, (m, s) => m.copy(context = m.context.copy(repository = s)))
+    "cohubo.contexts" -> (s => saveContexts(s.contexts), (m, s) => m.copy(contexts = loadContexts(s)))
   )
 
   def load: SettingsModel = {
@@ -26,6 +31,7 @@ object SettingsModel extends HasModelPropertyCreator[SettingsModel] {
   }
 
   def store(model: SettingsModel): Unit = {
+    println(s"Store $model")
     for ((k, v) <- values) {
       // prefer session storage if available
       val value = v._1(model)

@@ -11,18 +11,18 @@ import io.udash._
 /** The form's model structure. */
 case class PageModel(
   loading: Boolean,
-  repoError: Boolean = false,
   articles: Seq[ArticleRowModel] = Seq.empty,
+  newRepo: String = "",
+  selectedContext: Option[ContextModel] = None,
   selectedArticleId: Option[ArticleIdModel] = None,
   selectedArticleParent: Option[ArticleRowModel] = None,
   selectedArticle: Option[ArticleRowModel] = None,
   articleContent: String = "",
-  pagingUrls: Map[String, String] = Map.empty,
   editing: (Boolean, Boolean) = (false, false), // editing, editing is reply
   editedArticleMarkdown: String = "",
   editedArticleHTML: String = "",
   unreadInfoFrom: Option[ZonedDateTime] = None, // anything newer than the notification info must be unread
-  unreadInfo: Map[Long, UnreadInfo] = Map.empty // list unread articles (and time range when unread)
+  unreadInfo: Map[(ContextModel, Long), UnreadInfo] = Map.empty // list unread articles (and time range when unread)
 )
 
 object PageModel extends HasModelPropertyCreator[PageModel]

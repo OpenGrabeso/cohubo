@@ -8,6 +8,8 @@ import org.scalajs.dom.html.Anchor
 
 
 case class ArticleIdModel(owner: String, repo: String, issueNumber: Long, id: Option[(Int, Long)]) {
+  def context = ContextModel(owner, repo)
+
   override def toString = {
     id.map { case (index, _) =>
       s"#$issueNumber($index)"
@@ -15,6 +17,8 @@ case class ArticleIdModel(owner: String, repo: String, issueNumber: Long, id: Op
       s"#$issueNumber($id)"
     }
   }
+
+  def from(context: ContextModel): Boolean = owner == context.organization && repo == context.repository
 
   def issueUri: String = {
     id.map { commentId =>
@@ -24,16 +28,16 @@ case class ArticleIdModel(owner: String, repo: String, issueNumber: Long, id: Op
     }
   }
 
-  def issueLink: JsDom.TypedTag[Anchor] = {
+  def issueLink(prefix: String): JsDom.TypedTag[Anchor] = {
     a(
       href := issueUri,
-      id.map(commentId => s"(${commentId._1})").getOrElse(s"#$issueNumber").render
+      id.map(commentId => s"(${commentId._1})").getOrElse(s"$prefix#$issueNumber").render
     )
   }
-  def issueLinkFull: JsDom.TypedTag[Anchor] = {
+  def issueLinkFull(prefix: String): JsDom.TypedTag[Anchor] = {
     a(
       href := issueUri,
-      id.map(commentId => s"#$issueNumber(${commentId._1})").getOrElse(s"#$issueNumber").render
+      id.map(commentId => s"$prefix#$issueNumber(${commentId._1})").getOrElse(s"$prefix#$issueNumber").render
     )
   }
 }

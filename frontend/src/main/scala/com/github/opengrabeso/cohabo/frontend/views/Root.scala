@@ -36,26 +36,9 @@ object Root {
     override def handleState(state: RootState.type): Unit = {}
 
     def init(): Unit = {
-      val settingsModel = SettingsModel.load
-      userContextService.properties.set(settingsModel)
       userContextService.properties.subProp(_.user).listen { userLogin =>
         model.subProp(_.userName).set(userLogin.fullName)
         model.subProp(_.userId).set(userLogin.login)
-      }
-    }
-
-    def logout() = {
-      if (model.subProp(_.userId).get != null) {
-        println("Start logout")
-        userContextService.logout().andThen {
-          case Success(_) =>
-            println(s"Logout done")
-            model.subProp(_.userName).set(null)
-            model.subProp(_.userId).set(null)
-            MainJS.deleteCookie("authCode")
-            application.redirectTo("/app")
-          case Failure(_) =>
-        }
       }
     }
 
@@ -103,7 +86,8 @@ object Root {
           div(
             produce(globals.subProp(_.rateLimits)) {
               case Some((limit, remaining, reset)) =>
-                s"Remaining $remaining of $limit".render
+                val now = System.currentTimeMillis() / 1000
+                s"Remaining $remaining of $limit, reset in ${(reset - now) / 60} min".render
               case None =>
                 "".render
             }

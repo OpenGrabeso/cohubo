@@ -12,6 +12,7 @@ import io.udash.rest._
 trait NotificationsAPI {
   @GET("")
   def get(
+    @transientDefault @Header("If-Modified-Since") ifModifiedSince: String = null,
     @transientDefault all: Boolean = false,
     @transientDefault participating: Boolean = false,
     @transientDefault since: ZonedDateTime = null,
