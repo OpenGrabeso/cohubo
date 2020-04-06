@@ -43,13 +43,10 @@ object PagePresenter {
   }
 
   def removeHeading(text: String): String = {
-    val Heading = "#+ *(.*)".r
-    text match {
-      case Heading(rest) =>
-        rest
-      case _ =>
-        text
-    }
+    //println(s"removeHeading ${text.take(60)}")
+    // regex does not work for surrogate pairs
+   if (text.take(5) == "#### ") text.dropWhile(_ == '#').dropWhile(_ == ' ')
+   else text
   }
 
   implicit final class MarkdownTransform(val text: String) {
@@ -180,7 +177,12 @@ class PagePresenter(
   private val SlashNoteHeader = "> \\*+[A-Za-z0-9_]+\\** _*([0-9]+)/([0-9]+)/([0-9]+) ([0-9]+):([0-9]+):([0-9]+)_*\\**".r
 
   def removeColaboHeaders(body: String): String = {
-    val Title = "####.*".r
+    object Title {
+      // we want something robust against unexpected characters (surrogate pairs), regex is not working with them
+      def unapply(text: String): Boolean = {
+        text.take(4) == "####"
+      }
+    }
     val bodyLines = body.linesIterator.toSeq
     val linesWithoutHeaders = bodyLines.take(2).map {
       case FullCommentHeader(_*) => None
@@ -189,7 +191,7 @@ class PagePresenter(
       case x =>
         Some(x)
     } match {
-      case Seq(Some(Title(_*)), None) => bodyLines.drop(2)// second line is a timestamp, first line is a title - drop both
+      case Seq(Some(Title()), None) => bodyLines.drop(2)// second line is a timestamp, first line is a title - drop both
       case Seq(None, _) => bodyLines.drop(1) // first line is a timestamp, drop it
       case _ => bodyLines
     }
@@ -419,8 +421,9 @@ class PagePresenter(
         for (i <- preview) { // insert the issues one by one, each at the suitable location
           import common.Util._
           // find an article which is not newer then we are, insert before it
-          val insertLocation = as.get.indexWhere(a => a.updatedAt <= i.updatedAt)
-          println(s"Insert location for ${i.id} $insertLocation of ${as.size}")
+          // we must insert only above a top-level article (issue, not a comment)
+          val insertLocation = as.get.indexWhere(a => a.id.id.isEmpty && a.updatedAt <= i.updatedAt)
+          //println(s"Insert location for ${i.id} $insertLocation of ${as.size}")
           as.replace(if (insertLocation >= 0) insertLocation else as.size, 0, i)
         }
       }
