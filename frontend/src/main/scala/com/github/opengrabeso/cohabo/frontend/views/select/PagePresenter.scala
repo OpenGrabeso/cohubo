@@ -55,8 +55,11 @@ object PagePresenter {
   implicit final class MarkdownTransform(val text: String) {
     @scala.annotation.tailrec
     def removeMarkdown: String = {
+      val ImageLink = "(.*)!\\[([^\\]]+)\\]\\([^)]+\\)(.*)".r
       val Link = "(.*)\\[([^\\]]+)\\]\\([^)]+\\)(.*)".r
       text match {
+        case ImageLink(prefix, link, postfix) =>
+          (prefix + postfix).removeMarkdown
         case Link(prefix, link, postfix) =>
           (prefix + link + postfix).removeMarkdown // there may be multiple links on one line
         case _ =>
@@ -93,11 +96,11 @@ object PagePresenter {
 
   def bodyAbstract(text: String): String = {
     // TODO: smarter abstracts
-    dropQuotes(text).toSeq.headOption.getOrElse("")
+    dropQuotes(text).map(_
       .removeMarkdown
       .removeHTMLTags
       .decodeEntities
-      .take(120)
+    ).find(_.nonEmpty).getOrElse("").take(120)
   }
 
   // similar to bodyAbstract, but keeps Markdown so that the quotes can be found in the original source
