@@ -105,6 +105,15 @@ class PageView(
 
   buttonOnClick(addRepoButton) {presenter.addRepository()}
 
+  private def indentFromLevel(indent: Int): Int = {
+    val base = 8
+    val firstIndent = 16
+    val offset = 5
+
+    val f = (Math.log(indent + offset) - Math.log(offset)) / (Math.log(offset + 1) - Math.log(offset))
+    (base + f * firstIndent).round.toInt
+  }
+
   def getTemplate: Modifier = {
 
     // value is a callback
@@ -142,7 +151,7 @@ class PageView(
         else if (ar.hasChildren) div(span(`class` := "fold-control", "\u02c3"), ar.title.render) // >
         else div(span(`class` := "no-fold fold-open", "\u22A1"), ar.title.render), // |.|
         style = widthWide(50, 50),
-        modifier = Some(ar => style := s"padding-left: ${8 + ar.indent * 16}px") // item (td) style
+        modifier = Some(ar => style := s"padding-left: ${indentFromLevel(ar.indent)}px") // item (td) style
       ),
       TableFactory.TableAttrib("Milestone", (ar, _, _) => div(ar.milestone.getOrElse("").render).render, style = width(5, 10, 15), shortName = Some("")),
       TableFactory.TableAttrib("Posted by", (ar, _, _) => div(ar.createdBy).render, style = width(10, 15, 20), shortName = Some("")),
