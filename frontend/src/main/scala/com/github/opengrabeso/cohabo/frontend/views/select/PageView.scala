@@ -24,10 +24,19 @@ import io.udash.bindings.inputs.Checkbox
 import io.udash.bootstrap.button.UdashButton
 import io.udash.bootstrap.form.UdashInputGroup
 
+import scala.collection.mutable
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{Future, Promise}
 import scala.math.Ordered._
 
 object PageView {
-  val symbols = TableFactory.symbols
+  object symbols {
+    val childrenPreview = "\u2299" // (.) circled dot
+    val childrenOpen = "\u02c5" // v modifier letter down
+    val childrenClosed = "\u02c3" // > modifier letter right arrowhead
+    val noChildren = "\u22A1" // |.| squared dot operator
+    val childrenLoading = "\u2A02" // (x) circled times operator
+  }
 }
 
 import PageView._
@@ -153,8 +162,7 @@ class PageView(
       TableFactory.TableAttrib("Article Title", (ar, v, _) =>
         // unicode characters rather than FontAwesome images, as those interacted badly with sticky table header
         if (ar.hasChildren && ar.preview) {
-          div(span(`class` := "preview-fold fold-open", symbols.childrenPreview), ar.title.render)
-          //div(span(`class` := "preview-fold fold-open", symbols.childrenLoading), ar.title.render)
+          div(span(`class` := "preview-fold fold-open", symbols.childrenClosed), ar.title.render)
         } else if (ar.hasChildren && ar.indent > 0) {
           div(span(`class` := "fold-control fold-open", symbols.childrenOpen), ar.title.render)
         } else if (ar.hasChildren) {
@@ -179,6 +187,10 @@ class PageView(
     )
 
     implicit object rowHandler extends views.TableFactory.TableRowHandler[ArticleRowModel, ArticleIdModel] {
+      object commentLoader {
+        val loading = mutable.HashMap.empty[ArticleIdModel, Future[Unit]]
+      }
+
       override def id(item: ArticleRowModel) = item.id
       override def indent(item: ArticleRowModel) = item.indent
       override def rowModifier(itemModel: ModelProperty[ArticleRowModel]) = {
@@ -196,10 +208,9 @@ class PageView(
       }
       override def tdModifier = s.td
       def rowModifyElement(row: Element): Unit = {
-        jQ(row).find(".fold-control").on("click", { (control, event) =>
-          // from https://stackoverflow.com/a/49364929/16673
-          //println(tr.attr("data-depth"))
-          val tr = jQ(control).closest("tr")
+
+        def openFold(tr: JQuery) = {
+          // inspired from https://stackoverflow.com/a/49364929/16673
 
           // find all children (following items with greater level)
           def findChildren(tr: JQuery) = {
@@ -228,30 +239,62 @@ class PageView(
               hide.hide()
             }
           }
+        }
 
+        jQ(row).find(".fold-control").on("click", { (control, event) =>
+          val tr = jQ(control).closest("tr")
+          //println(tr.attr("data-depth"))
+          openFold(tr)
         })
+
+        def startLoading(tr: JQuery, wantsLoading: JQuery): Future[Unit] = {
+          // first of all provide a loading feedback
+          wantsLoading.removeClass("preview-fold")
+          wantsLoading.text(symbols.childrenLoading)
+          wantsLoading.addClass("loading-fold")
+
+          if (true) {
+            val data = fetchElementData(tr)
+            commentLoader.loading.getOrElseUpdate(data, {
+              val token = presenter.props.subProp(_.token).get
+              val state = presenter.filterState()
+              presenter.loadIssueComments(data, token, state)
+            }).tap {
+              // once completed, remove it from the in-progress list
+              _.onComplete(_ => commentLoader.loading.remove(data))
+            }
+          } else {
+            // create a future which will never complete
+            // used for simulating long loading when debugging
+            Promise[Unit].future
+          }
+        }
 
         jQ(row).on("click", { (control, event) =>
           // initiate comment loading if necessary
           val tr = jQ(control)
           val wantsLoading = tr.find(".preview-fold")
-
           if (wantsLoading.length > 0) {
-            // first of all provide a loading feedback
-            wantsLoading.removeClass("preview-fold")
-            wantsLoading.text(symbols.childrenLoading)
-            wantsLoading.addClass("loading-fold")
-
-            val data = fetchElementData(tr)
-            if (true) {
-              val token = presenter.props.subProp(_.token).get
-              val state = presenter.filterState()
-              presenter.loadIssueComments(data, token, state)
-            }
+            println(s"Clicked row with preview-fold")
+            startLoading(tr, wantsLoading)
           }
-
         })
 
+        jQ(row).find(".preview-fold").on("click", { (control, event) =>
+          val wantsLoading = jQ(control)
+          val tr = jQ(control).closest("tr")
+          val rows = tr.closest("tbody")
+          val data = fetchElementData(tr)
+          println(s"Clicked preview-fold of $data")
+          startLoading(tr, wantsLoading).onComplete { _ =>
+            // beware: the corresponding row was created again when loaded, we need to find it in the rows, tr is no longer valid
+            val tr = rows.find(s"[issue-number=${data.issueNumber}]")
+
+            //println(s"Completed preview-fold of $data with $tr")
+
+            openFold(tr)
+          }
+        })
       }
     }
 

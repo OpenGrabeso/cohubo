@@ -13,14 +13,6 @@ import scalatags.JsDom.all._
 object TableFactory {
   val s = SelectPageStyles
 
-  object symbols {
-    val childrenPreview = "\u2299" // (.) circled dot
-    val childrenOpen = "\u02c5" // v modifier letter down
-    val childrenClosed = "\u02c3" // > modifier letter right arrowhead
-    val noChildren = "\u22A1" // |.| squared dot operator
-    val childrenLoading = "\u2A02" // (x) circled times operator
-  }
-
   case class TableAttrib[ItemType](
     name: String, value: (ItemType, ModelProperty[ItemType], NestedInterceptor) => Modifier,
     style: Option[String] = None,
