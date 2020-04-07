@@ -123,7 +123,11 @@ class PagePresenter(
 )(implicit ec: ExecutionContext) extends Presenter[SelectPageState.type] {
 
   def props = userService.properties
+  def currentToken(): String = props.subProp(_.token).get
   def pageContexts = userService.properties.subSeq(_.contexts).get
+
+
+  val filterProps = model.subProp(_.filterOpen).combine(model.subProp(_.filterClosed))(_ -> _)
 
   val pagingUrls =  mutable.Map.empty[ContextModel, Map[String, String]]
 
@@ -131,7 +135,6 @@ class PagePresenter(
   var scheduled = Option.empty[SetTimeoutHandle]
 
   var shortRepoIds = Map.empty[ContextModel, String]
-
 
   model.subProp(_.selectedArticleId).listen { id =>
     val sel = model.subProp(_.articles).get.find(id contains _.id)
@@ -151,6 +154,36 @@ class PagePresenter(
 
   }
 
+  def listFilter(state: (Boolean, Boolean)): String = {
+    state match {
+      case (true, true) =>
+        "all"
+      case (false, true) =>
+        "closed"
+      case _ => // always list at least open
+        "open"
+    }
+  }
+
+  def filterState() = listFilter(filterProps.get)
+
+
+  // make sure always at least one of open / closed is active
+  model.subProp(_.filterOpen).listen { s =>
+    if (!s) model.subProp(_.filterClosed).set(true)
+  }
+  model.subProp(_.filterClosed).listen { s =>
+    if (!s) model.subProp(_.filterOpen).set(true)
+  }
+
+  filterProps.listen { _ =>
+    // it seems we could load only the difference when extending the filter, but the trouble is with paging URLs, they need updating as well
+    clearAllArticles() // this should not be necessary, contexts.touch should handle it, but this way it is more efficient
+    model.subProp(_.loading).set(true)
+    // touch contexts to reload all repositories
+    props.subSeq(_.contexts).touch()
+  }
+
   private def updateRateLimits(): Unit = {
     userService.call(_.rate_limit).foreach { limits =>
       val c = limits.resources.core
@@ -159,8 +192,8 @@ class PagePresenter(
   }
 
 
-  private def initArticles(context: ContextModel): Future[DataWithHeaders[Seq[Issue]]] = {
-    userService.call(_.repos(context.organization, context.repository).issues())
+  private def initArticles(context: ContextModel, state: String): Future[DataWithHeaders[Seq[Issue]]] = {
+    userService.call(_.repos(context.organization, context.repository).issues(sort = "updated", state = state))
   }
 
   private def pageArticles(context: ContextModel, token: String, link: String): Future[DataWithHeaders[Seq[Issue]]] = {
@@ -267,9 +300,9 @@ class PagePresenter(
     }
   }
 
-  private def processIssueComments(issue: ArticleRowModel, comments: Seq[ArticleRowModel], context: ContextModel): Unit = { // the comments
+  private def processIssueComments(issue: ArticleRowModel, comments: Seq[ArticleRowModel], token: String, context: ContextModel, state: String): Unit = { // the comments
 
-    if (!pageContexts.contains(context)) {
+    if (!loadStillWanted(token, context, state)) {
       println(s"Discard pending issue for $context- repository changed to $pageContexts")
       return
     }
@@ -341,6 +374,7 @@ class PagePresenter(
     model.subSeq(_.articles).tap { a =>
       a.replace(0, a.get.length)
     }
+    pagingUrls.clear()
     println(s"clearAllArticles: cleared $issues, now ${model.subSeq(_.articles).size}")
   }
 
@@ -365,10 +399,16 @@ class PagePresenter(
   }
 
 
-  var loadInProgress = mutable.Set.empty[(String, ContextModel, String)]
+  var loadInProgress = mutable.Set.empty[Product]
 
-  def loadArticlesPage(token: String, context: ContextModel, mode: String): Unit = {
-    val loadId = (token, context, mode)
+  private def loadStillWanted(token: String, context: ContextModel, state: String): Boolean = {
+    token == currentToken() &&
+    pageContexts.contains(context) &&
+    filterState() == state
+  }
+
+  def loadArticlesPage(token: String, context: ContextModel, mode: String, state: String): Unit = {
+    val loadId = (token, context, mode, state)
     // avoid the same load flying twice
     if (loadInProgress.contains(loadId)) {
       return
@@ -384,7 +424,8 @@ class PagePresenter(
           Future.successful(DataWithHeaders(Nil))
         }
       case _ =>
-        initArticles(context).tap(_.onComplete {
+        pagingUrls.remove(context)
+        initArticles(context, state).tap(_.onComplete {
           case Failure(ex@HttpErrorException(code, _, _)) =>
             if (code != 404) {
               println(s"HTTP Error $code loading issues from ${context.relativeUrl}: $ex")
@@ -401,63 +442,68 @@ class PagePresenter(
 
     loadIssue.foreach {issuesWithHeaders =>
 
+      // verify the result is still wanted
+
       loadInProgress -= loadId
 
-      println(s"loadArticlesPage $context: Issues present ${model.subSeq(_.articles).size}")
+      if (loadStillWanted(token, context, state)) {
+
+        println(s"loadArticlesPage $context: Issues present ${model.subSeq(_.articles).size}")
 
 
-      pagingUrls += context -> issuesWithHeaders.headers.paging
+        pagingUrls += context -> issuesWithHeaders.headers.paging
 
-      val is = issuesWithHeaders.data
+        val is = issuesWithHeaders.data
 
-      val issuesOrdered = is.sortBy(_.updated_at).reverse
+        val issuesOrdered = is.sortBy(_.updated_at).reverse
 
 
-      // preview the issues
-      val preview = issuesOrdered.map(rowFromIssue(_, context))
+        // preview the issues
+        val preview = issuesOrdered.map(rowFromIssue(_, context))
 
-      model.subSeq(_.articles).tap { as =>
-        //println(s"Insert articles at ${a.size}")
-        for (i <- preview) { // insert the issues one by one, each at the suitable location
-          import common.Util._
-          // find an article which is not newer then we are, insert before it
-          // we must insert only above a top-level article (issue, not a comment)
-          val insertLocation = as.get.indexWhere(a => a.id.id.isEmpty && a.updatedAt <= i.updatedAt)
-          //println(s"Insert location for ${i.id} $insertLocation of ${as.size}")
-          as.replace(if (insertLocation >= 0) insertLocation else as.size, 0, i)
+        model.subSeq(_.articles).tap { as =>
+          //println(s"Insert articles at ${a.size}")
+          for (i <- preview) { // insert the issues one by one, each at the suitable location
+            import common.Util._
+            // find an article which is not newer then we are, insert before it
+            // we must insert only above a top-level article (issue, not a comment)
+            val insertLocation = as.get.indexWhere(a => a.id.id.isEmpty && a.updatedAt <= i.updatedAt)
+            //println(s"Insert location for ${i.id} $insertLocation of ${as.size}")
+            as.replace(if (insertLocation >= 0) insertLocation else as.size, 0, i)
+          }
         }
-      }
-      model.subProp(_.loading).set(false)
+        model.subProp(_.loading).set(false)
 
-      val issueFutures = issuesOrdered.map { id => // parent issue
+        val issueFutures = issuesOrdered.map { id => // parent issue
 
-        userService.call { api =>
+          userService.call { api =>
 
-          val apiDone = Promise[Unit]()
-          val issue = rowFromIssue(id, context).copy(hasChildren = false, preview = false)
+            val apiDone = Promise[Unit]()
+            val issue = rowFromIssue(id, context).copy(hasChildren = false, preview = false)
 
-          def processComments(done: Seq[Comment], resp: DataWithHeaders.Headers): Unit = {
+            def processComments(done: Seq[Comment], resp: DataWithHeaders.Headers): Unit = {
 
-            resp.paging.get("next") match {
-              case Some(next) =>
-                RestAPIClient.requestWithHeaders[Comment](next, token).map(c => processComments(done ++ c.data, c.headers)).failed.foreach(apiDone.failure)
-              case None =>
-                val commentRows = done.zipWithIndex.map { case (c, i) =>
-                  rowFromComment(ArticleIdModel(context.organization, context.repository, id.number, Some(i, c.id)), c)
-                }
-                processIssueComments(issue, commentRows, context)
-                apiDone.success(())
+              resp.paging.get("next") match {
+                case Some(next) =>
+                  RestAPIClient.requestWithHeaders[Comment](next, token).map(c => processComments(done ++ c.data, c.headers)).failed.foreach(apiDone.failure)
+                case None =>
+                  val commentRows = done.zipWithIndex.map { case (c, i) =>
+                    rowFromComment(ArticleIdModel(context.organization, context.repository, id.number, Some(i, c.id)), c)
+                  }
+                  processIssueComments(issue, commentRows, token, context, state)
+                  apiDone.success(())
+              }
+
             }
 
-          }
+            api.repos(context.organization, context.repository).issuesAPI(id.number).comments.map(c => processComments(c.data, c.headers)).failed.foreach(apiDone.failure)
 
-          api.repos(context.organization, context.repository).issuesAPI(id.number).comments.map(c => processComments(c.data, c.headers)).failed.foreach(apiDone.failure)
+            apiDone.future
+          }.tap(_.failed.foreach(_.printStackTrace()))
+        }
 
-          apiDone.future
-        }.tap(_.failed.foreach(_.printStackTrace()))
+        Future.sequence(issueFutures).onComplete(_ => updateRateLimits())
       }
-
-      Future.sequence(issueFutures).onComplete(_ => updateRateLimits())
 
     }
 
@@ -542,9 +588,9 @@ class PagePresenter(
   }
 
 
-  private def doLoadArticles(token: String, context: ContextModel): Unit = {
-    println(s"Load articles $context $token")
-    loadArticlesPage(token, context, "init")
+  private def doLoadArticles(token: String, context: ContextModel, state: String): Unit = {
+    println(s"Load articles $context $token state = $state")
+    loadArticlesPage(token, context, "init", state = state)
   }
 
   def init(): Unit = {
@@ -552,14 +598,15 @@ class PagePresenter(
     // otherwise both handlers are called, which makes things confusing
     props.set(SettingsModel.load)
     // install the handler
-    println(s"Install loadArticles handlers, token ${props.subProp(_.token).get}")
+    println(s"Install loadArticles handlers, token ${currentToken()}")
     props.subProp(_.token).listen { token =>
       model.subProp(_.loading).set(true)
       println(s"Token changed to $token, contexts: ${props.subSeq(_.contexts).size}")
       clearAllArticles()
       if (token != null) {
+        val state = filterState()
         for (context <- props.subProp(_.contexts).get) {
-          doLoadArticles(token, context)
+          doLoadArticles(token, context, state)
         }
       }
     }
@@ -573,15 +620,16 @@ class PagePresenter(
       val shortNames = ShortIds.compute(names)
       shortRepoIds = (contexts zip shortNames).toMap
 
-      val token = props.subProp(_.token).get
+      val token = currentToken()
       println(s"listenStructure add ${patch.added.map(_.get).mkString(",")} remove ${patch.removed.map(_.get).mkString(",")} token: $token")
       if (patch.clearsProperty || token.isEmpty) {
         // completely empty - we can do much simpler cleanup (and shutdown any periodic handlers)
         clearAllArticles()
         clearNotifications()
       } else {
+        val state = filterState()
         patch.removed.map(_.get).filter(_.valid).foreach(clearArticles)
-        patch.added.map(_.get).filter(_.valid).foreach(doLoadArticles(token, _))
+        patch.added.map(_.get).filter(_.valid).foreach(doLoadArticles(token, _, state))
 
         // we currently always remember all notifications
         // this could change if is shows there is too many of them - we could remember only the ones for the repositories we handle
@@ -603,9 +651,9 @@ class PagePresenter(
 
   def loadMore(): Unit = {
     // TODO: be smart, decide which repositories need more issues
-    val token = props.subProp(_.token).get
+    val token = currentToken()
     for (context <- pageContexts) {
-      loadArticlesPage(token, context, "next")
+      loadArticlesPage(token, context, "next", state = filterState()) // state should not matter for next page
     }
   }
 
@@ -728,7 +776,7 @@ class PagePresenter(
         } {
           val newId = ArticleIdModel(context.organization, context.repository, selectedId.issueNumber, Some(comments.length, c.id))
           val newRow = rowFromComment(newId, c)
-          processIssueComments(i, comments :+ newRow, context)
+          processIssueComments(i, comments :+ newRow, currentToken(), context, filterState())
         }
       }
     }.onComplete {
@@ -753,7 +801,7 @@ class PagePresenter(
           println(s"New issue failure $ex")
         case Success(s) =>
           val newRow = rowFromIssue(s, context)
-          processIssueComments(newRow, Seq.empty, context)
+          processIssueComments(newRow, Seq.empty, currentToken(), context, "open")
           model.subProp(_.editing).set((false, false))
       }
     }
@@ -777,7 +825,7 @@ class PagePresenter(
     val unreadInfo = model.subProp(_.unreadInfo).get
     for (unread <- unreadInfo.get(id.context -> id.issueNumber)) {
       println(s"markAsRead $id, unread $unread")
-      RestAPIClient.request[Unit](method = Method.PATCH, uri = unread.threadURL, token = props.subProp(_.token).get).map{_ =>
+      RestAPIClient.request[Unit](method = Method.PATCH, uri = unread.threadURL, token = currentToken()).map{_ =>
         println(s"markAsRead done - adjust unreadInfo")
       }.failed.foreach(ex =>
         println(s"Mark as read error $ex")
