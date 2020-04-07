@@ -15,7 +15,7 @@ import io.udash.bootstrap._
 import BootstrapStyles._
 import frontend.dataModel._
 import io.udash.wrappers.jquery.{JQuery, jQ}
-import org.scalajs.dom.Node
+import org.scalajs.dom.{Element, Node}
 
 import scala.scalajs.js
 import scala.concurrent.duration.{span => _, _}
@@ -24,7 +24,22 @@ import io.udash.bindings.inputs.Checkbox
 import io.udash.bootstrap.button.UdashButton
 import io.udash.bootstrap.form.UdashInputGroup
 
+import scala.collection.mutable
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{Future, Promise}
 import scala.math.Ordered._
+
+object PageView {
+  object symbols {
+    val childrenPreview = "\u2299" // (.) circled dot
+    val childrenOpen = "\u02c5" // v modifier letter down
+    val childrenClosed = "\u02c3" // > modifier letter right arrowhead
+    val noChildren = "\u22A1" // |.| squared dot operator
+    val childrenLoading = "\u2A02" // (x) circled times operator
+  }
+}
+
+import PageView._
 
 class PageView(
   model: ModelProperty[PageModel],
@@ -146,10 +161,15 @@ class PageView(
       //TableFactory.TableAttrib("Parent", (ar, _, _) => ar.parentId.map(_.toString).getOrElse("").render, style = width(5, 5, 10), shortName = Some("")),
       TableFactory.TableAttrib("Article Title", (ar, v, _) =>
         // unicode characters rather than FontAwesome images, as those interacted badly with sticky table header
-        if (ar.hasChildren && ar.preview) div(span(`class` := "no-fold fold-open", "\u2299"), ar.title.render) // (.)
-        else if (ar.hasChildren && ar.indent > 0) div(span(`class` := "fold-control fold-open", "\u02c5"), ar.title.render) // v
-        else if (ar.hasChildren) div(span(`class` := "fold-control", "\u02c3"), ar.title.render) // >
-        else div(span(`class` := "no-fold fold-open", "\u22A1"), ar.title.render), // |.|
+        if (ar.hasChildren && ar.preview) {
+          div(span(`class` := "preview-fold fold-open", symbols.childrenClosed), ar.title.render)
+        } else if (ar.hasChildren && ar.indent > 0) {
+          div(span(`class` := "fold-control fold-open", symbols.childrenOpen), ar.title.render)
+        } else if (ar.hasChildren) {
+          div(span(`class` := "fold-control", symbols.childrenClosed), ar.title.render)
+        } else {
+          div(span(`class` := "no-fold fold-open", symbols.noChildren), ar.title.render)
+        },
         style = widthWide(50, 50),
         modifier = Some(ar => style := s"padding-left: ${indentFromLevel(ar.indent)}px") // item (td) style
       ),
@@ -167,6 +187,10 @@ class PageView(
     )
 
     implicit object rowHandler extends views.TableFactory.TableRowHandler[ArticleRowModel, ArticleIdModel] {
+      object commentLoader {
+        val loading = mutable.HashMap.empty[ArticleIdModel, Future[Unit]]
+      }
+
       override def id(item: ArticleRowModel) = item.id
       override def indent(item: ArticleRowModel) = item.indent
       override def rowModifier(itemModel: ModelProperty[ArticleRowModel]) = {
@@ -183,6 +207,95 @@ class PageView(
         )
       }
       override def tdModifier = s.td
+      def rowModifyElement(row: Element): Unit = {
+
+        def openFold(tr: JQuery) = {
+          // inspired from https://stackoverflow.com/a/49364929/16673
+
+          // find all children (following items with greater level)
+          def findChildren(tr: JQuery) = {
+            def getDepth(d: Option[Any]) = d.map(_.asInstanceOf[Int]).getOrElse(0)
+            val depth = getDepth(tr.data("depth"))
+            tr.nextUntil(jQ("tr").filter((x: Element, _: Int, _: Element) => {
+              getDepth(jQ(x).data("depth")) <= depth
+            }))
+          }
+
+          val children = findChildren(tr)
+          //println(children.length)
+          val arrow = tr.find(".fold-control")
+          if (children.is(":visible")) {
+            arrow.html(symbols.childrenClosed)
+            tr.find(".fold-control").removeClass("fold-open")
+            children.hide()
+          } else {
+            arrow.html(symbols.childrenOpen)
+            tr.find(".fold-control").addClass("fold-open")
+            children.show()
+
+            val childrenClosed = children.filter((e: Element, _: Int, _: Element) => jQ(e).find(".fold-open").length == 0)
+            childrenClosed.get.foreach { close =>
+              val hide = findChildren(jQ(close))
+              hide.hide()
+            }
+          }
+        }
+
+        jQ(row).find(".fold-control").on("click", { (control, event) =>
+          val tr = jQ(control).closest("tr")
+          //println(tr.attr("data-depth"))
+          openFold(tr)
+        })
+
+        def startLoading(tr: JQuery, wantsLoading: JQuery): Future[Unit] = {
+          // first of all provide a loading feedback
+          wantsLoading.removeClass("preview-fold")
+          wantsLoading.text(symbols.childrenLoading)
+          wantsLoading.addClass("loading-fold")
+
+          if (true) {
+            val data = fetchElementData(tr)
+            commentLoader.loading.getOrElseUpdate(data, {
+              val token = presenter.props.subProp(_.token).get
+              val state = presenter.filterState()
+              presenter.loadIssueComments(data, token, state)
+            }).tap {
+              // once completed, remove it from the in-progress list
+              _.onComplete(_ => commentLoader.loading.remove(data))
+            }
+          } else {
+            // create a future which will never complete
+            // used for simulating long loading when debugging
+            Promise[Unit].future
+          }
+        }
+
+        jQ(row).on("click", { (control, event) =>
+          // initiate comment loading if necessary
+          val tr = jQ(control)
+          val wantsLoading = tr.find(".preview-fold")
+          if (wantsLoading.length > 0) {
+            println(s"Clicked row with preview-fold")
+            startLoading(tr, wantsLoading)
+          }
+        })
+
+        jQ(row).find(".preview-fold").on("click", { (control, event) =>
+          val wantsLoading = jQ(control)
+          val tr = jQ(control).closest("tr")
+          val rows = tr.closest("tbody")
+          val data = fetchElementData(tr)
+          println(s"Clicked preview-fold of $data")
+          startLoading(tr, wantsLoading).onComplete { _ =>
+            // beware: the corresponding row was created again when loaded, we need to find it in the rows, tr is no longer valid
+            val tr = rows.find(s"[issue-number=${data.issueNumber}]")
+
+            //println(s"Completed preview-fold of $data with $tr")
+
+            openFold(tr)
+          }
+        })
+      }
     }
 
     val table = UdashTable(model.subSeq(_.articles), bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
@@ -236,6 +349,8 @@ class PageView(
         )
       }
       def tdModifier: Modifier = s.tdRepo
+      def rowModifyElement(element: Element): Unit = ()
+
     }
 
     val repoTable = UdashTable(repoUrl, bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
@@ -331,6 +446,7 @@ class PageView(
                     }
                   }
                 )
+
               }
             ).render,
 

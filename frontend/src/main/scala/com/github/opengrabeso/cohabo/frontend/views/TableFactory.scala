@@ -25,6 +25,7 @@ object TableFactory {
     def indent(item: ItemType): Int
     def rowModifier(itemModel: ModelProperty[ItemType]): Modifier
     def tdModifier: Modifier
+    def rowModifyElement(element: Element): Unit
   }
 
   def headerFactory[ItemType](attribs: Seq[TableAttrib[ItemType]]): NestedInterceptor => Modifier = _ => tr {
@@ -93,42 +94,8 @@ object TableFactory {
         false
       }
     ).render
-    jQ(row).find(".fold-control").on("click", { (control, event) =>
-      // from https://stackoverflow.com/a/49364929/16673
-      //println(tr.attr("data-depth"))
-      val tr = jQ(control).closest("tr")
 
-      def getDepth(d: Option[Any]) = d.map(_.asInstanceOf[Int]).getOrElse(0)
-      // find all children (following items with greater level)
-      def findChildren(tr: JQuery) = {
-        def getDepth(d: Option[Any]) = d.map(_.asInstanceOf[Int]).getOrElse(0)
-        val depth = getDepth(tr.data("depth"))
-        tr.nextUntil(jQ("tr").filter((x: Element, _: Int, _: Element) => {
-          getDepth(jQ(x).data("depth")) <= depth
-        }))
-      }
-
-      val children = findChildren(tr)
-      //println(children.length)
-      val arrow = tr.find(".fold-control")
-      if (children.is(":visible")) {
-        arrow.html("\u02c3") // >
-        tr.find(".fold-control").removeClass("fold-open")
-        children.hide()
-      } else {
-        arrow.html("\u02c5") // v
-        tr.find(".fold-control").addClass("fold-open")
-        children.show()
-
-        val childrenClosed = children.filter((e: Element, _: Int, _: Element) => jQ(e).find(".fold-open").length == 0)
-
-        childrenClosed.get.foreach { close =>
-          val hide = findChildren(jQ(close))
-          hide.hide()
-        }
-      }
-
-    })
+    rowHandler.rowModifyElement(row)
 
     if (timing) println(s"Row $elData took ${System.currentTimeMillis()-start}")
     row

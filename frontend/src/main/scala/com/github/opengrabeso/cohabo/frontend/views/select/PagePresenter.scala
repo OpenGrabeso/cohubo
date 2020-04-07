@@ -407,6 +407,37 @@ class PagePresenter(
     filterState() == state
   }
 
+  def loadIssueComments(id: ArticleIdModel, token: String, state: String): Future[Unit] = {
+    userService.call { api =>
+      val context = id.context
+      val apiDone = Promise[Unit]()
+      // get current row data and change them
+      val oldIssue = model.subSeq(_.articles).get.find(_.id == id).get
+
+      val issue = oldIssue.copy(hasChildren = false, preview = false)
+
+      def processComments(done: Seq[Comment], resp: DataWithHeaders.Headers): Unit = {
+
+        resp.paging.get("next") match {
+          case Some(next) =>
+            RestAPIClient.requestWithHeaders[Comment](next, token).map(c => processComments(done ++ c.data, c.headers)).failed.foreach(apiDone.failure)
+          case None =>
+            val commentRows = done.zipWithIndex.map { case (c, i) =>
+              rowFromComment(ArticleIdModel(context.organization, context.repository, id.issueNumber, Some(i, c.id)), c)
+            }
+            processIssueComments(issue, commentRows, token, context, state)
+            apiDone.success(())
+        }
+
+      }
+
+      api.repos(context.organization, context.repository).issuesAPI(id.issueNumber).comments.map(c => processComments(c.data, c.headers)).failed.foreach(apiDone.failure)
+
+      apiDone.future
+    }.tap(_.failed.foreach(_.printStackTrace()))
+
+  }
+
   def loadArticlesPage(token: String, context: ContextModel, mode: String, state: String): Unit = {
     val loadId = (token, context, mode, state)
     // avoid the same load flying twice
@@ -474,35 +505,17 @@ class PagePresenter(
         }
         model.subProp(_.loading).set(false)
 
-        val issueFutures = issuesOrdered.filter(_.comments > 0).map { id => // parent issue
+        if (true) {
+          val loadMaxComments = 10
+          def wantIssue(i: Issue) = i.comments > 0 && i.comments <= loadMaxComments
+          val issueFutures = (issuesOrdered zip preview).filter(c => wantIssue(c._1)).map { case (_, row) => // parent issue
+            loadIssueComments(row.id, token, state)
+          }
 
-          userService.call { api =>
-
-            val apiDone = Promise[Unit]()
-            val issue = rowFromIssue(id, context).copy(hasChildren = false, preview = false)
-
-            def processComments(done: Seq[Comment], resp: DataWithHeaders.Headers): Unit = {
-
-              resp.paging.get("next") match {
-                case Some(next) =>
-                  RestAPIClient.requestWithHeaders[Comment](next, token).map(c => processComments(done ++ c.data, c.headers)).failed.foreach(apiDone.failure)
-                case None =>
-                  val commentRows = done.zipWithIndex.map { case (c, i) =>
-                    rowFromComment(ArticleIdModel(context.organization, context.repository, id.number, Some(i, c.id)), c)
-                  }
-                  processIssueComments(issue, commentRows, token, context, state)
-                  apiDone.success(())
-              }
-
-            }
-
-            api.repos(context.organization, context.repository).issuesAPI(id.number).comments.map(c => processComments(c.data, c.headers)).failed.foreach(apiDone.failure)
-
-            apiDone.future
-          }.tap(_.failed.foreach(_.printStackTrace()))
+          Future.sequence(issueFutures).onComplete(_ => updateRateLimits())
+        } else {
+          updateRateLimits()
         }
-
-        Future.sequence(issueFutures).onComplete(_ => updateRateLimits())
       }
 
     }
