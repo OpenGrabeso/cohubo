@@ -505,8 +505,10 @@ class PagePresenter(
         }
         model.subProp(_.loading).set(false)
 
-        if (false) {
-          val issueFutures = (issuesOrdered zip preview).filter(_._1.comments > 0).map { case (id, row) => // parent issue
+        if (true) {
+          val loadMaxComments = 10
+          def wantIssue(i: Issue) = i.comments > 0 && i.comments <= loadMaxComments
+          val issueFutures = (issuesOrdered zip preview).filter(c => wantIssue(c._1)).map { case (_, row) => // parent issue
             loadIssueComments(row.id, token, state)
           }
 
