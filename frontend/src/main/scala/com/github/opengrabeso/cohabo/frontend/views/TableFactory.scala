@@ -98,7 +98,6 @@ object TableFactory {
       //println(tr.attr("data-depth"))
       val tr = jQ(control).closest("tr")
 
-      def getDepth(d: Option[Any]) = d.map(_.asInstanceOf[Int]).getOrElse(0)
       // find all children (following items with greater level)
       def findChildren(tr: JQuery) = {
         def getDepth(d: Option[Any]) = d.map(_.asInstanceOf[Int]).getOrElse(0)

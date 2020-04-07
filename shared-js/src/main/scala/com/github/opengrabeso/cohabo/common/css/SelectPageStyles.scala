@@ -98,6 +98,9 @@ object SelectPageStyles extends CommonStyle {
       color.darkgray,
       fontWeight._900
     ),
+    unsafeChild(".preview-fold") (
+      color.lightgray,
+    ),
     unsafeChild(".no-fold") (
       color.lightgray,
     )

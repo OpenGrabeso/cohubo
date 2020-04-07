@@ -114,6 +114,14 @@ class PageView(
     (base + f * firstIndent).round.toInt
   }
 
+  object symbols {
+    val childrenPreview = "\u2299" // (.) circled dot
+    val childrenOpen = "\u02c5" // v modifier letter down
+    val childrenClosed = "\u02c3" // > modifier letter right arrowhead
+    val noChildren = "\u22A1" // |.| squared dot operator
+    val childrenLoading = "\u2A02" // (x) circled times operator
+  }
+
   def getTemplate: Modifier = {
 
     // value is a callback
@@ -146,10 +154,15 @@ class PageView(
       //TableFactory.TableAttrib("Parent", (ar, _, _) => ar.parentId.map(_.toString).getOrElse("").render, style = width(5, 5, 10), shortName = Some("")),
       TableFactory.TableAttrib("Article Title", (ar, v, _) =>
         // unicode characters rather than FontAwesome images, as those interacted badly with sticky table header
-        if (ar.hasChildren && ar.preview) div(span(`class` := "no-fold fold-open", "\u2299"), ar.title.render) // (.)
-        else if (ar.hasChildren && ar.indent > 0) div(span(`class` := "fold-control fold-open", "\u02c5"), ar.title.render) // v
-        else if (ar.hasChildren) div(span(`class` := "fold-control", "\u02c3"), ar.title.render) // >
-        else div(span(`class` := "no-fold fold-open", "\u22A1"), ar.title.render), // |.|
+        if (ar.hasChildren && ar.preview) {
+          div(span(`class` := "preview-fold fold-open", symbols.childrenPreview), ar.title.render)
+        } else if (ar.hasChildren && ar.indent > 0) {
+          div(span(`class` := "fold-control fold-open", symbols.childrenOpen), ar.title.render)
+        } else if (ar.hasChildren) {
+          div(span(`class` := "fold-control", symbols.childrenClosed), ar.title.render)
+        } else {
+          div(span(`class` := "no-fold fold-open", symbols.noChildren), ar.title.render)
+        },
         style = widthWide(50, 50),
         modifier = Some(ar => style := s"padding-left: ${indentFromLevel(ar.indent)}px") // item (td) style
       ),
@@ -331,6 +344,19 @@ class PageView(
                     }
                   }
                 )
+
+                jQ(t).find(".preview-fold").on("click", { (control, event) =>
+                  // initiate comment loading
+                  val tr = jQ(control).closest("tr")
+
+                  val data = fetchElementData(tr)
+
+                  for (clicked <- model.subProp(_.articles).get.find(_.id == data)) {
+                    println(s"Clicked ${clicked}")
+                  }
+
+
+                })
               }
             ).render,
 
