@@ -474,7 +474,7 @@ class PagePresenter(
         }
         model.subProp(_.loading).set(false)
 
-        val issueFutures = issuesOrdered.map { id => // parent issue
+        val issueFutures = issuesOrdered.filter(_.comments > 0).map { id => // parent issue
 
           userService.call { api =>
 
