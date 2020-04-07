@@ -15,7 +15,7 @@ import io.udash.bootstrap._
 import BootstrapStyles._
 import frontend.dataModel._
 import io.udash.wrappers.jquery.{JQuery, jQ}
-import org.scalajs.dom.Node
+import org.scalajs.dom.{Element, Node}
 
 import scala.scalajs.js
 import scala.concurrent.duration.{span => _, _}
@@ -25,6 +25,12 @@ import io.udash.bootstrap.button.UdashButton
 import io.udash.bootstrap.form.UdashInputGroup
 
 import scala.math.Ordered._
+
+object PageView {
+  val symbols = TableFactory.symbols
+}
+
+import PageView._
 
 class PageView(
   model: ModelProperty[PageModel],
@@ -114,14 +120,6 @@ class PageView(
     (base + f * firstIndent).round.toInt
   }
 
-  object symbols {
-    val childrenPreview = "\u2299" // (.) circled dot
-    val childrenOpen = "\u02c5" // v modifier letter down
-    val childrenClosed = "\u02c3" // > modifier letter right arrowhead
-    val noChildren = "\u22A1" // |.| squared dot operator
-    val childrenLoading = "\u2A02" // (x) circled times operator
-  }
-
   def getTemplate: Modifier = {
 
     // value is a callback
@@ -156,6 +154,7 @@ class PageView(
         // unicode characters rather than FontAwesome images, as those interacted badly with sticky table header
         if (ar.hasChildren && ar.preview) {
           div(span(`class` := "preview-fold fold-open", symbols.childrenPreview), ar.title.render)
+          //div(span(`class` := "preview-fold fold-open", symbols.childrenLoading), ar.title.render)
         } else if (ar.hasChildren && ar.indent > 0) {
           div(span(`class` := "fold-control fold-open", symbols.childrenOpen), ar.title.render)
         } else if (ar.hasChildren) {
@@ -196,6 +195,58 @@ class PageView(
         )
       }
       override def tdModifier = s.td
+      def rowModifyElement(row: Element): Unit = {
+        jQ(row).find(".fold-control").on("click", { (control, event) =>
+          // from https://stackoverflow.com/a/49364929/16673
+          //println(tr.attr("data-depth"))
+          val tr = jQ(control).closest("tr")
+
+          // find all children (following items with greater level)
+          def findChildren(tr: JQuery) = {
+            def getDepth(d: Option[Any]) = d.map(_.asInstanceOf[Int]).getOrElse(0)
+            val depth = getDepth(tr.data("depth"))
+            tr.nextUntil(jQ("tr").filter((x: Element, _: Int, _: Element) => {
+              getDepth(jQ(x).data("depth")) <= depth
+            }))
+          }
+
+          val children = findChildren(tr)
+          //println(children.length)
+          val arrow = tr.find(".fold-control")
+          if (children.is(":visible")) {
+            arrow.html(symbols.childrenClosed)
+            tr.find(".fold-control").removeClass("fold-open")
+            children.hide()
+          } else {
+            arrow.html(symbols.childrenOpen)
+            tr.find(".fold-control").addClass("fold-open")
+            children.show()
+
+            val childrenClosed = children.filter((e: Element, _: Int, _: Element) => jQ(e).find(".fold-open").length == 0)
+            childrenClosed.get.foreach { close =>
+              val hide = findChildren(jQ(close))
+              hide.hide()
+            }
+          }
+
+        })
+
+        jQ(row).on("click", { (control, event) =>
+          // initiate comment loading if necessary
+          val tr = jQ(control)
+          if (tr.find(".preview-fold").length > 0) {
+            val data = fetchElementData(tr)
+            for (clicked <- model.subProp(_.articles).get.find(_.id == data)) {
+              println(s"Clicked ${clicked}")
+              val token = presenter.props.subProp(_.token).get
+              val state = presenter.filterState()
+              presenter.loadIssueComments(data, token, state)
+            }
+          }
+
+        })
+
+      }
     }
 
     val table = UdashTable(model.subSeq(_.articles), bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
@@ -249,6 +300,8 @@ class PageView(
         )
       }
       def tdModifier: Modifier = s.tdRepo
+      def rowModifyElement(element: Element): Unit = ()
+
     }
 
     val repoTable = UdashTable(repoUrl, bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
@@ -345,18 +398,6 @@ class PageView(
                   }
                 )
 
-                jQ(t).find(".preview-fold").on("click", { (control, event) =>
-                  // initiate comment loading
-                  val tr = jQ(control).closest("tr")
-
-                  val data = fetchElementData(tr)
-
-                  for (clicked <- model.subProp(_.articles).get.find(_.id == data)) {
-                    println(s"Clicked ${clicked}")
-                  }
-
-
-                })
               }
             ).render,
 
