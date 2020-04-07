@@ -11,6 +11,7 @@ case class ArticleRowModel(
   indent: Int,
   title: String,
   body: String,
+  closed: Boolean,
   milestone: Option[String],
   createdBy: String,
   createdAt: ZonedDateTime,

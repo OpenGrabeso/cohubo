@@ -119,11 +119,10 @@ class PageView(
         if (row.subProp(_.createdBy).get == globals.subProp(_.user.login).get) false
         else b
       }
-      val unreadChildren = hasUnreadChildren(row)
-
       Seq(
+        CssStyleName("closed").styleIf(row.get.closed),
         CssStyleName("unread").styleIf(unread),
-        CssStyleName("unread-children").styleIf(unreadChildren)
+        CssStyleName("unread-children").styleIf(hasUnreadChildren(row))
       )
     }
     val attribs = Seq[DisplayAttrib](

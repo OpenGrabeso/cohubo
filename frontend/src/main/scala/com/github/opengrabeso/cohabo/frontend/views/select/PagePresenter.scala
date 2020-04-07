@@ -278,7 +278,7 @@ class PagePresenter(
     val explicitCreated = overrideCreatedAt(i.body)
     val explicitEdited = overrideEditedAt(i.body).orElse(explicitCreated)
     ArticleRowModel(
-      p, i.comments > 0, true, 0, i.title, i.body, Option(i.milestone).map(_.title), i.user.displayName,
+      p, i.comments > 0, true, 0, i.title, i.body, i.state == "closed", Option(i.milestone).map(_.title), i.user.displayName,
       explicitCreated.getOrElse(i.created_at), explicitEdited.getOrElse(i.created_at), explicitEdited.getOrElse(i.updated_at)
     )
   }
@@ -288,7 +288,7 @@ class PagePresenter(
     val explicitCreated = overrideCreatedAt(i.body)
     val explicitEdited = overrideEditedAt(i.body).orElse(explicitCreated)
     ArticleRowModel(
-      articleId, false, false, 0, bodyAbstract(i.body), i.body, None, i.user.displayName,
+      articleId, false, false, 0, bodyAbstract(i.body), i.body, false, None, i.user.displayName,
       explicitCreated.getOrElse(i.created_at), explicitEdited.getOrElse(i.updated_at), explicitEdited.getOrElse(i.updated_at)
     )
   }
@@ -303,7 +303,7 @@ class PagePresenter(
   private def processIssueComments(issue: ArticleRowModel, comments: Seq[ArticleRowModel], token: String, context: ContextModel, state: String): Unit = { // the comments
 
     if (!loadStillWanted(token, context, state)) {
-      println(s"Discard pending issue for $context- repository changed to $pageContexts")
+      println(s"Discard pending issue for $context, state $state - repository $pageContexts")
       return
     }
 
@@ -909,14 +909,21 @@ class PagePresenter(
       }.map(_.body)
     }.onComplete {
       case Success(_) =>
-        // by default we do not display closed issues - the default reaction is to remove the one we have closed
-        // TODO: we could probably mark is somehow instead, that would be less distruptive
         val a = model.subSeq(_.articles)
         val as = a.get
         val before = as.indexWhere(_.id.sameIssue(id))
         val after = as.indexWhere(!_.id.sameIssue(id), before)
-
-        a.replace(before, after - before)
+        if (!model.subProp(_.filterClosed).get) {
+          // by default we do not display closed issues - the default reaction is to remove the one we have closed
+          // instead of removing it we could only mark it as closed, that would be less disruptive
+          a.replace(before, after - before)
+        } else {
+          // closed issues displayed - only mark
+          for (index <- before until after) {
+            val old = as(index)
+            a.replace(index, 1, old.copy(closed = true))
+          }
+        }
 
       case Failure(ex) =>
         println(s"Error closing #${id.issueNumber}: $ex")
