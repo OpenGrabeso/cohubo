@@ -234,10 +234,16 @@ class PageView(
         jQ(row).on("click", { (control, event) =>
           // initiate comment loading if necessary
           val tr = jQ(control)
-          if (tr.find(".preview-fold").length > 0) {
+          val wantsLoading = tr.find(".preview-fold")
+
+          if (wantsLoading.length > 0) {
+            // first of all provide a loading feedback
+            wantsLoading.removeClass("preview-fold")
+            wantsLoading.text(symbols.childrenLoading)
+            wantsLoading.addClass("loading-fold")
+
             val data = fetchElementData(tr)
-            for (clicked <- model.subProp(_.articles).get.find(_.id == data)) {
-              println(s"Clicked ${clicked}")
+            if (true) {
               val token = presenter.props.subProp(_.token).get
               val state = presenter.filterState()
               presenter.loadIssueComments(data, token, state)

@@ -2,7 +2,9 @@ package com.github.opengrabeso.cohabo.common.css
 
 import io.udash.css._
 
+import scala.concurrent.duration._
 import scala.language.postfixOps
+
 
 object SelectPageStyles extends CommonStyle {
 
@@ -80,6 +82,11 @@ object SelectPageStyles extends CommonStyle {
     flexDirection.row
   )
 
+  val spin = keyframes(
+    0.0 -> keyframe (),
+    100.0 -> keyframe (transform := "rotate(360deg)")
+  )
+
   val selectTableContainer = style(
     backgroundColor.white,
     gridArea := "table",
@@ -100,6 +107,14 @@ object SelectPageStyles extends CommonStyle {
     ),
     unsafeChild(".preview-fold") (
       color.lightgray,
+    ),
+    unsafeChild(".loading-fold") (
+      display.inlineBlock,
+      color.darkblue,
+      animationName(spin),
+      animationDuration(2 seconds),
+      animationTimingFunction.linear,
+      animationIterationCount.infinite
     ),
     unsafeChild(".no-fold") (
       color.lightgray,
@@ -181,12 +196,6 @@ object SelectPageStyles extends CommonStyle {
 
   val hidden = style(
     display.none
-  )
-
-  val articleClose = style(
-    unsafeRoot("table .rotate.down")(
-      transform := "rotate(90deg)"
-    )
   )
 
   val articleMarkdown = style(
