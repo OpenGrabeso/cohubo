@@ -16,10 +16,14 @@ import BootstrapStyles._
 import frontend.dataModel._
 import io.udash.wrappers.jquery.{JQuery, jQ}
 import org.scalajs.dom.Node
+
 import scala.scalajs.js
 import scala.concurrent.duration.{span => _, _}
-
 import common.Util._
+import io.udash.bindings.inputs.Checkbox
+import io.udash.bootstrap.button.UdashButton
+import io.udash.bootstrap.form.UdashInputGroup
+
 import scala.math.Ordered._
 
 class PageView(
@@ -81,6 +85,15 @@ class PageView(
 
   private val addRepoButton = button("Add".toProperty, buttonStyle = BootstrapStyles.Color.Success.toProperty)
 
+  private val filterButtons = UdashInputGroup()(
+    UdashInputGroup.appendCheckbox(Checkbox(model.subProp(_.filterOpen))().render),
+    UdashInputGroup.appendText("Open"),
+
+    UdashInputGroup.appendCheckbox(Checkbox(model.subProp(_.filterClosed))().render),
+    UdashInputGroup.appendText("Closed")
+  )
+
+
   buttonOnClick(settingsButton) {presenter.gotoSettings()}
   buttonOnClick(newIssueButton) {presenter.newIssue()}
 
@@ -106,11 +119,10 @@ class PageView(
         if (row.subProp(_.createdBy).get == globals.subProp(_.user.login).get) false
         else b
       }
-      val unreadChildren = hasUnreadChildren(row)
-
       Seq(
+        CssStyleName("closed").styleIf(row.get.closed),
         CssStyleName("unread").styleIf(unread),
-        CssStyleName("unread-children").styleIf(unreadChildren)
+        CssStyleName("unread-children").styleIf(hasUnreadChildren(row))
       )
     }
     val attribs = Seq[DisplayAttrib](
@@ -230,6 +242,7 @@ class PageView(
     div(
       s.container,
       div(
+        cls := "col",
         s.gridAreaNavigation,
         settingsButton.render,
         Spacing.margin(size = SpacingSize.Small),
@@ -259,7 +272,10 @@ class PageView(
         },
         div(cls := "row justify-content-centwer")(
           TextInput(model.subProp(_.newRepo))(),
-          addRepoButton
+          addRepoButton,
+        ),
+        div(cls := "row")(
+          filterButtons
         ),
       ),
       div(

@@ -17,6 +17,8 @@ case class PageModel(
   selectedArticleId: Option[ArticleIdModel] = None,
   selectedArticleParent: Option[ArticleRowModel] = None,
   selectedArticle: Option[ArticleRowModel] = None,
+  filterOpen: Boolean = true,
+  filterClosed: Boolean = false,
   articleContent: String = "",
   editing: (Boolean, Boolean) = (false, false), // editing, editing is reply
   editedArticleMarkdown: String = "",

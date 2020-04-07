@@ -109,8 +109,10 @@ object SelectPageStyles extends CommonStyle {
       backgroundColor(c"#ADD8E6") // lightblue
     ),
     &.attrContains("class", "unread") (
-      // TODO: stronger highlight?
       fontWeight.bold
+    ),
+    &.attrContains("class", "closed") (
+      textDecoration := "line-through"
     ),
     &.attrContains("class", "unread-children") (
       // TODO: stronger highlight?

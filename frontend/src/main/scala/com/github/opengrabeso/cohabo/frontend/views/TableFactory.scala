@@ -118,7 +118,6 @@ object TableFactory {
       } else {
         arrow.html("\u02c5") // v
         tr.find(".fold-control").addClass("fold-open")
-        tr.removeClass("closed")
         children.show()
 
         val childrenClosed = children.filter((e: Element, _: Int, _: Element) => jQ(e).find(".fold-open").length == 0)

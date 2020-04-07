@@ -11,7 +11,17 @@ import io.udash.rest._
 
 trait RepositoryAPI {
   @GET
-  def issues(state: String = "open", @transientDefault creator: String = null): Future[DataWithHeaders[Seq[Issue]]]
+  def issues(
+    @transientDefault milestone: Int = -1,
+    @transientDefault state: String = "open", // Can be either open, closed, or all. Default: open
+    @transientDefault assignee: String = null,
+    @transientDefault creator: String = null,
+    @transientDefault mentioned: String = null,
+    @transientDefault labels: String = null, // A list of comma separated label names
+    @transientDefault sort: String = "created", // What to sort results by. Can be either created, updated, comments. Default: created
+    @transientDefault direction: String = "desc", // The direction of the sort. Can be either asc or desc. Default: desc
+    @transientDefault since: ZonedDateTime = null
+  ): Future[DataWithHeaders[Seq[Issue]]]
 
   @POST("issues")
   def createIssue(
