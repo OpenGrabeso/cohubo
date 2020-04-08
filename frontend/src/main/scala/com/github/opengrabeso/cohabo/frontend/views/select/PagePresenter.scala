@@ -42,14 +42,27 @@ object PagePresenter {
     def removeCodePrefix: Iterator[String] = lines.filterNot(_.startsWith("```"))
   }
 
-  def removeHeading(text: String): String = {
-    //println(s"removeHeading ${text.take(60)}")
-    // regex does not work for surrogate pairs
-   if (text.take(5) == "#### ") text.dropWhile(_ == '#').dropWhile(_ == ' ')
-   else text
+  object Title {
+    // we want something robust against unexpected characters (surrogate pairs), regex is not working with them
+    def unapply(text: String): Boolean = {
+      text.take(1) == "#" && text.dropWhile(_ == '#').take(1) == " "
+    }
   }
 
-  implicit final class MarkdownTransform(val text: String) {
+
+  def removeHeading(text: String): String = {
+    // regex does not work for surrogate pairs
+    text match {
+      case Title() =>
+        println(s"removeHeading Title ${text.take(60)}")
+        text.dropWhile(_ == '#').dropWhile(_ == ' ')
+      case _ =>
+        println(s"removeHeading ${text.take(60)}")
+        text
+    }
+  }
+
+  implicit final class MarkdownTransform(private val text: String) {
     @scala.annotation.tailrec
     def removeMarkdown: String = {
       val ImageLink = "(.*)!\\[([^\\]]+)\\]\\([^)]+\\)(.*)".r
@@ -68,15 +81,16 @@ object PagePresenter {
     }
     @scala.annotation.tailrec
     def removeHTMLTags: String = {
-      val Link = "(.*)</?[a-zA-Z]/?>(.*)".r
+      val Tag = "(.*)</?[a-zA-Z]/?>(.*)".r
       text match {
-        case Link(prefix, postfix) =>
+        case Tag(prefix, postfix) =>
           (prefix + postfix).removeHTMLTags // there may be multiple links on one line
         case _ =>
           text
       }
     }
   }
+
 
 
   def rowTitle(text: String, parentTitle: String): String = {
@@ -93,11 +107,12 @@ object PagePresenter {
 
   def bodyAbstract(text: String): String = {
     // TODO: smarter abstracts
-    dropQuotes(text).map(_
+    val textAbstract = dropQuotes(text).map(_
       .removeMarkdown
       .removeHTMLTags
       .decodeEntities
     ).find(_.nonEmpty).getOrElse("").take(120)
+    removeHeading(textAbstract)
   }
 
   // similar to bodyAbstract, but keeps Markdown so that the quotes can be found in the original source
@@ -210,12 +225,6 @@ class PagePresenter(
   private val SlashNoteHeader = "> \\*+[A-Za-z0-9_]+\\** _*([0-9]+)/([0-9]+)/([0-9]+) ([0-9]+):([0-9]+):([0-9]+)_*\\**".r
 
   def removeColaboHeaders(body: String): String = {
-    object Title {
-      // we want something robust against unexpected characters (surrogate pairs), regex is not working with them
-      def unapply(text: String): Boolean = {
-        text.take(4) == "####"
-      }
-    }
     val bodyLines = body.linesIterator.toSeq
     val linesWithoutHeaders = bodyLines.take(2).map {
       case FullCommentHeader(_*) => None
