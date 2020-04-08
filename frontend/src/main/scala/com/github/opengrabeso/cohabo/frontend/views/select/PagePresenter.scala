@@ -54,10 +54,8 @@ object PagePresenter {
     // regex does not work for surrogate pairs
     text match {
       case Title() =>
-        println(s"removeHeading Title ${text.take(60)}")
         text.dropWhile(_ == '#').dropWhile(_ == ' ')
       case _ =>
-        println(s"removeHeading ${text.take(60)}")
         text
     }
   }
@@ -695,11 +693,17 @@ class PagePresenter(
   )
 
   def renderMarkdown(body: String, context: ContextModel): Unit = {
+    val selectedId = model.subProp(_.selectedArticleId).get
+    println(s"renderMarkdown $selectedId")
     val strippedBody = removeColaboHeaders(body)
     val htmlResult = markdownCache(strippedBody -> context)
     // update the local data: article display and article content in the article table
     htmlResult.map { html =>
-      model.subProp(_.articleContent).set(html)
+      // before setting the value make sure the article is still selected
+      // if the selection has changed while the Future was flying, ignore the result
+      if (model.subProp(_.selectedArticleId).get.exists(selectedId.contains)) {
+        model.subProp(_.articleContent).set(html)
+      }
     }.failed.foreach { ex =>
       markdownCache.remove(strippedBody -> context) // avoid caching failed requests
       model.subProp(_.articleContent).set(s"Markdown error $ex")
@@ -772,15 +776,12 @@ class PagePresenter(
       case Failure(ex) =>
         println(s"Edit failure $ex")
       case Success(body) =>
-        // if the selection has changed while the Future was flying, ignore the result
-        if (model.subProp(_.selectedArticleId).get.contains(selectedId)) {
-          model.subProp(_.editing).set((false, false))
-          renderMarkdown(body, context)
-          model.subSeq(_.articles).tap { as =>
-            val index = as.get.indexWhere(_.id == selectedId)
-            val a = as.get(index)
-            as.replace(index, 1, a.copy(body = body))
-          }
+        model.subProp(_.editing).set((false, false))
+        renderMarkdown(body, context)
+        model.subSeq(_.articles).tap { as =>
+          val index = as.get.indexWhere(_.id == selectedId)
+          val a = as.get(index)
+          as.replace(index, 1, a.copy(body = body))
         }
     }
   }
