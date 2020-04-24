@@ -66,7 +66,7 @@ def generateIndexTask(index: String, suffix: String) = Def.task {
   val log = streams.value.log
   IO.writeLines(jsTarget,
     IO.readLines(source).map {
-      line => line.replace("{{target-js}}", s"cohubo-$suffix.js")
+      line => line.replace("{{target-js}}", s"frontend-$suffix.js")
     }
   )
 
@@ -104,7 +104,6 @@ def copyAssets() = Def.task {
 }
 
 lazy val frontend = project.settings(
-    name := "Cohubo",
     commonSettings,
     jsCommonSettings,
     jsLibs,
@@ -120,7 +119,6 @@ lazy val frontend = project.settings(
 lazy val backend = (project in file("backend"))
   .dependsOn(sharedJs_JVM)
   .settings(
-    name := "CohuboJVMBuild",
     libraryDependencies += "commons-io" % "commons-io" % "2.1",
     commonSettings
   )
@@ -128,6 +126,7 @@ lazy val backend = (project in file("backend"))
 lazy val root = (project in file("."))
   .aggregate(frontend, backend)
   .settings(
+    name := "Cohubo",
     Compile / compile := Def.taskDyn {
       (frontend / Compile / fastOptJS).value // the CSS and JS need to be produced first
       val c = (Compile / compile).value
