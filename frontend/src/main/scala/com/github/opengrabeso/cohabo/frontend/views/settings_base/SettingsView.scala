@@ -3,8 +3,6 @@ package frontend
 package views
 package settings_base
 
-import java.time.ZonedDateTime
-
 import com.github.opengrabeso.cohabo.frontend.dataModel.SettingsModel
 import io.udash._
 import io.udash.bootstrap.form.UdashForm
