@@ -448,7 +448,13 @@ class PageView(
                 )
 
               }
-            ).render,
+            ).render.tap { d =>
+              // it seems gridAreaArticle will not resize more than the initial height specified by
+              // gridTemplateRows
+              // we therefore keep that higher than desired and resize later runtime
+              // TODO: store splitter position in localstorage / cookie / whatever
+              jQ(d).height("40vh")
+            },
 
             div(
               s.flexRow,
