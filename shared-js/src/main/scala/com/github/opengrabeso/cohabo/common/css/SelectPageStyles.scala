@@ -65,7 +65,7 @@ object SelectPageStyles extends CommonStyle {
   val gridAreaTableContainer = style(
     gridArea := "table-container",
     display.grid,
-    gridTemplateRows := "minmax(0, 1fr) auto minmax(0, 1fr)",
+    gridTemplateRows := "1fr 0fr 1fr",
     gridTemplateAreas("table", "table-buttons", "article"),
   )
 
@@ -91,6 +91,7 @@ object SelectPageStyles extends CommonStyle {
     backgroundColor.white,
     gridArea := "table",
     overflow.auto,
+    resize.vertical,
     border(2 px, solid, darkgray),
     // see https://stackoverflow.com/a/56998444/16673
     unsafeChild("thead tr th") (
