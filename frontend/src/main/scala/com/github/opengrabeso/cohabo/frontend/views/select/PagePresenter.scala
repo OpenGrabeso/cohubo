@@ -3,6 +3,7 @@ package frontend
 package views
 package select
 
+import java.time.temporal.ChronoUnit
 import java.time.{ZoneId, ZonedDateTime}
 
 import rest.DataWithHeaders._
@@ -277,17 +278,26 @@ class PagePresenter(
     extractQuoteHeader(body).orElse(extractCommentNoteHeader(body))
   }
 
-  private def rowFromIssue(i: Issue, context: ContextModel) = {
+  private def rowFromIssue(i: Issue, context: ContextModel): ArticleRowModel = {
     val p = ArticleIdModel(context.organization, context.repository, i.number, None)
     val explicitCreated = overrideCreatedAt(i.body)
+
+    // when updated_at is much newer than created_at, it means it is a real timestamp of some update (edit or comment)
+    // because import never takes that long
+    val updatedAt = if (ChronoUnit.HOURS.between(i.created_at, i.updated_at) > 24) {
+      i.updated_at
+    } else {
+      explicitCreated.getOrElse(i.updated_at)
+    }
+
     ArticleRowModel(
       p, i.comments > 0, true, 0, i.title, i.body, i.state == "closed", Option(i.milestone).map(_.title), i.user.displayName,
-      explicitCreated.getOrElse(i.created_at), explicitCreated.getOrElse(i.created_at), explicitCreated.getOrElse(i.updated_at)
+      explicitCreated.getOrElse(i.created_at), explicitCreated.getOrElse(i.created_at), updatedAt
     )
   }
 
 
-  private def rowFromComment(articleId: ArticleIdModel, i: Comment) = {
+  private def rowFromComment(articleId: ArticleIdModel, i: Comment): ArticleRowModel = {
     val explicitCreated = overrideCreatedAt(i.body)
     ArticleRowModel(
       articleId, false, false, 0, bodyAbstract(i.body), i.body, false, None, i.user.displayName,
