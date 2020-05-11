@@ -100,12 +100,15 @@ class PageView(
 
   private val addRepoButton = button("Add".toProperty, buttonStyle = BootstrapStyles.Color.Success.toProperty)
 
-  private val filterButtons = UdashInputGroup()(
-    UdashInputGroup.appendCheckbox(Checkbox(model.subProp(_.filterOpen))().render),
-    UdashInputGroup.appendText("Open"),
-
-    UdashInputGroup.appendCheckbox(Checkbox(model.subProp(_.filterClosed))().render),
-    UdashInputGroup.appendText("Closed")
+  private val filterButtons = Seq(
+    UdashInputGroup()(
+      UdashInputGroup.appendCheckbox(Checkbox(model.subProp(_.filterOpen))().render),
+      UdashInputGroup.appendText("Open"),
+    ),
+    UdashInputGroup()(
+      UdashInputGroup.appendCheckbox(Checkbox(model.subProp(_.filterClosed))().render),
+      UdashInputGroup.appendText("Closed")
+    )
   )
 
 
