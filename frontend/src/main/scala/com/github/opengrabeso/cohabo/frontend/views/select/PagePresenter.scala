@@ -277,26 +277,21 @@ class PagePresenter(
     extractQuoteHeader(body).orElse(extractCommentNoteHeader(body))
   }
 
-  private def overrideEditedAt(body: String): Option[ZonedDateTime] = {
-    None
-  }
   private def rowFromIssue(i: Issue, context: ContextModel) = {
     val p = ArticleIdModel(context.organization, context.repository, i.number, None)
     val explicitCreated = overrideCreatedAt(i.body)
-    val explicitEdited = overrideEditedAt(i.body).orElse(explicitCreated)
     ArticleRowModel(
       p, i.comments > 0, true, 0, i.title, i.body, i.state == "closed", Option(i.milestone).map(_.title), i.user.displayName,
-      explicitCreated.getOrElse(i.created_at), explicitEdited.getOrElse(i.created_at), explicitEdited.getOrElse(i.updated_at)
+      explicitCreated.getOrElse(i.created_at), explicitCreated.getOrElse(i.created_at), explicitCreated.getOrElse(i.updated_at)
     )
   }
 
 
   private def rowFromComment(articleId: ArticleIdModel, i: Comment) = {
     val explicitCreated = overrideCreatedAt(i.body)
-    val explicitEdited = overrideEditedAt(i.body).orElse(explicitCreated)
     ArticleRowModel(
       articleId, false, false, 0, bodyAbstract(i.body), i.body, false, None, i.user.displayName,
-      explicitCreated.getOrElse(i.created_at), explicitEdited.getOrElse(i.updated_at), explicitEdited.getOrElse(i.updated_at)
+      explicitCreated.getOrElse(i.created_at), explicitCreated.getOrElse(i.updated_at), explicitCreated.getOrElse(i.updated_at)
     )
   }
 
