@@ -101,14 +101,25 @@ class PageView(
   private val addRepoButton = button("Add".toProperty, buttonStyle = BootstrapStyles.Color.Success.toProperty)
 
   private val filterButtons = Seq(
-    UdashInputGroup()(
-      UdashInputGroup.appendCheckbox(Checkbox(model.subProp(_.filterOpen))().render),
-      UdashInputGroup.appendText("Open"),
+    div(Grid.row)(
+      div(Grid.col(12, ResponsiveBreakpoint.Medium))(h4("State"))
     ),
-    UdashInputGroup()(
-      UdashInputGroup.appendCheckbox(Checkbox(model.subProp(_.filterClosed))().render),
-      UdashInputGroup.appendText("Closed")
-    )
+    div(Grid.row)(
+      div(Grid.col(12, ResponsiveBreakpoint.Medium))(
+        UdashInputGroup()(
+          UdashInputGroup.appendCheckbox(Checkbox(model.subProp(_.filterOpen))().render),
+          UdashInputGroup.append(span(BootstrapStyles.InputGroup.text)("Open", s.useFlex1), s.useFlex1),
+        )
+      )
+    ),
+    div(Grid.row)(
+      div(Grid.col(12, ResponsiveBreakpoint.Medium))(
+        UdashInputGroup()(
+          UdashInputGroup.appendCheckbox(Checkbox(model.subProp(_.filterClosed))().render),
+          UdashInputGroup.append(span(BootstrapStyles.InputGroup.text)("Closed", s.useFlex1), s.useFlex1),
+        )
+      )
+    ),
   )
 
 
@@ -401,9 +412,7 @@ class PageView(
           TextInput(model.subProp(_.newRepo))(),
           addRepoButton,
         ),
-        div(cls := "row")(
-          filterButtons
-        ),
+        filterButtons
       ),
       div(
         s.gridAreaFilters,
