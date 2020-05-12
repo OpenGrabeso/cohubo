@@ -325,9 +325,13 @@ class PageView(
 
     val repoAttribs = Seq[TableFactory.TableAttrib[ContextModel]](
       TableFactory.TableAttrib(
-        "", { (ar, _, _) =>
+        "", { (ar, arProp, _) =>
           val shortName = shortId(ar)
-          shortName.render
+          Seq(
+            Checkbox(globals.subProp(_.selectedContext).transform(_.contains(ar), b => if (b) Some(ar) else None))().render,
+            " ".render,
+            shortName.render
+          )
         },
         modifier = Some(ar => CssStyleName("repo-color-" + repoColor(ar)))
       ),

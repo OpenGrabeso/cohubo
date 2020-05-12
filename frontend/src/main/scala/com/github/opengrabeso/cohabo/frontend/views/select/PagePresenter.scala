@@ -141,7 +141,7 @@ class PagePresenter(
 
   def props = userService.properties
   def currentToken(): String = props.subProp(_.token).get
-  def pageContexts = userService.properties.subSeq(_.contexts).get
+  def pageContexts = userService.properties.transformToSeq(_.activeContexts).get
 
 
   val filterProps = model.subProp(_.filterOpen).combine(model.subProp(_.filterClosed))(_ -> _)
@@ -634,39 +634,37 @@ class PagePresenter(
       clearAllArticles()
       if (token != null) {
         val state = filterState()
-        for (context <- props.subProp(_.contexts).get) {
+        for (context <- props.get.activeContexts) {
           doLoadArticles(token, context, state)
         }
       }
     }
 
-    props.subSeq(_.contexts).listenStructure { patch =>
+    props.subProp(_.contexts).combine(props.subProp(_.selectedContext))(_ -> _).listen { case (cs, act) =>
+      val ac = act.orElse(cs.headOption)
       // it seems listenStructure handler is called before the table is displayed, listen is not
       // update short names
       val contexts = props.subSeq(_.contexts).get
+
+      println(s"activeContexts $ac")
 
       val names = contexts.map(c => Seq(c.organization, c.repository))
       val shortNames = ShortIds.compute(names)
       shortRepoIds = (contexts zip shortNames).toMap
 
       val token = currentToken()
-      println(s"listenStructure add ${patch.added.map(_.get).mkString(",")} remove ${patch.removed.map(_.get).mkString(",")} token: $token")
-      if (patch.clearsProperty || token.isEmpty) {
-        // completely empty - we can do much simpler cleanup (and shutdown any periodic handlers)
-        clearAllArticles()
-        clearNotifications()
-      } else {
-        val state = filterState()
-        patch.removed.map(_.get).filter(_.valid).foreach(clearArticles)
-        patch.added.map(_.get).filter(_.valid).foreach(doLoadArticles(token, _, state))
+      // completely empty - we can do much simpler cleanup (and shutdown any periodic handlers)
+      clearAllArticles()
+      clearNotifications()
+      val state = filterState()
+      ac.filter(_.valid).foreach(doLoadArticles(token, _, state))
 
-        // we currently always remember all notifications
-        // this could change if is shows there is too many of them - we could remember only the ones for the repositories we handle
-        //if (patch.added.nonEmpty) { // some repository added, we need to read full notifications as they may be relevant
-        if (scheduled.isEmpty) {
-          loadNotifications(token)
-        }
+      // we currently always remember all notifications
+      // this could change if is shows there is too many of them - we could remember only the ones for the repositories we handle
+      if (scheduled.isEmpty) {
+        loadNotifications(token)
       }
+      SettingsModel.store(props.get)
     }
     // handlers installed, execute them
     // do not touch token, that would initiate another login
