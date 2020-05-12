@@ -3,12 +3,9 @@ package frontend
 package views
 
 import com.github.opengrabeso.cohabo.frontend.dataModel.SettingsModel
-import rest.AuthorizedAPI
 import routing._
 import io.udash._
 import io.udash.bootstrap._
-import io.udash.bootstrap.button.UdashButton
-import io.udash.component.ComponentId
 import io.udash.css._
 import common.css._
 import io.udash.bootstrap.utils.BootstrapStyles._
@@ -16,7 +13,6 @@ import org.scalajs.dom
 import org.scalajs.dom.raw.HTMLElement
 
 import scala.concurrent.ExecutionContext
-import scala.util.{Failure, Success}
 
 object Root {
 

@@ -2,27 +2,22 @@ package com.github.opengrabeso.cohabo
 package frontend
 package services
 
-import common.model._
-import common.Util._
-
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import UserContextService._
-import com.github.opengrabeso.cohabo.frontend.dataModel
 import com.github.opengrabeso.cohabo.frontend.dataModel._
-import com.github.opengrabeso.cohabo.rest.AuthorizedAPI
+import com.github.opengrabeso.github.{rest => githubRest}
 import io.udash.properties.model.ModelProperty
-import org.scalajs.dom
 
 object UserContextService {
   final val normalCount = 15
 
-  class UserContextData(token: String, rpc: rest.RestAPI)(implicit ec: ExecutionContext) {
+  class UserContextData(token: String, rpc: githubRest.RestAPI)(implicit ec: ExecutionContext) {
 
-    def api: AuthorizedAPI = rpc.authorized("Bearer " + token)
+    def api: githubRest.AuthorizedAPI = rpc.authorized("Bearer " + token)
   }
 }
 
-class UserContextService(rpc: rest.RestAPI)(implicit ec: ExecutionContext) {
+class UserContextService(rpc: githubRest.RestAPI)(implicit ec: ExecutionContext) {
 
   val properties = ModelProperty(dataModel.SettingsModel())
 
@@ -41,7 +36,7 @@ class UserContextService(rpc: rest.RestAPI)(implicit ec: ExecutionContext) {
     }.failed.foreach(loginFor.failure)
   }
 
-  def call[T](f: AuthorizedAPI => Future[T]): Future[T] = {
+  def call[T](f: githubRest.AuthorizedAPI => Future[T]): Future[T] = {
     userData.future.flatMap(d => f(d.api))
   }
 }

@@ -6,11 +6,12 @@ package select
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneId, ZonedDateTime}
 
-import rest.DataWithHeaders._
+import com.github.opengrabeso.github.{rest => githubRest}
+import com.github.opengrabeso.github.model._
+import githubRest.DataWithHeaders._
 import com.softwaremill.sttp.Method
-import rest.{DataWithHeaders, RestAPIClient}
+import githubRest.DataWithHeaders
 import dataModel._
-import common.model._
 import common.Util._
 import common.ShortIds
 import routing._
@@ -136,6 +137,8 @@ class PagePresenter(
   userService: services.UserContextService
 )(implicit ec: ExecutionContext) extends Presenter[SelectPageState.type] {
 
+  val githubRestApiClient = ApplicationContext.githubRestApiClient
+
   def props = userService.properties
   def currentToken(): String = props.subProp(_.token).get
   def pageContexts = userService.properties.subSeq(_.contexts).get
@@ -210,8 +213,9 @@ class PagePresenter(
     userService.call(_.repos(context.organization, context.repository).issues(sort = "updated", state = state))
   }
 
+  //noinspection ScalaUnusedSymbol
   private def pageArticles(context: ContextModel, token: String, link: String): Future[DataWithHeaders[Seq[Issue]]] = {
-    RestAPIClient.requestWithHeaders[Issue](link, token)
+    githubRestApiClient.requestWithHeaders[Issue](link, token)
   }
 
   private def localZoneId: ZoneId = {
@@ -432,7 +436,7 @@ class PagePresenter(
 
         resp.paging.get("next") match {
           case Some(next) =>
-            RestAPIClient.requestWithHeaders[Comment](next, token).map(c => processComments(done ++ c.data, c.headers)).failed.foreach(apiDone.failure)
+            githubRestApiClient.requestWithHeaders[Comment](next, token).map(c => processComments(done ++ c.data, c.headers)).failed.foreach(apiDone.failure)
           case None =>
             val commentRows = done.zipWithIndex.map { case (c, i) =>
               rowFromComment(ArticleIdModel(context.organization, context.repository, id.issueNumber, Some(i, c.id)), c)
@@ -443,7 +447,7 @@ class PagePresenter(
 
       }
 
-      api.repos(context.organization, context.repository).issuesAPI(id.issueNumber).comments.map(c => processComments(c.data, c.headers)).failed.foreach(apiDone.failure)
+      api.repos(context.organization, context.repository).issuesAPI(id.issueNumber).comments().map(c => processComments(c.data, c.headers)).failed.foreach(apiDone.failure)
 
       apiDone.future
     }.tap(_.failed.foreach(_.printStackTrace()))
@@ -858,7 +862,7 @@ class PagePresenter(
     val unreadInfo = model.subProp(_.unreadInfo).get
     for (unread <- unreadInfo.get(id.context -> id.issueNumber)) {
       println(s"markAsRead $id, unread $unread")
-      RestAPIClient.request[Unit](method = Method.PATCH, uri = unread.threadURL, token = currentToken()).map{_ =>
+      githubRestApiClient.request[Unit](method = Method.PATCH, uri = unread.threadURL, token = currentToken()).map{_ =>
         println(s"markAsRead done - adjust unreadInfo")
       }.failed.foreach(ex =>
         println(s"Mark as read error $ex")

@@ -1,0 +1,3 @@
+[submodule "shared-js/src/main/scala/com/github/opengrabeso/github"]
+	path = shared-js/src/main/scala/com/github/opengrabeso/github
+	url = https://github.com/OpenGrabeso/github-rest-api-udash

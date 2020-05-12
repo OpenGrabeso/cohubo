@@ -4,6 +4,8 @@ package frontend
 import routing._
 import common.model._
 import io.udash._
+import com.github.opengrabeso.github
+import io.udash.rest.SttpRestClient
 
 object ApplicationContext {
   import scala.concurrent.ExecutionContext.Implicits.global
@@ -11,8 +13,10 @@ object ApplicationContext {
   private val routingRegistry = new RoutingRegistryDef
   private val viewFactoryRegistry = new StatesToViewFactoryDef
 
+  object githubRestApiClient extends github.RestAPIClient(SttpRestClient.defaultBackend())
+
   val application = new Application[RoutingState](routingRegistry, viewFactoryRegistry)
-  val userContextService = new services.UserContextService(com.github.opengrabeso.cohabo.rest.RestAPIClient.api)
+  val userContextService = new services.UserContextService(githubRestApiClient.api)
 
   /*
   val userAPI = for {
