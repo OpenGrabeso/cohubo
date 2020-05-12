@@ -6,7 +6,7 @@ import org.scalajs.dom
 
 case class SettingsModel(
   token: String = null,
-  contexts: Seq[ContextModel] = Seq.empty,
+  contexts: Seq[RepoRowModel] = Seq.empty,
   user: UserLoginModel = UserLoginModel(),
   rateLimits: Option[(Long, Long, Long)] = None // limit, remaining, reset
 )
@@ -20,7 +20,7 @@ object SettingsModel extends HasModelPropertyCreator[SettingsModel] {
   val ss = dom.window.sessionStorage
   val values = Map[String, (SettingsModel => String, (SettingsModel, String) => SettingsModel)](
     "cohubo.token" -> (_.token, (m, s) => m.copy(token = s)),
-    "cohubo.contexts" -> (s => saveContexts(s.contexts), (m, s) => m.copy(contexts = loadContexts(s)))
+    "cohubo.contexts" -> (s => saveContexts(s.contexts.map(_.context)), (m, s) => m.copy(contexts = loadContexts(s).map(RepoRowModel(_, true))))
   )
 
   def load: SettingsModel = {
