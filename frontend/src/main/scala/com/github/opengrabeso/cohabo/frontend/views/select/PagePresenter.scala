@@ -419,7 +419,7 @@ class PagePresenter(
 
   private def loadStillWanted(token: String, context: ContextModel, state: String): Boolean = {
     token == currentToken() &&
-    pageContexts.exists(_.context == context) &&
+    pageContexts.contains(context) &&
     filterState() == state
   }
 
@@ -634,21 +634,16 @@ class PagePresenter(
       clearAllArticles()
       if (token != null) {
         val state = filterState()
-        for (context <- props.subProp(_.contexts).get.filter(_.selected).map(_.context)) {
+        for (context <- props.subProp(_.contexts).get) {
           doLoadArticles(token, context, state)
         }
       }
     }
 
-    props.subSeq(_.contexts).listen { s =>
-      println(s"contexts listen $s")
-    }
-
-    props.subSeq(_.contexts).filter(_.selected).listenStructure { patch =>
-      println(s"contexts listenStructure $patch")
+    props.subSeq(_.contexts).listenStructure { patch =>
       // it seems listenStructure handler is called before the table is displayed, listen is not
       // update short names
-      val contexts = props.subSeq(_.contexts).get.map(_.context)
+      val contexts = props.subSeq(_.contexts).get
 
       val names = contexts.map(c => Seq(c.organization, c.repository))
       val shortNames = ShortIds.compute(names)
@@ -662,8 +657,8 @@ class PagePresenter(
         clearNotifications()
       } else {
         val state = filterState()
-        patch.removed.map(_.get).map(_.context).filter(_.valid).foreach(clearArticles)
-        patch.added.map(_.get).map(_.context).filter(_.valid).foreach(doLoadArticles(token, _, state))
+        patch.removed.map(_.get).filter(_.valid).foreach(clearArticles)
+        patch.added.map(_.get).filter(_.valid).foreach(doLoadArticles(token, _, state))
 
         // we currently always remember all notifications
         // this could change if is shows there is too many of them - we could remember only the ones for the repositories we handle
@@ -686,7 +681,7 @@ class PagePresenter(
   def loadMore(): Unit = {
     // TODO: be smart, decide which repositories need more issues
     val token = currentToken()
-    for (context <- pageContexts.filter(_.selected).map(_.context)) {
+    for (context <- pageContexts) {
       loadArticlesPage(token, context, "next", state = filterState()) // state should not matter for next page
     }
   }
@@ -732,8 +727,8 @@ class PagePresenter(
     val repos = props.subSeq(_.contexts)
     val repo = model.subProp(_.newRepo).get
     Try(ContextModel.parse(repo)).foreach { ctx =>
-      if (!repos.get.exists(_.context == ctx)) {
-        repos.replace(repos.size, 0, RepoRowModel(ctx, true))
+      if (!repos.get.contains(ctx)) {
+        repos.replace(repos.size, 0, ctx)
         SettingsModel.store(props.get)
       }
     }
@@ -741,7 +736,7 @@ class PagePresenter(
 
   def removeRepository(context: ContextModel): Unit = {
     val repos = props.subSeq(_.contexts)
-    val find = repos.get.indexWhere(_.context == context)
+    val find = repos.get.indexOf(context)
     if (find >= 0) {
       repos.replace(find, 1)
       SettingsModel.store(props.get)
@@ -826,7 +821,7 @@ class PagePresenter(
 
   def newIssueDone(body: String): Unit = {
     // TODO: which repository?
-    for (context <- pageContexts.filter(_.selected).map(_.context).headOption) { // remember the context across the futures, so that we can verify it has not changed
+    for (context <- pageContexts.headOption) { // remember the context across the futures, so that we can verify it has not changed
       userService.call { api =>
         api.repos(context.organization, context.repository).createIssue(
           bodyAbstract(body), // TODO: proper title

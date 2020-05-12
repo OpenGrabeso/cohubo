@@ -323,21 +323,17 @@ class PageView(
 
     val repoUrl = globals.subSeq(_.contexts)
 
-    val repoAttribs = Seq[TableFactory.TableAttrib[RepoRowModel]](
+    val repoAttribs = Seq[TableFactory.TableAttrib[ContextModel]](
       TableFactory.TableAttrib(
-        "", { (ar, arProp, _) =>
-          val shortName = shortId(ar.context)
-          Seq(
-            Checkbox(arProp.subProp(_.selected))().render,
-            " ".render,
-            shortName.render
-          )
+        "", { (ar, _, _) =>
+          val shortName = shortId(ar)
+          shortName.render
         },
-        modifier = Some(ar => CssStyleName("repo-color-" + repoColor(ar.context)))
+        modifier = Some(ar => CssStyleName("repo-color-" + repoColor(ar)))
       ),
       TableFactory.TableAttrib(
         "Repository", { (ar, _, _) =>
-        val ro = ar.context.relativeUrl
+        val ro = ar.relativeUrl
           div(
             ro,
             br(),
@@ -357,13 +353,13 @@ class PageView(
       ),
     )
 
-    implicit object repoRowHandler extends views.TableFactory.TableRowHandler[RepoRowModel, ContextModel] {
-      override def id(item: RepoRowModel) = item.context
-      override def indent(item: RepoRowModel) = 0
-      override def rowModifier(itemModel: ModelProperty[RepoRowModel]) = {
+    implicit object repoRowHandler extends views.TableFactory.TableRowHandler[ContextModel, ContextModel] {
+      override def id(item: ContextModel) = item
+      override def indent(item: ContextModel) = 0
+      override def rowModifier(itemModel: ModelProperty[ContextModel]) = {
         val id = itemModel.get
         Seq[Modifier](
-          attr("repository") := id.context.relativeUrl,
+          attr("repository") := id.relativeUrl,
         )
       }
       def tdModifier: Modifier = s.tdRepo
@@ -373,7 +369,7 @@ class PageView(
 
     val repoTable = UdashTable(repoUrl, bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
       headerFactory = Some(TableFactory.headerFactory(repoAttribs)),
-      rowFactory = TableFactory.rowFactory[RepoRowModel, ContextModel](
+      rowFactory = TableFactory.rowFactory[ContextModel, ContextModel](
         false.toProperty,
         model.subProp(_.selectedContext),
         repoAttribs
