@@ -12,6 +12,7 @@ case class ArticleRowModel(
   title: String,
   body: String,
   closed: Boolean,
+  labels: Seq[String],
   milestone: Option[String],
   createdBy: String,
   createdAt: ZonedDateTime,

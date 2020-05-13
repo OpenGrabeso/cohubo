@@ -295,7 +295,7 @@ class PagePresenter(
     }
 
     ArticleRowModel(
-      p, i.comments > 0, true, 0, i.title, i.body, i.state == "closed", Option(i.milestone).map(_.title), i.user.displayName,
+      p, i.comments > 0, true, 0, i.title, i.body, i.state == "closed", i.labels.map(_.name), Option(i.milestone).map(_.title), i.user.displayName,
       explicitCreated.getOrElse(i.created_at), explicitCreated.getOrElse(i.created_at), updatedAt
     )
   }
@@ -304,7 +304,7 @@ class PagePresenter(
   private def rowFromComment(articleId: ArticleIdModel, i: Comment): ArticleRowModel = {
     val explicitCreated = overrideCreatedAt(i.body)
     ArticleRowModel(
-      articleId, false, false, 0, bodyAbstract(i.body), i.body, false, None, i.user.displayName,
+      articleId, false, false, 0, bodyAbstract(i.body), i.body, false, Seq.empty, None, i.user.displayName,
       explicitCreated.getOrElse(i.created_at), explicitCreated.getOrElse(i.updated_at), explicitCreated.getOrElse(i.updated_at)
     )
   }

@@ -203,6 +203,16 @@ class PageView(
         CssStyleName("unread-children").styleIf(hasUnreadChildren(row))
       )
     }
+
+
+    def rowTitle(ar: ArticleRowModel) = {
+      if (ar.labels.nonEmpty) {
+        Seq(ar.title.render, " - ".render, ar.labels.mkString(", ").render) // TODO: color
+      } else {
+        Seq(ar.title.render)
+      }
+    }
+
     val attribs = Seq[DisplayAttrib](
       TableFactory.TableAttrib("#", (ar, _, _) =>
         div(
@@ -216,13 +226,13 @@ class PageView(
       TableFactory.TableAttrib("Article Title", (ar, v, _) =>
         // unicode characters rather than FontAwesome images, as those interacted badly with sticky table header
         if (ar.hasChildren && ar.preview) {
-          div(span(`class` := "preview-fold fold-open", symbols.childrenClosed), ar.title.render)
+          div(span(`class` := "preview-fold fold-open", symbols.childrenClosed), rowTitle(ar))
         } else if (ar.hasChildren && ar.indent > 0) {
-          div(span(`class` := "fold-control fold-open", symbols.childrenOpen), ar.title.render)
+          div(span(`class` := "fold-control fold-open", symbols.childrenOpen), rowTitle(ar))
         } else if (ar.hasChildren) {
-          div(span(`class` := "fold-control", symbols.childrenClosed), ar.title.render)
+          div(span(`class` := "fold-control", symbols.childrenClosed), rowTitle(ar))
         } else {
-          div(span(`class` := "no-fold fold-open", symbols.noChildren), ar.title.render)
+          div(span(`class` := "no-fold fold-open", symbols.noChildren), rowTitle(ar))
         },
         style = widthWide(50, 50),
         modifier = Some(ar => style := s"padding-left: ${indentFromLevel(ar.indent)}px") // item (td) style
