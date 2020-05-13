@@ -21,8 +21,8 @@ import scala.scalajs.js
 import scala.concurrent.duration.{span => _, _}
 import common.Util._
 import io.udash.bindings.inputs.Checkbox
-import io.udash.bootstrap.button.UdashButton
 import io.udash.bootstrap.form.UdashInputGroup
+import org.scalajs.dom
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -322,13 +322,18 @@ class PageView(
     )
 
     val repoUrl = globals.subSeq(_.contexts)
+    val repoSelected = globals.subProp(_.selectedContext).transform(_.getOrElse(repoUrl.get.head), Some(_: ContextModel))
 
     val repoAttribs = Seq[TableFactory.TableAttrib[ContextModel]](
       TableFactory.TableAttrib(
         "", { (ar, arProp, _) =>
           val shortName = shortId(ar)
+          val checked = repoSelected.transform(_ == ar)
+          // inspired by io.udash.bindings.inputs.Checkbox and io.udash.bindings.inputs.RadioButtons
           Seq(
-            Checkbox(globals.subProp(_.selectedContext).transform(_.contains(ar), b => if (b) Some(ar) else None))().render,
+            input("", tpe := "radio").render.tap(in =>
+              checked.listen(in.checked = _, initUpdate = true),
+            ).tap (_.onchange = _ => repoSelected.set(ar)),
             " ".render,
             shortName.render
           )
