@@ -13,6 +13,7 @@ import io.udash.css._
 import scalatags.JsDom.all._
 import io.udash.bootstrap._
 import BootstrapStyles._
+import com.github.opengrabeso.github.model._
 import frontend.dataModel._
 import io.udash.wrappers.jquery.{JQuery, jQ}
 import org.scalajs.dom.{Element, Node}
@@ -205,9 +206,17 @@ class PageView(
     }
 
 
-    def rowTitle(ar: ArticleRowModel) = {
+    def labelHtml(label: Label): Node = {
+      span(
+        label.name,
+        backgroundColor := "#" + label.color,
+        s.labelInline
+      ).render
+    }
+
+    def rowTitle(ar: ArticleRowModel): Seq[Node] = {
       if (ar.labels.nonEmpty) {
-        Seq(ar.title.render, " - ".render, ar.labels.mkString(", ").render) // TODO: color
+        Seq(ar.title.render, " ".render) ++ ar.labels.map(labelHtml)
       } else {
         Seq(ar.title.render)
       }

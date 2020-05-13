@@ -295,7 +295,7 @@ class PagePresenter(
     }
 
     ArticleRowModel(
-      p, i.comments > 0, true, 0, i.title, i.body, i.state == "closed", i.labels.map(_.name), Option(i.milestone).map(_.title), i.user.displayName,
+      p, i.comments > 0, true, 0, i.title, i.body, i.state == "closed", i.labels, Option(i.milestone).map(_.title), i.user.displayName,
       explicitCreated.getOrElse(i.created_at), explicitCreated.getOrElse(i.created_at), updatedAt
     )
   }

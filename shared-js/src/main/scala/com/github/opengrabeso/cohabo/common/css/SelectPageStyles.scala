@@ -61,6 +61,14 @@ object SelectPageStyles extends CommonStyle {
     flexGrow(0)
   )
 
+  val labelInline = style(
+    margin(2 px, 4 px),
+    borderRadius(4 px),
+    padding(2 px, 4 px),
+    display.inlineBlock,
+    float.right
+  )
+
   val gridAreaNavigation = style(
     gridArea := "nav",
     display.flex,
