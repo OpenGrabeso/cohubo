@@ -50,12 +50,15 @@ object SelectPageStyles extends CommonStyle {
   )
 
   val labelButtons = style(
-    display.grid,
-    gridTemplateColumns := "repeat(auto-fill, 80px)"
+    width(25 vw),
+    minWidth(200 px),
+    display.flex,
+    flexDirection.row,
+    flexWrap.wrap
   )
 
   val labelButton = style(
-    overflow.hidden
+    flexGrow(0)
   )
 
   val gridAreaNavigation = style(
