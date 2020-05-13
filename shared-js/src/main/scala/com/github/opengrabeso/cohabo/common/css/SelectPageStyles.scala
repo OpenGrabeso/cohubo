@@ -62,11 +62,16 @@ object SelectPageStyles extends CommonStyle {
   )
 
   val labelInline = style(
-    margin(2 px, 4 px),
+    margin(0 px, 4 px),
     borderRadius(4 px),
-    padding(2 px, 4 px),
+    padding(1 px, 4 px),
     display.inlineBlock,
     float.right
+  )
+
+  val userIcon = style(
+    height(0.8 em),
+    verticalAlign.baseline
   )
 
   val gridAreaNavigation = style(

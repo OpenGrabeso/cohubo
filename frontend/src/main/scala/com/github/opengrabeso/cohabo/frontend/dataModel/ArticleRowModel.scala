@@ -15,7 +15,7 @@ case class ArticleRowModel(
   closed: Boolean,
   labels: Seq[Label],
   milestone: Option[String],
-  createdBy: String,
+  createdBy: User,
   createdAt: ZonedDateTime,
   lastEditedAt: ZonedDateTime,
   updatedAt: ZonedDateTime // for an issue includes its children

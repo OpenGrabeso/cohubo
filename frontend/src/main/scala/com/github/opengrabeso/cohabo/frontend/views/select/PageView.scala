@@ -195,7 +195,7 @@ class PageView(
       // we assume id.issueNumber is not changing
       val unread = isUnread(row.get.id, row.subProp(_.lastEditedAt)).transform { b =>
         // never consider unread the issue we have authored
-        if (row.subProp(_.createdBy).get == globals.subProp(_.user.login).get) false
+        if (row.subProp(_.createdBy).get.login == globals.subProp(_.user.login).get) false
         else b
       }
       Seq(
@@ -211,6 +211,18 @@ class PageView(
         label.name,
         backgroundColor := "#" + label.color,
         s.labelInline
+      ).render
+    }
+
+    def userHtml(user: User): Node = {
+      span(
+        if (user.avatar_url != null && user.avatar_url.nonEmpty) {
+          img(
+            src := user.avatar_url,
+            s.userIcon
+          )
+        } else span(),
+        user.displayName.render
       ).render
     }
 
@@ -247,7 +259,7 @@ class PageView(
         modifier = Some(ar => style := s"padding-left: ${indentFromLevel(ar.indent)}px") // item (td) style
       ),
       TableFactory.TableAttrib("Milestone", (ar, _, _) => div(ar.milestone.getOrElse("").render).render, style = width(5, 10, 15), shortName = Some("")),
-      TableFactory.TableAttrib("Posted by", (ar, _, _) => div(ar.createdBy).render, style = width(10, 15, 20), shortName = Some("")),
+      TableFactory.TableAttrib("Posted by", (ar, _, _) => div(userHtml(ar.createdBy)).render, style = width(10, 15, 20), shortName = Some("")),
       TableFactory.TableAttrib("Created at", (ar, _, _) => div(formatDateTime(ar.createdAt.toJSDate)).render, style = width(5, 10, 15)),
       TableFactory.TableAttrib("Updated at", { (ar, _, _) =>
         if (ar.updatedAt != ar.createdAt) {
@@ -555,7 +567,7 @@ class PageView(
                     div(
                       s.selectedArticle,
                       h4(`class` := "title", span(title), span(`class` := "link", row.id.issueLinkFull(shortId(row.id.context)))),
-                      div(span(`class` := "createdBy", row.createdBy))
+                      div(span(`class` := "createdBy", userHtml(row.createdBy)))
                     ),
                     div(s.useFlex1),
                     div(editButton)
