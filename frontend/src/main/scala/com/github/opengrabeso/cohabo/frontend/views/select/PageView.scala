@@ -133,9 +133,14 @@ class PageView(
           prop,
           size = Some(BootstrapStyles.Size.Small).toProperty
           //color.toProperty
-        )(_ => Seq[Modifier](
-          label.name,
-          Spacing.margin(size = SpacingSize.ExtraSmall)
+        )(nested => Seq[Modifier](
+          Spacing.margin(size = SpacingSize.ExtraSmall),
+          nested(produce(prop) { b => Seq[Node](
+            span(
+              backgroundColor := "#" + (if (!b) label.color else "404040"),
+              label.name,
+            ).render
+          )})
         )).render
       }
 
