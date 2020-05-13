@@ -659,6 +659,18 @@ class PagePresenter(
       if (act.isEmpty) {
         clearNotifications()
       }
+
+      // load labels
+      for (context <- ac) {
+        userService.call(api => api.repos(context.organization, context.repository).labels()).onComplete {
+          case Success(value) =>
+            model.subProp(_.labels).set(value)
+          case Failure(ex) =>
+            printf(s"Error loading labels: $ex")
+            model.subProp(_.labels).set(Seq.empty)
+        }
+      }
+
       val state = filterState()
       ac.filter(_.valid).foreach(doLoadArticles(token, _, state))
 

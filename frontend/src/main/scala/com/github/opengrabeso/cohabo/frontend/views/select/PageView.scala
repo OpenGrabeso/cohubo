@@ -21,6 +21,7 @@ import scala.scalajs.js
 import scala.concurrent.duration.{span => _, _}
 import common.Util._
 import io.udash.bindings.inputs.Checkbox
+import io.udash.bootstrap.button.UdashButton
 import io.udash.bootstrap.form.UdashInputGroup
 import org.scalajs.dom
 
@@ -100,26 +101,46 @@ class PageView(
 
   private val addRepoButton = button("Add".toProperty, buttonStyle = BootstrapStyles.Color.Success.toProperty)
 
+  private def createFilterHeader(content: Modifier*) = {
+    div(Grid.row)(
+      div(Grid.col(12, ResponsiveBreakpoint.Medium))(h4(content))
+    )
+  }
+
+  private def createFilterButton(prop: Property[Boolean])(content: Modifier*) = {
+    div(Grid.row)(
+      div(Grid.col(12, ResponsiveBreakpoint.Medium))(
+        UdashInputGroup()(
+          UdashInputGroup.appendCheckbox(Checkbox(prop)().render),
+          UdashInputGroup.append(span(BootstrapStyles.InputGroup.text)((s.useFlex1:Modifier) +: content:_*), s.useFlex1),
+        )
+      )
+    )
+  }
+
   private val filterButtons = Seq(
-    div(Grid.row)(
-      div(Grid.col(12, ResponsiveBreakpoint.Medium))(h4("State"))
-    ),
-    div(Grid.row)(
-      div(Grid.col(12, ResponsiveBreakpoint.Medium))(
-        UdashInputGroup()(
-          UdashInputGroup.appendCheckbox(Checkbox(model.subProp(_.filterOpen))().render),
-          UdashInputGroup.append(span(BootstrapStyles.InputGroup.text)("Open", s.useFlex1), s.useFlex1),
-        )
-      )
-    ),
-    div(Grid.row)(
-      div(Grid.col(12, ResponsiveBreakpoint.Medium))(
-        UdashInputGroup()(
-          UdashInputGroup.appendCheckbox(Checkbox(model.subProp(_.filterClosed))().render),
-          UdashInputGroup.append(span(BootstrapStyles.InputGroup.text)("Closed", s.useFlex1), s.useFlex1),
-        )
-      )
-    ),
+    createFilterHeader("State"),
+    createFilterButton(model.subProp(_.filterOpen))("Open"),
+    createFilterButton(model.subProp(_.filterClosed))("Closed"),
+  )
+
+  private val labelButtons = Seq(
+    createFilterHeader("Labels"),
+    produceWithNested(model.subSeq(_.labels)) { (labels, nested) =>
+      labels.map { label =>
+        val prop = Property[Boolean](false) // TODO: proper property
+        UdashButton.toggle(
+          prop,
+          size = Some(BootstrapStyles.Size.Small).toProperty
+          //color.toProperty
+        )(_ => Seq[Modifier](
+          label.name,
+          Spacing.margin(size = SpacingSize.ExtraSmall)
+        )).render
+      }
+
+    }
+
   )
 
 
@@ -421,6 +442,7 @@ class PageView(
           TextInput(model.subProp(_.newRepo))(),
           addRepoButton,
         ),
+        labelButtons,
         filterButtons
       ),
       div(
