@@ -136,23 +136,29 @@ class PageView(
 
   private val labelButtons = Seq(
     createFilterHeader("Labels"),
-    produceWithNested(model.subSeq(_.labels)) { (labels, nested) =>
-      labels.map { label =>
-        val prop = Property[Boolean](false) // TODO: proper property
-        UdashButton.toggle(
-          prop,
-          size = Some(BootstrapStyles.Size.Small).toProperty
-          //color.toProperty
-        ){nested => Seq[Modifier](
-            Spacing.margin(size = SpacingSize.ExtraSmall),
-            nested(backgroundColor.bind(prop.transform(buttonColors(_, label.color)._1))),
-            nested(color.bind(prop.transform(buttonColors(_, label.color)._2))),
-            label.name
-          )
-        }.render
-      }
+    div(s.labelButtons,
+      produceWithNested(model.subSeq(_.labels)) { (labels, nested) =>
+        labels.map { label =>
+          val prop = Property[Boolean](false) // TODO: proper property
+          UdashButton.toggle(
+            prop,
+            size = Some(BootstrapStyles.Size.Small).toProperty
+            //color.toProperty
+          ){nested =>
+            Seq[Modifier](
+              Spacing.margin(size = SpacingSize.ExtraSmall),
+              nested(backgroundColor.bind(prop.transform(buttonColors(_, label.color)._1))),
+              nested(color.bind(prop.transform(buttonColors(_, label.color)._2))),
+              nested(borderWidth.bind(prop.transform(x => if (x) "4px" else "1px"))),
+              nested(padding.bind(prop.transform(x => if (x) "1px 5px" else "4px 8px"))),
+              label.name,
+              s.labelButton
+            )
+          }.render
+        }
 
-    }
+      }
+    )
 
   )
 

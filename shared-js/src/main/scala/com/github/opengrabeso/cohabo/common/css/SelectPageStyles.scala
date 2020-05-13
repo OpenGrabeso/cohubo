@@ -49,6 +49,14 @@ object SelectPageStyles extends CommonStyle {
     ),
   )
 
+  val labelButtons = style(
+    display.grid,
+    gridTemplateColumns := "repeat(auto-fill, 80px)"
+  )
+
+  val labelButton = style(
+    overflow.hidden
+  )
 
   val gridAreaNavigation = style(
     gridArea := "nav",
