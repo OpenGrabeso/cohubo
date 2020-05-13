@@ -25,7 +25,7 @@ object SettingsModel extends HasModelPropertyCreator[SettingsModel] {
     "cohubo.token" -> (_.token, (m, s) => m.copy(token = s)),
     "cohubo.contexts" -> (s => saveContexts(s.contexts), (m, s) => m.copy(contexts = loadContexts(s))),
     "cohubo.selectedContext" -> (
-      s => JsonStringOutput.write(s.selectedContext.tap(sc => println(s"Save $sc"))),
+      s => JsonStringOutput.write(s.selectedContext),
       (m, s) => m.copy(selectedContext = JsonStringInput.read[Option[ContextModel]](s))
     )
   )
@@ -41,7 +41,7 @@ object SettingsModel extends HasModelPropertyCreator[SettingsModel] {
   }
 
   def store(model: SettingsModel): Unit = {
-    println(s"Store $model")
+    //println(s"Store $model")
     for ((k, v) <- values) {
       // prefer session storage if available
       val value = v._1(model)

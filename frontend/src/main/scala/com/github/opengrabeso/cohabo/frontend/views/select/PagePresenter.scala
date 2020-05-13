@@ -539,6 +539,7 @@ class PagePresenter(
   }
 
   def clearNotifications(): Unit = {
+    println("clearNotifications")
     clearScheduled()
     lastNotifications = None
   }
@@ -655,13 +656,15 @@ class PagePresenter(
       val token = currentToken()
       // completely empty - we can do much simpler cleanup (and shutdown any periodic handlers)
       clearAllArticles()
-      clearNotifications()
+      if (act.isEmpty) {
+        clearNotifications()
+      }
       val state = filterState()
       ac.filter(_.valid).foreach(doLoadArticles(token, _, state))
 
       // we currently always remember all notifications
       // this could change if is shows there is too many of them - we could remember only the ones for the repositories we handle
-      if (scheduled.isEmpty) {
+      if (scheduled.isEmpty && act.nonEmpty) {
         loadNotifications(token)
       }
       SettingsModel.store(props.get)
