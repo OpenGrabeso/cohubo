@@ -124,6 +124,16 @@ class PageView(
     createFilterButton(model.subProp(_.filterClosed))("Closed"),
   )
 
+  private def buttonColors(b: Boolean, color: String) = {
+    import ColorUtils._
+    val bColor = Color.parseHex(color)
+    val background = if (!b) bColor else (bColor * 0.5)
+    (
+      "#" + background.toHex,
+      if (background.brightness > 90) "#000000" else "#ffffff"
+    )
+  }
+
   private val labelButtons = Seq(
     createFilterHeader("Labels"),
     produceWithNested(model.subSeq(_.labels)) { (labels, nested) =>
@@ -133,15 +143,13 @@ class PageView(
           prop,
           size = Some(BootstrapStyles.Size.Small).toProperty
           //color.toProperty
-        )(nested => Seq[Modifier](
-          Spacing.margin(size = SpacingSize.ExtraSmall),
-          nested(produce(prop) { b => Seq[Node](
-            span(
-              backgroundColor := "#" + (if (!b) label.color else "404040"),
-              label.name,
-            ).render
-          )})
-        )).render
+        ){nested => Seq[Modifier](
+            Spacing.margin(size = SpacingSize.ExtraSmall),
+            nested(backgroundColor.bind(prop.transform(buttonColors(_, label.color)._1))),
+            nested(color.bind(prop.transform(buttonColors(_, label.color)._2))),
+            label.name
+          )
+        }.render
       }
 
     }
