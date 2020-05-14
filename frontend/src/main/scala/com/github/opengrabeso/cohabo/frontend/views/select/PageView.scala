@@ -107,23 +107,6 @@ class PageView(
     )
   }
 
-  private def createFilterButton(prop: Property[Boolean])(content: Modifier*) = {
-    div(Grid.row)(
-      div(Grid.col(12, ResponsiveBreakpoint.Medium))(
-        UdashInputGroup()(
-          UdashInputGroup.appendCheckbox(Checkbox(prop)().render),
-          UdashInputGroup.append(span(BootstrapStyles.InputGroup.text)((s.useFlex1:Modifier) +: content:_*), s.useFlex1),
-        )
-      )
-    )
-  }
-
-  private val filterButtons = Seq(
-    createFilterHeader("State"),
-    createFilterButton(model.subProp(_.filterOpen))("Open"),
-    createFilterButton(model.subProp(_.filterClosed))("Closed"),
-  )
-
   private def buttonColors(b: Boolean, color: String) = {
     val bColor = Color.parseHex(color)
     val background = if (!b) bColor else bColor * 0.5
@@ -133,27 +116,42 @@ class PageView(
     )
   }
 
-  private val selectedLabels = model.subSeq(_.activeLabels)
+  private def createColoredButton(prop: ReadableProperty[Boolean], text: String, buttonColor: String) = {
+    UdashButton(size = Some(BootstrapStyles.Size.Small).toProperty) { nested =>
+      Seq[Modifier](
+        Spacing.margin(size = SpacingSize.ExtraSmall),
+        nested(backgroundColor.bind(prop.transform(buttonColors(_, buttonColor)._1))),
+        nested(color.bind(prop.transform(buttonColors(_, buttonColor)._2))),
+        nested(borderWidth.bind(prop.transform(x => if (x) "4px" else "1px"))),
+        nested(padding.bind(prop.transform(x => if (x) "1px 5px" else "4px 8px"))),
+        text,
+        s.labelButton
+      )
+    }
+  }
+
+  private def createColoredToggleButton(prop: Property[Boolean], text: String, buttonColor: String) = {
+    createColoredButton(prop, text, buttonColor).tap { _.listen {case _ =>
+      prop.set(!prop.get)
+    }}
+  }
+
+  private val filterButtons = Seq(
+    createFilterHeader("State"),
+    div(s.labelButtons,
+      createColoredToggleButton(model.subProp(_.filterOpen), "Open", "30e030"),
+      createColoredToggleButton(model.subProp(_.filterClosed), "Closed", "c03030")
+    )
+  )
+
   private val labelButtons = Seq(
     createFilterHeader("Labels"),
     div(s.labelButtons,
       produceWithNested(model.subSeq(_.labels)) { (labels, nested) =>
         labels.map { label =>
+          val selectedLabels = model.subSeq(_.activeLabels)
           val prop = selectedLabels.transform((s: Seq[String]) => s.contains(label.name))
-          UdashButton(
-            size = Some(BootstrapStyles.Size.Small).toProperty
-            //color.toProperty
-          ){nested =>
-            Seq[Modifier](
-              Spacing.margin(size = SpacingSize.ExtraSmall),
-              nested(backgroundColor.bind(prop.transform(buttonColors(_, label.color)._1))),
-              nested(color.bind(prop.transform(buttonColors(_, label.color)._2))),
-              nested(borderWidth.bind(prop.transform(x => if (x) "4px" else "1px"))),
-              nested(padding.bind(prop.transform(x => if (x) "1px 5px" else "4px 8px"))),
-              label.name,
-              s.labelButton
-            )
-          }.tap {
+          createColoredButton(prop, label.name, label.color).tap {
             _.listen { case _ =>
               if (selectedLabels.get.contains(label.name)) {
                 selectedLabels.remove(label.name)
