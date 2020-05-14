@@ -746,9 +746,8 @@ class PagePresenter(
     model.subProp(_.editing).set((false, false))
   }
 
-  def addRepository(): Unit = {
+  def addRepository(repo: String): Unit = {
     val repos = props.subSeq(_.contexts)
-    val repo = model.subProp(_.newRepo).get
     Try(ContextModel.parse(repo)).foreach { ctx =>
       if (!repos.get.contains(ctx)) {
         repos.replace(repos.size, 0, ctx)

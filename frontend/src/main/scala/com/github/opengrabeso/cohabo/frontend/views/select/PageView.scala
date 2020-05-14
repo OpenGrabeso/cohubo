@@ -29,6 +29,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Future, Promise}
 import scala.math.Ordered._
 import ColorUtils.{Color, _}
+import io.udash.bootstrap.modal.UdashModal
 
 object PageView {
   object symbols {
@@ -95,11 +96,40 @@ class PageView(
 
   private val nextPageButton = button("Load more issues".toProperty)
   private val refreshNotifications = button("Refresh notifications".toProperty)
+
   private val editButton = button("Edit".toProperty, model.subProp(_.editing).transform(_._1))
   private val editOKButton = button("OK".toProperty, buttonStyle = BootstrapStyles.Color.Success.toProperty)
   private val editCancelButton = button("Cancel".toProperty)
 
-  private val addRepoButton = button("Add".toProperty, buttonStyle = BootstrapStyles.Color.Success.toProperty)
+  private val addRepoButton = button("Add repository".toProperty, buttonStyle = BootstrapStyles.Color.Success.toProperty)
+  private val addRepoInput = Property[String]("")
+
+  private val addRepoOkButton = UdashButton(BootstrapStyles.Color.Success.toProperty)(_ => Seq[Modifier](UdashModal.CloseButtonAttr, "OK"))
+    .tap(buttonOnClick(_)(presenter.addRepository(addRepoInput.get)))
+
+  val addRepoModal = UdashModal(Some(Size.Small).toProperty)(
+    headerFactory = Some(_ => div("Add repository").render),
+    bodyFactory = Some { nested =>
+      div(
+        Spacing.margin(),
+        Card.card, Card.body, Background.color(BootstrapStyles.Color.Light),
+      )(
+        "User/Repository:",
+        TextInput(addRepoInput)()
+      ).render
+    },
+    footerFactory = Some { _ =>
+      div(
+        addRepoOkButton.render,
+        UdashButton(BootstrapStyles.Color.Danger.toProperty)(_ => Seq[Modifier](UdashModal.CloseButtonAttr, "Cancel")).render
+      ).render
+    }
+  )
+
+  def showRepoModal(): Unit = {
+    addRepoInput.set("")
+    addRepoModal.show()
+  }
 
   private def createFilterHeader(content: Modifier*) = {
     div(Grid.row)(
@@ -176,7 +206,7 @@ class PageView(
   buttonOnClick(editOKButton) {presenter.editOK()}
   buttonOnClick(editCancelButton) {presenter.editCancel()}
 
-  buttonOnClick(addRepoButton) {presenter.addRepository()}
+  buttonOnClick(addRepoButton) {showRepoModal()}
 
   private def indentFromLevel(indent: Int): Int = {
     val base = 8
@@ -492,10 +522,7 @@ class PageView(
             }
           )
         },
-        div(cls := "row justify-content-centwer")(
-          TextInput(model.subProp(_.newRepo))(),
-          addRepoButton,
-        ),
+        div(cls := "row justify-content-left")(addRepoButton),
         labelButtons,
         filterButtons
       ),
@@ -604,7 +631,12 @@ class PageView(
           )
 
         )
-      )
+      ),
+      div(
+        //display.none,
+        addRepoModal,
+      ),
+
     ).render
   }
 }

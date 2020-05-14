@@ -13,7 +13,6 @@ import com.github.opengrabeso.github.model._
 case class PageModel(
   loading: Boolean,
   articles: Seq[ArticleRowModel] = Seq.empty,
-  newRepo: String = "",
   selectedContext: Option[ContextModel] = None,
   selectedArticleId: Option[ArticleIdModel] = None,
   selectedArticleParent: Option[ArticleRowModel] = None,
