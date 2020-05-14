@@ -182,7 +182,11 @@ class PagePresenter(
     }
   }
 
-  def filterState() = listFilter(filterProps.get)
+  def filterState(): IssueFilter = {
+    val labels = model.subProp(_.activeLabels).get
+    val state = listFilter(filterProps.get)
+    IssueFilter(state, labels).tap(x => println(s"filterState $x"))
+  }
 
 
   // make sure always at least one of open / closed is active
@@ -193,7 +197,7 @@ class PagePresenter(
     if (!s) model.subProp(_.filterOpen).set(true)
   }
 
-  filterProps.listen { _ =>
+  filterProps.combine(model.subProp(_.activeLabels))(_ -> _).listen { _ =>
     // it seems we could load only the difference when extending the filter, but the trouble is with paging URLs, they need updating as well
     clearAllArticles() // this should not be necessary, contexts.touch should handle it, but this way it is more efficient
     model.subProp(_.loading).set(true)
@@ -209,8 +213,9 @@ class PagePresenter(
   }
 
 
-  private def initArticles(context: ContextModel, state: String): Future[DataWithHeaders[Seq[Issue]]] = {
-    userService.call(_.repos(context.organization, context.repository).issues(sort = "updated", state = state))
+  private def initArticles(context: ContextModel, filter: IssueFilter): Future[DataWithHeaders[Seq[Issue]]] = {
+    import filter._
+    userService.call(_.repos(context.organization, context.repository).issues(sort = "updated", state = state, labels = labels.mkString(",")))
   }
 
   //noinspection ScalaUnusedSymbol
@@ -316,10 +321,10 @@ class PagePresenter(
     }
   }
 
-  private def processIssueComments(issue: ArticleRowModel, comments: Seq[ArticleRowModel], token: String, context: ContextModel, state: String): Unit = { // the comments
+  private def processIssueComments(issue: ArticleRowModel, comments: Seq[ArticleRowModel], token: String, context: ContextModel, filter: IssueFilter): Unit = { // the comments
 
-    if (!loadStillWanted(token, context, state)) {
-      println(s"Discard pending issue for $context, state $state - repository $pageContexts")
+    if (!loadStillWanted(token, context, filter)) {
+      println(s"Discard pending issue for $context, filter $filter - repository $pageContexts")
       return
     }
 
@@ -417,13 +422,13 @@ class PagePresenter(
 
   var loadInProgress = mutable.Set.empty[Product]
 
-  private def loadStillWanted(token: String, context: ContextModel, state: String): Boolean = {
+  private def loadStillWanted(token: String, context: ContextModel, filter: IssueFilter): Boolean = {
     token == currentToken() &&
     pageContexts.contains(context) &&
-    filterState() == state
+    filterState() == filter
   }
 
-  def loadIssueComments(id: ArticleIdModel, token: String, state: String): Future[Unit] = {
+  def loadIssueComments(id: ArticleIdModel, token: String, filter: IssueFilter): Future[Unit] = {
     userService.call { api =>
       val context = id.context
       val apiDone = Promise[Unit]()
@@ -441,7 +446,7 @@ class PagePresenter(
             val commentRows = done.zipWithIndex.map { case (c, i) =>
               rowFromComment(ArticleIdModel(context.organization, context.repository, id.issueNumber, Some(i, c.id)), c)
             }
-            processIssueComments(issue, commentRows, token, context, state)
+            processIssueComments(issue, commentRows, token, context, filter)
             apiDone.success(())
         }
 
@@ -454,8 +459,13 @@ class PagePresenter(
 
   }
 
-  def loadArticlesPage(token: String, context: ContextModel, mode: String, state: String): Unit = {
-    val loadId = (token, context, mode, state)
+  case class IssueFilter(
+    state: String,
+    labels: Seq[String]
+  )
+
+  def loadArticlesPage(token: String, context: ContextModel, mode: String, filter: IssueFilter): Unit = {
+    val loadId = (token, context, mode, filter)
     // avoid the same load flying twice
     if (loadInProgress.contains(loadId)) {
       return
@@ -472,7 +482,7 @@ class PagePresenter(
         }
       case _ =>
         pagingUrls.remove(context)
-        initArticles(context, state).tap(_.onComplete {
+        initArticles(context, filter).tap(_.onComplete {
           case Failure(ex@HttpErrorException(code, _, _)) =>
             if (code != 404) {
               println(s"HTTP Error $code loading issues from ${context.relativeUrl}: $ex")
@@ -493,7 +503,7 @@ class PagePresenter(
 
       loadInProgress -= loadId
 
-      if (loadStillWanted(token, context, state)) {
+      if (loadStillWanted(token, context, filter)) {
 
         println(s"loadArticlesPage $context: Issues present ${model.subSeq(_.articles).size}")
 
@@ -525,7 +535,7 @@ class PagePresenter(
           val loadMaxComments = 10
           def wantIssue(i: Issue) = i.comments > 0 && i.comments <= loadMaxComments
           val issueFutures = (issuesOrdered zip preview).filter(c => wantIssue(c._1)).map { case (_, row) => // parent issue
-            loadIssueComments(row.id, token, state)
+            loadIssueComments(row.id, token, filter)
           }
 
           Future.sequence(issueFutures).onComplete(_ => updateRateLimits())
@@ -618,9 +628,9 @@ class PagePresenter(
   }
 
 
-  private def doLoadArticles(token: String, context: ContextModel, state: String): Unit = {
-    println(s"Load articles $context $token state = $state")
-    loadArticlesPage(token, context, "init", state = state)
+  private def doLoadArticles(token: String, context: ContextModel, filter: IssueFilter): Unit = {
+    println(s"Load articles $context $token filter = $filter")
+    loadArticlesPage(token, context, "init", filter = filter)
   }
 
   def init(): Unit = {
@@ -695,7 +705,7 @@ class PagePresenter(
     // TODO: be smart, decide which repositories need more issues
     val token = currentToken()
     for (context <- pageContexts) {
-      loadArticlesPage(token, context, "next", state = filterState()) // state should not matter for next page
+      loadArticlesPage(token, context, "next", filter = filterState()) // state should not matter for next page
     }
   }
 
@@ -846,7 +856,7 @@ class PagePresenter(
           println(s"New issue failure $ex")
         case Success(s) =>
           val newRow = rowFromIssue(s, context)
-          processIssueComments(newRow, Seq.empty, currentToken(), context, "open")
+          processIssueComments(newRow, Seq.empty, currentToken(), context, filterState())
           model.subProp(_.editing).set((false, false))
       }
     }

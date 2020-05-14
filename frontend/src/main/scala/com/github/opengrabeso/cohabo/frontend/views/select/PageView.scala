@@ -135,14 +135,14 @@ class PageView(
     )
   }
 
+  private val selectedLabels = model.subSeq(_.activeLabels)
   private val labelButtons = Seq(
     createFilterHeader("Labels"),
     div(s.labelButtons,
       produceWithNested(model.subSeq(_.labels)) { (labels, nested) =>
         labels.map { label =>
-          val prop = Property[Boolean](false) // TODO: proper property
-          UdashButton.toggle(
-            prop,
+          val prop = selectedLabels.transform((s: Seq[String]) => s.contains(label.name))
+          UdashButton(
             size = Some(BootstrapStyles.Size.Small).toProperty
             //color.toProperty
           ){nested =>
@@ -155,9 +155,16 @@ class PageView(
               label.name,
               s.labelButton
             )
+          }.tap {
+            _.listen { case _ =>
+              if (selectedLabels.get.contains(label.name)) {
+                selectedLabels.remove(label.name)
+              } else {
+                selectedLabels.append(label.name)
+              }
+            }
           }.render
         }
-
       }
     )
 

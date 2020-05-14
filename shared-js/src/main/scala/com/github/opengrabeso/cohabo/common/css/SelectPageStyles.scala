@@ -64,13 +64,14 @@ object SelectPageStyles extends CommonStyle {
   val labelInline = style(
     margin(0 px, 4 px),
     borderRadius(4 px),
-    padding(1 px, 4 px),
+    padding(0 px, 4 px),
     display.inlineBlock,
-    float.right
+    fontSize.small,
+    //float.right // look nice, but causes some lines to be wrapped
   )
 
   val userIcon = style(
-    height(0.8 em),
+    height(0.9 em),
     verticalAlign.baseline
   )
 
