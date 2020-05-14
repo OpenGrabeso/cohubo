@@ -13,12 +13,12 @@ import io.udash.css._
 import scalatags.JsDom.all._
 import io.udash.bootstrap._
 import BootstrapStyles._
+import com.github.opengrabeso.github.model._
 import frontend.dataModel._
 import io.udash.wrappers.jquery.{JQuery, jQ}
 import org.scalajs.dom.{Element, Node}
 
 import scala.scalajs.js
-import scala.concurrent.duration.{span => _, _}
 import common.Util._
 import io.udash.bindings.inputs.Checkbox
 import io.udash.bootstrap.button.UdashButton
@@ -28,6 +28,8 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Future, Promise}
 import scala.math.Ordered._
+import ColorUtils.{Color, _}
+import io.udash.bootstrap.modal.UdashModal
 
 object PageView {
   object symbols {
@@ -94,32 +96,104 @@ class PageView(
 
   private val nextPageButton = button("Load more issues".toProperty)
   private val refreshNotifications = button("Refresh notifications".toProperty)
+
   private val editButton = button("Edit".toProperty, model.subProp(_.editing).transform(_._1))
   private val editOKButton = button("OK".toProperty, buttonStyle = BootstrapStyles.Color.Success.toProperty)
   private val editCancelButton = button("Cancel".toProperty)
 
-  private val addRepoButton = button("Add".toProperty, buttonStyle = BootstrapStyles.Color.Success.toProperty)
+  private val addRepoButton = button("Add repository".toProperty, buttonStyle = BootstrapStyles.Color.Success.toProperty)
+  private val addRepoInput = Property[String]("")
+
+  private val addRepoOkButton = UdashButton(BootstrapStyles.Color.Success.toProperty)(_ => Seq[Modifier](UdashModal.CloseButtonAttr, "OK"))
+    .tap(buttonOnClick(_)(presenter.addRepository(addRepoInput.get)))
+
+  val addRepoModal = UdashModal(Some(Size.Small).toProperty)(
+    headerFactory = Some(_ => div("Add repository").render),
+    bodyFactory = Some { nested =>
+      div(
+        Spacing.margin(),
+        Card.card, Card.body, Background.color(BootstrapStyles.Color.Light),
+      )(
+        "User/Repository:",
+        TextInput(addRepoInput)()
+      ).render
+    },
+    footerFactory = Some { _ =>
+      div(
+        addRepoOkButton.render,
+        UdashButton(BootstrapStyles.Color.Danger.toProperty)(_ => Seq[Modifier](UdashModal.CloseButtonAttr, "Cancel")).render
+      ).render
+    }
+  )
+
+  def showRepoModal(): Unit = {
+    addRepoInput.set("")
+    addRepoModal.show()
+  }
+
+  private def createFilterHeader(content: Modifier*) = {
+    div(Grid.row)(
+      div(Grid.col(12, ResponsiveBreakpoint.Medium))(h4(content))
+    )
+  }
+
+  private def buttonColors(b: Boolean, color: String) = {
+    val bColor = Color.parseHex(color)
+    val background = if (!b) bColor else bColor * 0.5
+    (
+      "#" + background.toHex,
+      if (background.brightness >= 100) "#000000" else "#ffffff"
+    )
+  }
+
+  private def createColoredButton(prop: ReadableProperty[Boolean], text: String, buttonColor: String) = {
+    UdashButton(size = Some(BootstrapStyles.Size.Small).toProperty) { nested =>
+      Seq[Modifier](
+        Spacing.margin(size = SpacingSize.ExtraSmall),
+        nested(backgroundColor.bind(prop.transform(buttonColors(_, buttonColor)._1))),
+        nested(color.bind(prop.transform(buttonColors(_, buttonColor)._2))),
+        nested(borderWidth.bind(prop.transform(x => if (x) "4px" else "1px"))),
+        nested(padding.bind(prop.transform(x => if (x) "1px 5px" else "4px 8px"))),
+        text,
+        s.labelButton
+      )
+    }
+  }
+
+  private def createColoredToggleButton(prop: Property[Boolean], text: String, buttonColor: String) = {
+    createColoredButton(prop, text, buttonColor).tap { _.listen {case _ =>
+      prop.set(!prop.get)
+    }}
+  }
 
   private val filterButtons = Seq(
-    div(Grid.row)(
-      div(Grid.col(12, ResponsiveBreakpoint.Medium))(h4("State"))
-    ),
-    div(Grid.row)(
-      div(Grid.col(12, ResponsiveBreakpoint.Medium))(
-        UdashInputGroup()(
-          UdashInputGroup.appendCheckbox(Checkbox(model.subProp(_.filterOpen))().render),
-          UdashInputGroup.append(span(BootstrapStyles.InputGroup.text)("Open", s.useFlex1), s.useFlex1),
-        )
-      )
-    ),
-    div(Grid.row)(
-      div(Grid.col(12, ResponsiveBreakpoint.Medium))(
-        UdashInputGroup()(
-          UdashInputGroup.appendCheckbox(Checkbox(model.subProp(_.filterClosed))().render),
-          UdashInputGroup.append(span(BootstrapStyles.InputGroup.text)("Closed", s.useFlex1), s.useFlex1),
-        )
-      )
-    ),
+    createFilterHeader("State"),
+    div(s.labelButtons,
+      createColoredToggleButton(model.subProp(_.filterOpen), "Open", "30e030"),
+      createColoredToggleButton(model.subProp(_.filterClosed), "Closed", "c03030")
+    )
+  )
+
+  private val labelButtons = Seq(
+    createFilterHeader("Labels"),
+    div(s.labelButtons,
+      produceWithNested(model.subSeq(_.labels)) { (labels, nested) =>
+        labels.map { label =>
+          val selectedLabels = model.subSeq(_.activeLabels)
+          val prop = selectedLabels.transform((s: Seq[String]) => s.contains(label.name))
+          createColoredButton(prop, label.name, label.color).tap {
+            _.listen { case _ =>
+              if (selectedLabels.get.contains(label.name)) {
+                selectedLabels.remove(label.name)
+              } else {
+                selectedLabels.append(label.name)
+              }
+            }
+          }.render
+        }
+      }
+    )
+
   )
 
 
@@ -132,7 +206,7 @@ class PageView(
   buttonOnClick(editOKButton) {presenter.editOK()}
   buttonOnClick(editCancelButton) {presenter.editCancel()}
 
-  buttonOnClick(addRepoButton) {presenter.addRepository()}
+  buttonOnClick(addRepoButton) {showRepoModal()}
 
   private def indentFromLevel(indent: Int): Int = {
     val base = 8
@@ -154,7 +228,7 @@ class PageView(
       // we assume id.issueNumber is not changing
       val unread = isUnread(row.get.id, row.subProp(_.lastEditedAt)).transform { b =>
         // never consider unread the issue we have authored
-        if (row.subProp(_.createdBy).get == globals.subProp(_.user.login).get) false
+        if (row.subProp(_.createdBy).get.login == globals.subProp(_.user.login).get) false
         else b
       }
       Seq(
@@ -163,6 +237,37 @@ class PageView(
         CssStyleName("unread-children").styleIf(hasUnreadChildren(row))
       )
     }
+
+
+    def labelHtml(label: Label): Node = {
+      span(
+        label.name,
+        backgroundColor := "#" + label.color,
+        color := (if (Color.parseHex(label.color).brightness >= 100) "#000000" else "#ffffff"),
+        s.labelInline
+      ).render
+    }
+
+    def userHtml(user: User): Node = {
+      span(
+        if (user.avatar_url != null && user.avatar_url.nonEmpty) {
+          img(
+            src := user.avatar_url,
+            s.userIcon
+          )
+        } else span(),
+        user.displayName.render
+      ).render
+    }
+
+    def rowTitle(ar: ArticleRowModel): Seq[Node] = {
+      if (ar.labels.nonEmpty) {
+        Seq(ar.title.render, " ".render) ++ ar.labels.map(labelHtml)
+      } else {
+        Seq(ar.title.render)
+      }
+    }
+
     val attribs = Seq[DisplayAttrib](
       TableFactory.TableAttrib("#", (ar, _, _) =>
         div(
@@ -176,19 +281,19 @@ class PageView(
       TableFactory.TableAttrib("Article Title", (ar, v, _) =>
         // unicode characters rather than FontAwesome images, as those interacted badly with sticky table header
         if (ar.hasChildren && ar.preview) {
-          div(span(`class` := "preview-fold fold-open", symbols.childrenClosed), ar.title.render)
+          div(span(`class` := "preview-fold fold-open", symbols.childrenClosed), rowTitle(ar))
         } else if (ar.hasChildren && ar.indent > 0) {
-          div(span(`class` := "fold-control fold-open", symbols.childrenOpen), ar.title.render)
+          div(span(`class` := "fold-control fold-open", symbols.childrenOpen), rowTitle(ar))
         } else if (ar.hasChildren) {
-          div(span(`class` := "fold-control", symbols.childrenClosed), ar.title.render)
+          div(span(`class` := "fold-control", symbols.childrenClosed), rowTitle(ar))
         } else {
-          div(span(`class` := "no-fold fold-open", symbols.noChildren), ar.title.render)
+          div(span(`class` := "no-fold fold-open", symbols.noChildren), rowTitle(ar))
         },
         style = widthWide(50, 50),
         modifier = Some(ar => style := s"padding-left: ${indentFromLevel(ar.indent)}px") // item (td) style
       ),
       TableFactory.TableAttrib("Milestone", (ar, _, _) => div(ar.milestone.getOrElse("").render).render, style = width(5, 10, 15), shortName = Some("")),
-      TableFactory.TableAttrib("Posted by", (ar, _, _) => div(ar.createdBy).render, style = width(10, 15, 20), shortName = Some("")),
+      TableFactory.TableAttrib("Posted by", (ar, _, _) => div(userHtml(ar.createdBy)).render, style = width(10, 15, 20), shortName = Some("")),
       TableFactory.TableAttrib("Created at", (ar, _, _) => div(formatDateTime(ar.createdAt.toJSDate)).render, style = width(5, 10, 15)),
       TableFactory.TableAttrib("Updated at", { (ar, _, _) =>
         if (ar.updatedAt != ar.createdAt) {
@@ -322,22 +427,27 @@ class PageView(
     )
 
     val repoUrl = globals.subSeq(_.contexts)
+    val repoSelected = globals.subProp(_.selectedContext).transform(_.getOrElse(repoUrl.get.head), Some(_: ContextModel))
 
-    val repoAttribs = Seq[TableFactory.TableAttrib[RepoRowModel]](
+    val repoAttribs = Seq[TableFactory.TableAttrib[ContextModel]](
       TableFactory.TableAttrib(
         "", { (ar, arProp, _) =>
-          val shortName = shortId(ar.context)
+          val shortName = shortId(ar)
+          val checked = repoSelected.transform(_ == ar)
+          // inspired by io.udash.bindings.inputs.Checkbox and io.udash.bindings.inputs.RadioButtons
           Seq(
-            Checkbox(arProp.subProp(_.selected))().render,
+            input("", tpe := "radio").render.tap(in =>
+              checked.listen(in.checked = _, initUpdate = true),
+            ).tap (_.onchange = _ => repoSelected.set(ar)),
             " ".render,
             shortName.render
           )
         },
-        modifier = Some(ar => CssStyleName("repo-color-" + repoColor(ar.context)))
+        modifier = Some(ar => CssStyleName("repo-color-" + repoColor(ar)))
       ),
       TableFactory.TableAttrib(
         "Repository", { (ar, _, _) =>
-        val ro = ar.context.relativeUrl
+        val ro = ar.relativeUrl
           div(
             ro,
             br(),
@@ -357,13 +467,13 @@ class PageView(
       ),
     )
 
-    implicit object repoRowHandler extends views.TableFactory.TableRowHandler[RepoRowModel, ContextModel] {
-      override def id(item: RepoRowModel) = item.context
-      override def indent(item: RepoRowModel) = 0
-      override def rowModifier(itemModel: ModelProperty[RepoRowModel]) = {
+    implicit object repoRowHandler extends views.TableFactory.TableRowHandler[ContextModel, ContextModel] {
+      override def id(item: ContextModel) = item
+      override def indent(item: ContextModel) = 0
+      override def rowModifier(itemModel: ModelProperty[ContextModel]) = {
         val id = itemModel.get
         Seq[Modifier](
-          attr("repository") := id.context.relativeUrl,
+          attr("repository") := id.relativeUrl,
         )
       }
       def tdModifier: Modifier = s.tdRepo
@@ -373,7 +483,7 @@ class PageView(
 
     val repoTable = UdashTable(repoUrl, bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
       headerFactory = Some(TableFactory.headerFactory(repoAttribs)),
-      rowFactory = TableFactory.rowFactory[RepoRowModel, ContextModel](
+      rowFactory = TableFactory.rowFactory[ContextModel, ContextModel](
         false.toProperty,
         model.subProp(_.selectedContext),
         repoAttribs
@@ -412,10 +522,8 @@ class PageView(
             }
           )
         },
-        div(cls := "row justify-content-centwer")(
-          TextInput(model.subProp(_.newRepo))(),
-          addRepoButton,
-        ),
+        div(cls := "row justify-content-left")(addRepoButton),
+        labelButtons,
         filterButtons
       ),
       div(
@@ -490,7 +598,7 @@ class PageView(
                     div(
                       s.selectedArticle,
                       h4(`class` := "title", span(title), span(`class` := "link", row.id.issueLinkFull(shortId(row.id.context)))),
-                      div(span(`class` := "createdBy", row.createdBy))
+                      div(span(`class` := "createdBy", userHtml(row.createdBy)))
                     ),
                     div(s.useFlex1),
                     div(editButton)
@@ -523,7 +631,12 @@ class PageView(
           )
 
         )
-      )
+      ),
+      div(
+        //display.none,
+        addRepoModal,
+      ),
+
     ).render
   }
 }

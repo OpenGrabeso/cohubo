@@ -49,6 +49,31 @@ object SelectPageStyles extends CommonStyle {
     ),
   )
 
+  val labelButtons = style(
+    width(25 vw),
+    minWidth(200 px),
+    display.flex,
+    flexDirection.row,
+    flexWrap.wrap
+  )
+
+  val labelButton = style(
+    flexGrow(0)
+  )
+
+  val labelInline = style(
+    margin(0 px, 4 px),
+    borderRadius(4 px),
+    padding(0 px, 4 px),
+    display.inlineBlock,
+    fontSize.small,
+    //float.right // look nice, but causes some lines to be wrapped
+  )
+
+  val userIcon = style(
+    height(0.9 em),
+    verticalAlign.baseline
+  )
 
   val gridAreaNavigation = style(
     gridArea := "nav",

@@ -2,6 +2,7 @@ package com.github.opengrabeso.cohabo.frontend.dataModel
 
 import java.time.ZonedDateTime
 
+import com.github.opengrabeso.github.model._
 import io.udash.HasModelPropertyCreator
 
 case class ArticleRowModel(
@@ -12,8 +13,9 @@ case class ArticleRowModel(
   title: String,
   body: String,
   closed: Boolean,
+  labels: Seq[Label],
   milestone: Option[String],
-  createdBy: String,
+  createdBy: User,
   createdAt: ZonedDateTime,
   lastEditedAt: ZonedDateTime,
   updatedAt: ZonedDateTime // for an issue includes its children
