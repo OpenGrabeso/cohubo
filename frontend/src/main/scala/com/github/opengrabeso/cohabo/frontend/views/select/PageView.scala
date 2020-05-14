@@ -19,17 +19,16 @@ import io.udash.wrappers.jquery.{JQuery, jQ}
 import org.scalajs.dom.{Element, Node}
 
 import scala.scalajs.js
-import scala.concurrent.duration.{span => _, _}
 import common.Util._
 import io.udash.bindings.inputs.Checkbox
 import io.udash.bootstrap.button.UdashButton
 import io.udash.bootstrap.form.UdashInputGroup
-import org.scalajs.dom
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Future, Promise}
 import scala.math.Ordered._
+import ColorUtils.{Color, _}
 
 object PageView {
   object symbols {
@@ -126,12 +125,11 @@ class PageView(
   )
 
   private def buttonColors(b: Boolean, color: String) = {
-    import ColorUtils._
     val bColor = Color.parseHex(color)
-    val background = if (!b) bColor else (bColor * 0.5)
+    val background = if (!b) bColor else bColor * 0.5
     (
       "#" + background.toHex,
-      if (background.brightness > 90) "#000000" else "#ffffff"
+      if (background.brightness >= 100) "#000000" else "#ffffff"
     )
   }
 
@@ -217,6 +215,7 @@ class PageView(
       span(
         label.name,
         backgroundColor := "#" + label.color,
+        color := (if (Color.parseHex(label.color).brightness >= 100) "#000000" else "#ffffff"),
         s.labelInline
       ).render
     }
