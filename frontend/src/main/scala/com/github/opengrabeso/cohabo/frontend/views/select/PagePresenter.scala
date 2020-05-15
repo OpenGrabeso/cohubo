@@ -185,7 +185,7 @@ class PagePresenter(
   def filterState(): IssueFilter = {
     val labels = model.subProp(_.activeLabels).get
     val state = listFilter(filterProps.get)
-    IssueFilter(state, labels).tap(x => println(s"filterState $x"))
+    IssueFilter(state, labels)
   }
 
 
