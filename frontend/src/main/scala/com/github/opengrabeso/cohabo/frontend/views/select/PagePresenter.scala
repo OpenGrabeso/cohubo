@@ -148,6 +148,9 @@ class PagePresenter(
 
   val pagingUrls =  mutable.Map.empty[ContextModel, Map[String, String]]
 
+  var issuesPending = mutable.Set.empty[(ContextModel, Long)]
+  var commentsPending = mutable.Set.empty[(ContextModel, Long)]
+
   var lastNotifications =  Option.empty[String]
   var scheduled = Option.empty[SetTimeoutHandle]
 
@@ -324,7 +327,7 @@ class PagePresenter(
   private def processIssueComments(issue: ArticleRowModel, comments: Seq[ArticleRowModel], token: String, context: ContextModel, filter: IssueFilter): Unit = { // the comments
 
     if (!loadStillWanted(token, context, filter)) {
-      println(s"Discard pending issue for $context, filter $filter - repository $pageContexts")
+      println(s"Discard pending issue for $context, filter $filter, current $pageContexts, filter ${filterState()}")
       return
     }
 
@@ -464,6 +467,28 @@ class PagePresenter(
     labels: Seq[String]
   )
 
+  def insertIssues(preview: Seq[ArticleRowModel]): Unit = {
+    model.subSeq(_.articles).tap { as =>
+      //println(s"Insert articles at ${a.size}")
+      for (i <- preview) { // insert the issues one by one, each at the suitable location
+        import common.Util._
+        // if the issue already exists, remove it first, we will update it
+        val existingLocationStart = as.get.indexWhere(a => a.id.sameIssue(i.id))
+
+        if (existingLocationStart >= 0) {
+          val existingLocationEnd = as.get.indexWhere(a => a.id.sameIssue(i.id), existingLocationStart)
+          println(s"Remove existing issue $i from $existingLocationStart..$existingLocationEnd")
+          as.replace(existingLocationStart, existingLocationEnd + 1 - existingLocationStart)
+        }
+        // find an article which is not newer then we are, insert before it
+        // we must insert only above a top-level article (issue, not a comment)
+        val insertLocation = as.get.indexWhere(a => a.id.id.isEmpty && a.updatedAt <= i.updatedAt)
+        //println(s"Insert location for ${i.id} $insertLocation of ${as.size}")
+        as.replace(if (insertLocation >= 0) insertLocation else as.size, 0, i)
+      }
+    }
+  }
+
   def loadArticlesPage(token: String, context: ContextModel, mode: String, filter: IssueFilter): Unit = {
     val loadId = (token, context, mode, filter)
     // avoid the same load flying twice
@@ -518,17 +543,8 @@ class PagePresenter(
         // preview the issues
         val preview = issuesOrdered.map(rowFromIssue(_, context))
 
-        model.subSeq(_.articles).tap { as =>
-          //println(s"Insert articles at ${a.size}")
-          for (i <- preview) { // insert the issues one by one, each at the suitable location
-            import common.Util._
-            // find an article which is not newer then we are, insert before it
-            // we must insert only above a top-level article (issue, not a comment)
-            val insertLocation = as.get.indexWhere(a => a.id.id.isEmpty && a.updatedAt <= i.updatedAt)
-            //println(s"Insert location for ${i.id} $insertLocation of ${as.size}")
-            as.replace(if (insertLocation >= 0) insertLocation else as.size, 0, i)
-          }
-        }
+        //println(s"Loaded issues ${preview.map(_.id)}")
+        insertIssues(preview)
         model.subProp(_.loading).set(false)
 
         if (true) {
@@ -552,6 +568,8 @@ class PagePresenter(
     println("clearNotifications")
     clearScheduled()
     lastNotifications = None
+    issuesPending = mutable.Set.empty
+    commentsPending = mutable.Set.empty
   }
 
   private def clearScheduled(): Unit = {
@@ -561,6 +579,7 @@ class PagePresenter(
 
   def loadNotifications(token: String): Unit  = {
     val logging = true
+    val filter = filterState()
 
     clearScheduled()
 
@@ -577,18 +596,74 @@ class PagePresenter(
       // TODO:  we need paging if there are many notifications
       if (logging) println(s"Notifications ${notifications.data.size} headers ${notifications.headers}")
 
-      val newUnreadData = notifications.data.filter(_.unread).flatMap{ n =>
+      val newUnreadData = notifications.data.filter(_.unread).filter(_.subject.`type` == "Issue").flatMap{ n =>
         //println(s"Unread ${n.subject}")
         //println(s"  last_read_at ${n.last_read_at}, updated_at: ${n.updated_at}")
         // URL is like: https://api.github.com/repos/gamatron/colabo/issues/26
         val NotificationSource = ".*/repos/(.+)/(.+)/issues/([0-9]+)".r
         val issueId = n.subject.url match {
           case NotificationSource(owner, repo, number) =>
-            Seq((ContextModel(owner, repo), number.toLong))
+            Some((ContextModel(owner, repo), number.toLong))
           case _ =>
-            Seq.empty
+            None
         }
+
+        // comment URL is like: https://api.github.com/repos/stravissimo/cohubo-test/issues/comments/629224546
+        // a proper way would be to download the article from the URL instead of parsing it
+        // an alternative would be do download all "new" articles (since the most recent one known)
+        val NotificationComment = ".*/repos/(.+)/(.+)/issues/comments/([0-9]+)".r
+        val commentId = n.subject.latest_comment_url match {
+          case NotificationComment(owner, repo, number) =>
+            Some((ContextModel(owner, repo), number.toLong))
+          case _ =>
+            None
+        }
+
+
+        // TODO: it might be better to delay processing of first notifications after the first article list is loaded
+        // check if we known the issue / comment, if not, make sure we download it
+        for {
+          id <- issueId
+          if pageContexts.contains(ContextModel(n.repository.owner.login, n.repository.name))
+        } {
+          val as = model.subSeq(_.articles).get
+          val issueKnown = as.exists(a => a.id.issueNumber == id._2 && a.id.context == id._1)
+          val commentKnown = commentId.exists(cid => as.exists(a => a.id.id.exists(_._2 == cid._2) && a.id.context == cid._1))
+          if (!issueKnown) {
+            println(s"Unknown issue $issueId")
+
+            if (!issuesPending.contains(id)) {
+              println(s"  Download issue $id, pending $issuesPending")
+              issuesPending += id
+
+              // do not download
+              userService.call { u =>
+                u.repos(id._1.organization, id._1.repository).issuesAPI(id._2).get
+              }.foreach { i =>
+                println(s"  Downloaded issue $id")
+                issuesPending -= id
+                val row = rowFromIssue(i, ContextModel(id._1.organization, id._1.repository))
+                insertIssues(Seq(row))
+                // TODO: insert the issue
+                assert(i.number == id._2)
+                val aid = ArticleIdModel(id._1.organization, id._1.repository, i.number, None)
+                loadIssueComments(aid, token, filter)
+              }
+            }
+          } else if (!commentKnown) {
+            println(s"Unknown comment $commentId for issue $issueId")
+            if (!commentsPending.contains(id) && !issuesPending.contains(id)) {
+              commentsPending += id
+              println(s"  Download comments for $id")
+              val filter = filterState()
+              val aid = ArticleIdModel(id._1.organization, id._1.repository, id._2, None)
+              loadIssueComments(aid, token, filter).foreach(_ => commentsPending -= id)
+            }
+          }
+        }
+
         issueId.map(_ -> UnreadInfo(n.updated_at, n.last_read_at, n.url))
+
       }.toMap
 
       if (lastNotifications.nonEmpty) {
