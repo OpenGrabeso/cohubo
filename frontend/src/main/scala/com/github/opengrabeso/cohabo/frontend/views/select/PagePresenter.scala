@@ -160,12 +160,15 @@ class PagePresenter(
         println(s"Query $result")
         val labels = result.collect { case LabelQuery(x) => x}
         val states = result.collectFirst { case StateQuery(x) => x } // when states are conflicting, prefer the first one
+        // anything unsupported by the issue query means we have to use the search API
+        val isSearch = result.collectFirst { case SearchWordQuery(word) => word }.nonEmpty
         // verify the labels are valid, if not, ignore the filter (happens while typing)
         val allLabels = model.subProp(_.labels).get.map(_.name).toSet
         if (labels.forall(allLabels.contains)) {
           model.subProp(_.activeLabels).set(labels)
           model.subProp(_.filterOpen).set(!states.contains(false))
           model.subProp(_.filterClosed).set(!states.contains(true))
+          model.subProp(_.useSearch).set(isSearch)
         }
       case _: ParseFilterQuery.NoSuccess =>
     }
@@ -173,6 +176,9 @@ class PagePresenter(
 
 
   queryFilter.streamTo(model.subProp(_.filterExpression)) { case ((open, closed), labels) =>
+    // if search is detected, leave the query alone
+    // TODO: combine supported and unsupported query terms
+    if (model.subProp(_.useSearch).get) model.subProp(_.filterExpression).get
     val openClosedQuery = (open, closed) match {
       case (true, true) => ""
       case (true, false) => "is:open"
