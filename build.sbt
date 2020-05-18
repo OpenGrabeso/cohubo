@@ -23,7 +23,11 @@ lazy val commonSettings = Seq(
   libraryDependencies += "io.udash" %%% "udash-core" % udashVersion,
   libraryDependencies += "io.udash" %%% "udash-rest" % udashVersion,
   libraryDependencies += "io.udash" %%% "udash-rpc" % udashVersion,
-  libraryDependencies += "io.udash" %%% "udash-css" % udashVersion
+  libraryDependencies += "io.udash" %%% "udash-css" % udashVersion,
+
+  libraryDependencies += "io.udash" %%% "udash-css" % udashVersion,
+
+  libraryDependencies += "org.scala-lang.modules" %%% "scala-parser-combinators" % "1.1.2"
 )
 
 lazy val jsCommonSettings = Seq(

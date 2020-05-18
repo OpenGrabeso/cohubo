@@ -24,6 +24,7 @@ import scala.concurrent.duration._
 import scala.scalajs.js.timers._
 import scala.util.{Failure, Success, Try}
 import TimeFormatting._
+import QueryAST._
 import io.udash.wrappers.jquery.jQ
 import org.scalajs.dom
 
@@ -151,6 +152,24 @@ class PagePresenter(
 
   val stateFilterProps = model.subProp(_.filterOpen) ** model.subProp(_.filterClosed)
   val queryFilter = stateFilterProps ** model.subProp(_.activeLabels)
+
+  model.subProp(_.filterExpression).listen { expr =>
+    // cyclical execution does not happen because the properties are set to the value they already have
+    ParseFilterQuery(expr) match {
+      case ParseFilterQuery.Success(result, next) =>
+        println(s"Query $result")
+        val labels = result.collect { case LabelQuery(x) => x}
+        val states = result.collectFirst { case StateQuery(x) => x } // when states are conflicting, prefer the first one
+        // verify the labels are valid, if not, ignore the filter (happens while typing)
+        val allLabels = model.subProp(_.labels).get.map(_.name).toSet
+        if (labels.forall(allLabels.contains)) {
+          model.subProp(_.activeLabels).set(labels)
+          model.subProp(_.filterOpen).set(!states.contains(false))
+          model.subProp(_.filterClosed).set(!states.contains(true))
+        }
+      case _: ParseFilterQuery.NoSuccess =>
+    }
+  }
 
 
   queryFilter.streamTo(model.subProp(_.filterExpression)) { case ((open, closed), labels) =>
