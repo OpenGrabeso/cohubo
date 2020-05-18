@@ -20,9 +20,7 @@ import org.scalajs.dom.{Element, Node}
 
 import scala.scalajs.js
 import common.Util._
-import io.udash.bindings.inputs.Checkbox
 import io.udash.bootstrap.button.UdashButton
-import io.udash.bootstrap.form.UdashInputGroup
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
