@@ -84,7 +84,15 @@ object SelectPageStyles extends CommonStyle {
   val gridAreaFilters = style(
     gridArea := "filters",
     display.flex,
-    flexDirection.row
+    flexDirection.column
+  )
+
+  val filterExpression = style(
+    flexDirection.row,
+    flexGrow(1)
+  )
+  val filterExpressionInput = style(
+    width(100 %%)
   )
 
   val gridAreaTableContainer = style(

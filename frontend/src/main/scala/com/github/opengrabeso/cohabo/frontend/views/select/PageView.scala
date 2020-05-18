@@ -27,6 +27,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Future, Promise}
 import scala.math.Ordered._
 import ColorUtils.{Color, _}
+import io.udash.bindings.inputs
 import io.udash.bootstrap.modal.UdashModal
 
 object PageView {
@@ -528,10 +529,17 @@ class PageView(
         showIfElse(model.subProp(_.loading))(
           Seq.empty,
           Seq[Node](
-            nextPageButton.render,
-            refreshNotifications.render,
-            div(s.useFlex1).render,
-            newIssueButton.render,
+            div(
+              s.filterExpression,
+              inputs.TextInput(model.subProp(_.filterExpression))(s.filterExpressionInput)
+            ).render,
+            div(
+              s.flexRow,
+              nextPageButton.render,
+              refreshNotifications.render,
+              div(s.useFlex1).render,
+              newIssueButton.render,
+            ).render
           )
         )
       ),
