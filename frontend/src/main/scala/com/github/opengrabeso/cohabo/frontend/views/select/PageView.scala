@@ -526,13 +526,13 @@ class PageView(
       ),
       div(
         s.gridAreaFilters,
+        div(
+          s.filterExpression,
+          inputs.TextInput(model.subProp(_.filterExpression))(s.filterExpressionInput)
+        ).render,
         showIfElse(model.subProp(_.loading))(
           Seq.empty,
           Seq[Node](
-            div(
-              s.filterExpression,
-              inputs.TextInput(model.subProp(_.filterExpression))(s.filterExpressionInput)
-            ).render,
             div(
               s.flexRow,
               nextPageButton.render,

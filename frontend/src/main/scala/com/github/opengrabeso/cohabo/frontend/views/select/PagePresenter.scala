@@ -144,7 +144,25 @@ class PagePresenter(
   def pageContexts = userService.properties.transformToSeq(_.activeContexts).get
 
 
-  val filterProps = model.subProp(_.filterOpen).combine(model.subProp(_.filterClosed))(_ -> _)
+  implicit class TupleCombine[T](a: ReadableProperty[T]) {
+    def tuple[X](b: ReadableProperty[X]): ReadableProperty[(T, X)] = a.combine(b)(_ -> _)
+    @inline def **[X](b: ReadableProperty[X]): ReadableProperty[(T, X)] = a.tuple(b)
+  }
+
+  val stateFilterProps = model.subProp(_.filterOpen) ** model.subProp(_.filterClosed)
+  val queryFilter = stateFilterProps ** model.subProp(_.activeLabels)
+
+
+  queryFilter.streamTo(model.subProp(_.filterExpression)) { case ((open, closed), labels) =>
+    val openClosedQuery = (open, closed) match {
+      case (true, true) => ""
+      case (true, false) => "is:open"
+      case (false, true) => "is:closed"
+      case (false, false) => "" // should not happen
+    }
+    val labelsQuery = labels.map(l => s"label:$l")
+    (openClosedQuery +: labelsQuery).mkString(" ")
+  }
 
   val pagingUrls =  mutable.Map.empty[ContextModel, Map[String, String]]
 
@@ -187,7 +205,7 @@ class PagePresenter(
 
   def filterState(): IssueFilter = {
     val labels = model.subProp(_.activeLabels).get
-    val state = listFilter(filterProps.get)
+    val state = listFilter(stateFilterProps.get)
     IssueFilter(state, labels)
   }
 
@@ -200,7 +218,7 @@ class PagePresenter(
     if (!s) model.subProp(_.filterOpen).set(true)
   }
 
-  filterProps.combine(model.subProp(_.activeLabels))(_ -> _).listen { _ =>
+  queryFilter.listen { _ =>
     // it seems we could load only the difference when extending the filter, but the trouble is with paging URLs, they need updating as well
     clearAllArticles() // this should not be necessary, contexts.touch should handle it, but this way it is more efficient
     model.subProp(_.loading).set(true)
