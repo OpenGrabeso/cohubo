@@ -24,6 +24,7 @@ import scala.concurrent.duration._
 import scala.scalajs.js.timers._
 import scala.util.{Failure, Success, Try}
 import TimeFormatting._
+import QueryAST._
 import io.udash.wrappers.jquery.jQ
 import org.scalajs.dom
 
@@ -144,7 +145,43 @@ class PagePresenter(
   def pageContexts = userService.properties.transformToSeq(_.activeContexts).get
 
 
-  val filterProps = model.subProp(_.filterOpen).combine(model.subProp(_.filterClosed))(_ -> _)
+  implicit class TupleCombine[T](a: ReadableProperty[T]) {
+    def tuple[X](b: ReadableProperty[X]): ReadableProperty[(T, X)] = a.combine(b)(_ -> _)
+    @inline def **[X](b: ReadableProperty[X]): ReadableProperty[(T, X)] = a.tuple(b)
+  }
+
+  val stateFilterProps = model.subProp(_.filterOpen) ** model.subProp(_.filterClosed)
+  val queryFilter = stateFilterProps ** model.subProp(_.activeLabels)
+
+  model.subProp(_.filterExpression).listen { expr =>
+    // cyclical execution does not happen because the properties are set to the value they already have
+    ParseFilterQuery(expr) match {
+      case ParseFilterQuery.Success(result, next) =>
+        println(s"Query $result")
+        val labels = result.collect { case LabelQuery(x) => x}
+        val states = result.collectFirst { case StateQuery(x) => x } // when states are conflicting, prefer the first one
+        // verify the labels are valid, if not, ignore the filter (happens while typing)
+        val allLabels = model.subProp(_.labels).get.map(_.name).toSet
+        if (labels.forall(allLabels.contains)) {
+          model.subProp(_.activeLabels).set(labels)
+          model.subProp(_.filterOpen).set(!states.contains(false))
+          model.subProp(_.filterClosed).set(!states.contains(true))
+        }
+      case _: ParseFilterQuery.NoSuccess =>
+    }
+  }
+
+
+  queryFilter.streamTo(model.subProp(_.filterExpression)) { case ((open, closed), labels) =>
+    val openClosedQuery = (open, closed) match {
+      case (true, true) => ""
+      case (true, false) => "is:open"
+      case (false, true) => "is:closed"
+      case (false, false) => "" // should not happen
+    }
+    val labelsQuery = labels.map(l => s"label:$l")
+    (openClosedQuery +: labelsQuery).mkString(" ")
+  }
 
   val pagingUrls =  mutable.Map.empty[ContextModel, Map[String, String]]
 
@@ -187,7 +224,7 @@ class PagePresenter(
 
   def filterState(): IssueFilter = {
     val labels = model.subProp(_.activeLabels).get
-    val state = listFilter(filterProps.get)
+    val state = listFilter(stateFilterProps.get)
     IssueFilter(state, labels)
   }
 
@@ -200,7 +237,7 @@ class PagePresenter(
     if (!s) model.subProp(_.filterOpen).set(true)
   }
 
-  filterProps.combine(model.subProp(_.activeLabels))(_ -> _).listen { _ =>
+  queryFilter.listen { _ =>
     // it seems we could load only the difference when extending the filter, but the trouble is with paging URLs, they need updating as well
     clearAllArticles() // this should not be necessary, contexts.touch should handle it, but this way it is more efficient
     model.subProp(_.loading).set(true)

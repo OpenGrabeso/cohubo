@@ -17,6 +17,7 @@ case class PageModel(
   selectedArticleId: Option[ArticleIdModel] = None,
   selectedArticleParent: Option[ArticleRowModel] = None,
   selectedArticle: Option[ArticleRowModel] = None,
+  filterExpression: String = "",
   filterOpen: Boolean = true,
   filterClosed: Boolean = false,
   labels: Seq[Label] = Seq.empty,
