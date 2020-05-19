@@ -225,7 +225,8 @@ class PagePresenter(
         model.subProp(_.selectedArticle).set(Some(s))
         model.subProp(_.selectedArticleParent).set(Some(p))
         model.subProp(_.articleContent).set("...")
-        renderMarkdown(s.body, s.id.context, Highlight(_, p.highlightWords))
+        val highlight = p.rawParent.text_matches.flatMap(_.matches.map(_.text)).toSet
+        renderMarkdown(s.body, s.id.context, Highlight(_, highlight))
       case _ =>
         model.subProp(_.selectedArticle).set(None)
         model.subProp(_.selectedArticleParent).set(None)
@@ -379,21 +380,18 @@ class PagePresenter(
       explicitCreated.getOrElse(i.updated_at)
     }
 
-    // TODO: select appropriate matches only
-    val highlight = i.text_matches.flatMap(_.matches.map(_.text)).toSet
-
     ArticleRowModel(
-      p, i.comments > 0, true, 0, i.title, i.body, i.state == "closed", i.labels, Option(i.milestone).map(_.title), i.user, highlight,
+      p, i.comments > 0, true, 0, i.title, i.body, i.state == "closed", i.labels, Option(i.milestone).map(_.title), i.user, i,
       explicitCreated.getOrElse(i.created_at), explicitCreated.getOrElse(i.created_at), updatedAt
     )
   }
 
 
-  private def rowFromComment(articleId: ArticleIdModel, i: Comment): ArticleRowModel = {
+  private def rowFromComment(articleId: ArticleIdModel, i: Comment, parent: Issue): ArticleRowModel = {
     val explicitCreated = overrideCreatedAt(i.body)
     val highlight = Set.empty[String]
     ArticleRowModel(
-      articleId, false, false, 0, bodyAbstract(i.body), i.body, false, Seq.empty, None, i.user, highlight,
+      articleId, false, false, 0, bodyAbstract(i.body), i.body, false, Seq.empty, None, i.user, parent,
       explicitCreated.getOrElse(i.created_at), explicitCreated.getOrElse(i.updated_at), explicitCreated.getOrElse(i.updated_at)
     )
   }
@@ -512,7 +510,7 @@ class PagePresenter(
     filterState() == filter
   }
 
-  def loadIssueComments(id: ArticleIdModel, token: String, filter: Filter): Future[Unit] = {
+  def loadIssueComments(id: ArticleIdModel, token: String, filter: Filter, issue: Issue): Future[Unit] = {
     userService.call { api =>
       val context = id.context
       val apiDone = Promise[Unit]()
@@ -528,7 +526,7 @@ class PagePresenter(
             githubRestApiClient.requestWithHeaders[Comment](next, token).map(c => processComments(done ++ c.data, c.headers)).failed.foreach(apiDone.failure)
           case None =>
             val commentRows = done.zipWithIndex.map { case (c, i) =>
-              rowFromComment(ArticleIdModel(context.organization, context.repository, id.issueNumber, Some(i, c.id)), c)
+              rowFromComment(ArticleIdModel(context.organization, context.repository, id.issueNumber, Some(i, c.id)), c, issue.rawParent)
             }
             processIssueComments(issue, commentRows, token, context, filter)
             apiDone.success(())
@@ -626,8 +624,8 @@ class PagePresenter(
         if (true) {
           val loadMaxComments = 10
           def wantIssue(i: Issue) = i.comments > 0 && i.comments <= loadMaxComments
-          val issueFutures = (issuesOrdered zip preview).filter(c => wantIssue(c._1)).map { case (_, row) => // parent issue
-            loadIssueComments(row.id, token, filter)
+          val issueFutures = (issuesOrdered zip preview).filter(c => wantIssue(c._1)).map { case (i, row) => // parent issue
+            loadIssueComments(row.id, token, filter, i)
           }
 
           Future.sequence(issueFutures).onComplete(_ => updateRateLimits())
@@ -703,9 +701,9 @@ class PagePresenter(
           if pageContexts.contains(ContextModel(n.repository.owner.login, n.repository.name))
         } {
           val as = model.subSeq(_.articles).get
-          val issueKnown = as.exists(a => a.id.issueNumber == id._2 && a.id.context == id._1)
+          val issueKnown = as.find(a => a.id.issueNumber == id._2 && a.id.context == id._1)
           val commentKnown = commentId.exists(cid => as.exists(a => a.id.id.exists(_._2 == cid._2) && a.id.context == cid._1))
-          if (!issueKnown) {
+          if (issueKnown.isEmpty) {
             println(s"Unknown issue $issueId")
 
             if (!issuesPending.contains(id)) {
@@ -723,7 +721,7 @@ class PagePresenter(
                 // TODO: insert the issue
                 assert(i.number == id._2)
                 val aid = ArticleIdModel(id._1.organization, id._1.repository, i.number, None)
-                loadIssueComments(aid, token, filter)
+                loadIssueComments(aid, token, filter, i)
               }
             }
           } else if (!commentKnown) {
@@ -733,7 +731,7 @@ class PagePresenter(
               println(s"  Download comments for $id")
               val filter = filterState()
               val aid = ArticleIdModel(id._1.organization, id._1.repository, id._2, None)
-              loadIssueComments(aid, token, filter).foreach(_ => commentsPending -= id)
+              loadIssueComments(aid, token, filter, issueKnown.get.rawParent).foreach(_ => commentsPending -= id)
             }
           }
         }
@@ -989,8 +987,9 @@ class PagePresenter(
           i <- articles.find(_.id == ArticleIdModel(context.organization, context.repository, selectedId.issueNumber, None))
           comments = articles.filter(a => a.id.sameIssue(selectedId) && a.id.id.nonEmpty)
         } {
+          val parent = model.subProp(_.articles).get.find(_.id == selectedId)
           val newId = ArticleIdModel(context.organization, context.repository, selectedId.issueNumber, Some(comments.length, c.id))
-          val newRow = rowFromComment(newId, c)
+          val newRow = rowFromComment(newId, c, parent.get.rawParent)
           processIssueComments(i, comments :+ newRow, currentToken(), context, filterState())
         }
       }

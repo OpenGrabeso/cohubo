@@ -309,17 +309,29 @@ class PageView(
         val loading = mutable.HashMap.empty[ArticleIdModel, Future[Unit]]
       }
 
+      def checkHighlight(item: ArticleIdModel, matchInfo: Seq[TextMatchIssue]): Boolean = {
+        if (item.id.nonEmpty) { // a comment
+          matchInfo.exists(
+            p => p.object_type == "IssueComment" && p.object_url.contains(item.id.get._2.toString)
+          )
+        } else { // an issue
+          matchInfo.exists(p => p.object_type == "Issue")
+        }
+      }
+
       override def id(item: ArticleRowModel) = item.id
       override def indent(item: ArticleRowModel) = item.indent
       override def rowModifier(itemModel: ModelProperty[ArticleRowModel]) = {
-        val id = itemModel.subProp(_.id).get
+        val ar = itemModel.get
+        val id = ar.id
         Seq[Modifier](
           CssStyleName("table-fold"),
-          CssStyleName(s.tr.className),
+          s.tr,
           rowStyle(itemModel),
           CssStyleName("custom-context-menu"),
           attr("issue-context") := id.context.relativeUrl,
           attr("issue-number") := id.issueNumber,
+          if (checkHighlight(id, ar.rawParent.text_matches)) Seq[Modifier](s.hightlightIssue) else Seq.empty[Modifier],
           id.id.map(attr("reply-number") := _._1), // include only when the value is present
           id.id.map(attr("comment-number") := _._2) // include only when the value is present
         )
@@ -376,7 +388,8 @@ class PageView(
             commentLoader.loading.getOrElseUpdate(data, {
               val token = presenter.props.subProp(_.token).get
               val state = presenter.filterState()
-              presenter.loadIssueComments(data, token, state)
+              val rowData = model.subProp(_.articles).get.find(_.id == data).get
+              presenter.loadIssueComments(data, token, state, rowData.rawParent)
             }).tap {
               // once completed, remove it from the in-progress list
               _.onComplete(_ => commentLoader.loading.remove(data))
