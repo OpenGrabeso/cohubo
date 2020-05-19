@@ -289,12 +289,8 @@ class PagePresenter(
         ParseFilterQuery(expr) match {
           case ParseFilterQuery.Success(query, _) =>
             assert(expr.nonEmpty) // empty should be handled as IssueFilter
-            val repoPrefix = "repo:" + context.relativeUrl + " "
-            // Udash seems to perform some UrlEncoding, but does not replace spaces?
-            val q = (repoPrefix + expr) //.replace(" ", "+")
-            userService.call(_.search.issues(q)).map { i =>
-              DataWithHeaders(i.items)
-            }
+            val q = "repo:" + context.relativeUrl + " " + expr
+            userService.call(_.search.issues(q)).map(d => DataWithHeaders(d.data.items, d.headers))
           case _ =>
             Future.failed(new UnsupportedOperationException("Bad search query"))
         }
