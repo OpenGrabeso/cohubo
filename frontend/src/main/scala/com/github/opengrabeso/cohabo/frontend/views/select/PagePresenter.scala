@@ -25,6 +25,7 @@ import scala.scalajs.js.timers._
 import scala.util.{Failure, Success, Try}
 import TimeFormatting._
 import QueryAST._
+import io.udash.utils.URLEncoder
 import io.udash.wrappers.jquery.jQ
 import org.scalajs.dom
 
@@ -127,6 +128,9 @@ object PagePresenter {
   }
 
 
+  sealed trait Filter
+  case class IssueFilter(state: String, labels: Seq[String]) extends Filter
+  case class SearchFilter(expression: String) extends Filter
 }
 
 import PagePresenter._
@@ -161,8 +165,8 @@ class PagePresenter(
         val labels = result.collect { case LabelQuery(x) => x}
         val states = result.collectFirst { case StateQuery(x) => x } // when states are conflicting, prefer the first one
         // anything unsupported by the issue query means we have to use the search API
-        val isSearch = (labels ++ states).toSet != result.toSet
-        println(s"is search $isSearch")
+        val isSearch = (labels.map(LabelQuery) ++ states.map(StateQuery)).toSet != result.toSet
+        println(s"is search $isSearch ${labels ++ states} $result")
         // verify the labels are valid, if not, ignore the filter (happens while typing)
         val allLabels = model.subProp(_.labels).get.map(_.name).toSet
         if (labels.forall(allLabels.contains)) {
@@ -241,10 +245,14 @@ class PagePresenter(
     }
   }
 
-  def filterState(): IssueFilter = {
-    val labels = model.subProp(_.activeLabels).get
-    val state = listFilter(stateFilterProps.get)
-    IssueFilter(state, labels)
+  def filterState(): Filter = {
+    if (model.subProp(_.useSearch).get) {
+      SearchFilter(model.subProp(_.filterExpression).get)
+    } else {
+      val labels = model.subProp(_.activeLabels).get
+      val state = listFilter(stateFilterProps.get)
+      IssueFilter(state, labels)
+    }
   }
 
 
@@ -272,9 +280,25 @@ class PagePresenter(
   }
 
 
-  private def initArticles(context: ContextModel, filter: IssueFilter): Future[DataWithHeaders[Seq[Issue]]] = {
-    import filter._
-    userService.call(_.repos(context.organization, context.repository).issues(sort = "updated", state = state, labels = labels.mkString(",")))
+  private def initArticles(context: ContextModel, filter: Filter): Future[DataWithHeaders[Seq[Issue]]] = {
+    println(s"filter $filter")
+    filter match {
+      case i: IssueFilter =>
+        userService.call(_.repos(context.organization, context.repository).issues(sort = "updated", state = i.state, labels = i.labels.mkString(",")))
+      case SearchFilter(expr) =>
+        ParseFilterQuery(expr) match {
+          case ParseFilterQuery.Success(query, _) =>
+            assert(expr.nonEmpty) // empty should be handled as IssueFilter
+            val repoPrefix = "repo:" + context.relativeUrl + " "
+            // Udash seems to perform some UrlEncoding, but does not replace spaces?
+            val q = (repoPrefix + expr) //.replace(" ", "+")
+            userService.call(_.search.issues(q)).map { i =>
+              DataWithHeaders(i.items)
+            }
+          case _ =>
+            Future.failed(new UnsupportedOperationException("Bad search query"))
+        }
+    }
   }
 
   //noinspection ScalaUnusedSymbol
@@ -380,7 +404,7 @@ class PagePresenter(
     }
   }
 
-  private def processIssueComments(issue: ArticleRowModel, comments: Seq[ArticleRowModel], token: String, context: ContextModel, filter: IssueFilter): Unit = { // the comments
+  private def processIssueComments(issue: ArticleRowModel, comments: Seq[ArticleRowModel], token: String, context: ContextModel, filter: Filter): Unit = { // the comments
 
     if (!loadStillWanted(token, context, filter)) {
       println(s"Discard pending issue for $context, filter $filter, current $pageContexts, filter ${filterState()}")
@@ -481,13 +505,13 @@ class PagePresenter(
 
   var loadInProgress = mutable.Set.empty[Product]
 
-  private def loadStillWanted(token: String, context: ContextModel, filter: IssueFilter): Boolean = {
+  private def loadStillWanted(token: String, context: ContextModel, filter: Filter): Boolean = {
     token == currentToken() &&
     pageContexts.contains(context) &&
     filterState() == filter
   }
 
-  def loadIssueComments(id: ArticleIdModel, token: String, filter: IssueFilter): Future[Unit] = {
+  def loadIssueComments(id: ArticleIdModel, token: String, filter: Filter): Future[Unit] = {
     userService.call { api =>
       val context = id.context
       val apiDone = Promise[Unit]()
@@ -518,11 +542,6 @@ class PagePresenter(
 
   }
 
-  case class IssueFilter(
-    state: String,
-    labels: Seq[String]
-  )
-
   def insertIssues(preview: Seq[ArticleRowModel]): Unit = {
     model.subSeq(_.articles).tap { as =>
       //println(s"Insert articles at ${a.size}")
@@ -545,7 +564,7 @@ class PagePresenter(
     }
   }
 
-  def loadArticlesPage(token: String, context: ContextModel, mode: String, filter: IssueFilter): Unit = {
+  def loadArticlesPage(token: String, context: ContextModel, mode: String, filter: Filter): Unit = {
     val loadId = (token, context, mode, filter)
     // avoid the same load flying twice
     if (loadInProgress.contains(loadId)) {
@@ -759,7 +778,7 @@ class PagePresenter(
   }
 
 
-  private def doLoadArticles(token: String, context: ContextModel, filter: IssueFilter): Unit = {
+  private def doLoadArticles(token: String, context: ContextModel, filter: Filter): Unit = {
     println(s"Load articles $context $token filter = $filter")
     loadArticlesPage(token, context, "init", filter = filter)
   }
@@ -782,7 +801,7 @@ class PagePresenter(
       }
     }
 
-    props.subProp(_.contexts).combine(props.subProp(_.selectedContext))(_ -> _).listen { case (cs, act) =>
+    (props.subProp(_.contexts) ** props.subProp(_.selectedContext) ** model.subProp(_.filterExpression) ).listen { case ((cs, act), filter) =>
       val ac = act.orElse(cs.headOption)
       // it seems listenStructure handler is called before the table is displayed, listen is not
       // update short names
