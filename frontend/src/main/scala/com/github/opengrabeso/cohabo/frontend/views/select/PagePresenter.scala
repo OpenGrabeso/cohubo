@@ -225,7 +225,7 @@ class PagePresenter(
         model.subProp(_.selectedArticle).set(Some(s))
         model.subProp(_.selectedArticleParent).set(Some(p))
         model.subProp(_.articleContent).set("...")
-        renderMarkdown(s.body, s.id.context)
+        renderMarkdown(s.body, s.id.context, Highlight(_, p.highlightWords))
       case _ =>
         model.subProp(_.selectedArticle).set(None)
         model.subProp(_.selectedArticleParent).set(None)
@@ -268,6 +268,7 @@ class PagePresenter(
     // it seems we could load only the difference when extending the filter, but the trouble is with paging URLs, they need updating as well
     clearAllArticles() // this should not be necessary, contexts.touch should handle it, but this way it is more efficient
     model.subProp(_.loading).set(true)
+    unselectedArticle()
     // touch contexts to reload all repositories
     props.subSeq(_.contexts).touch()
   }
@@ -378,8 +379,11 @@ class PagePresenter(
       explicitCreated.getOrElse(i.updated_at)
     }
 
+    // TODO: select appropriate matches only
+    val highlight = i.text_matches.flatMap(_.matches.map(_.text)).toSet
+
     ArticleRowModel(
-      p, i.comments > 0, true, 0, i.title, i.body, i.state == "closed", i.labels, Option(i.milestone).map(_.title), i.user,
+      p, i.comments > 0, true, 0, i.title, i.body, i.state == "closed", i.labels, Option(i.milestone).map(_.title), i.user, highlight,
       explicitCreated.getOrElse(i.created_at), explicitCreated.getOrElse(i.created_at), updatedAt
     )
   }
@@ -387,8 +391,9 @@ class PagePresenter(
 
   private def rowFromComment(articleId: ArticleIdModel, i: Comment): ArticleRowModel = {
     val explicitCreated = overrideCreatedAt(i.body)
+    val highlight = Set.empty[String]
     ArticleRowModel(
-      articleId, false, false, 0, bodyAbstract(i.body), i.body, false, Seq.empty, None, i.user,
+      articleId, false, false, 0, bodyAbstract(i.body), i.body, false, Seq.empty, None, i.user, highlight,
       explicitCreated.getOrElse(i.created_at), explicitCreated.getOrElse(i.updated_at), explicitCreated.getOrElse(i.updated_at)
     )
   }
@@ -779,6 +784,12 @@ class PagePresenter(
     loadArticlesPage(token, context, "init", filter = filter)
   }
 
+  def unselectedArticle(): Unit = {
+    model.subProp(_.selectedArticle).set(None)
+    model.subProp(_.selectedArticleId).set(None)
+    model.subProp(_.selectedArticleParent).set(None)
+  }
+
   def init(): Unit = {
     // load the settings before installing the handler
     // otherwise both handlers are called, which makes things confusing
@@ -787,6 +798,7 @@ class PagePresenter(
     println(s"Install loadArticles handlers, token ${currentToken()}")
     props.subProp(_.token).listen { token =>
       model.subProp(_.loading).set(true)
+      unselectedArticle()
       println(s"Token changed to $token, contexts: ${props.subSeq(_.contexts).size}")
       clearAllArticles()
       if (token != null) {
@@ -812,6 +824,8 @@ class PagePresenter(
       val token = currentToken()
       // completely empty - we can do much simpler cleanup (and shutdown any periodic handlers)
       clearAllArticles()
+      unselectedArticle()
+
       if (act.isEmpty) {
         clearNotifications()
       }
@@ -840,6 +854,7 @@ class PagePresenter(
     // handlers installed, execute them
     // do not touch token, that would initiate another login
     model.subProp(_.loading).set(true)
+    unselectedArticle()
     props.subSeq(_.contexts).touch()
 
   }
@@ -870,7 +885,7 @@ class PagePresenter(
     userService.call(_.markdown.markdown(source._1, "gfm", source._2.relativeUrl)).map(_.data)
   )
 
-  def renderMarkdown(body: String, context: ContextModel): Unit = {
+  def renderMarkdown(body: String, context: ContextModel, postprocess: String => String = identity): Unit = {
     val selectedId = model.subProp(_.selectedArticleId).get
     println(s"renderMarkdown $selectedId")
     val strippedBody = removeColaboHeaders(body)
@@ -880,7 +895,7 @@ class PagePresenter(
       // before setting the value make sure the article is still selected
       // if the selection has changed while the Future was flying, ignore the result
       if (model.subProp(_.selectedArticleId).get.exists(selectedId.contains)) {
-        model.subProp(_.articleContent).set(html)
+        model.subProp(_.articleContent).set(postprocess(html))
       }
     }.failed.foreach { ex =>
       markdownCache.remove(strippedBody -> context) // avoid caching failed requests

@@ -327,6 +327,11 @@ object SelectPageStyles extends CommonStyle {
       ),
       unsafeChild(".pl-3, .px-3") (
         paddingLeft(16 px).important
+      ),
+
+      unsafeChild(".highlight") (
+        backgroundColor(c"#fc8"),
+        fontWeight._900
       )
     )
   )
