@@ -305,7 +305,8 @@ class PagePresenter(
     if (!model.subProp(_.useSearch).get) {
       githubRestApiClient.requestWithHeaders[Seq[Issue]](link, token)
     } else {
-      githubRestApiClient.requestWithHeaders[SearchResultIssues](link, token).map(d => DataWithHeaders(d.data.items, d.headers))
+      githubRestApiClient.requestWithHeaders[SearchResultIssues](link, token, Seq("Accept" -> "application/vnd.github.v3.text-match+json"))
+        .map(d => DataWithHeaders(d.data.items, d.headers))
     }
   }
 
