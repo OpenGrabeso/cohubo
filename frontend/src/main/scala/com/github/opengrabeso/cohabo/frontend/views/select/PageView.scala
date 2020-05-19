@@ -25,6 +25,7 @@ import io.udash.bootstrap.button.UdashButton
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Future, Promise}
+import scala.concurrent.duration.{span=>_,_}
 import scala.math.Ordered._
 import ColorUtils.{Color, _}
 import io.udash.bindings.inputs
@@ -528,7 +529,7 @@ class PageView(
         s.gridAreaFilters,
         div(
           s.filterExpression,
-          inputs.TextInput(model.subProp(_.filterExpression))(s.filterExpressionInput)
+          inputs.TextInput(model.subProp(_.filterExpression), 1.second)(s.filterExpressionInput)
         ).render,
         showIfElse(model.subProp(_.loading))(
           Seq.empty,

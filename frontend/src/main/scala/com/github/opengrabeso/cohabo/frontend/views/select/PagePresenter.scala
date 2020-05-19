@@ -161,7 +161,8 @@ class PagePresenter(
         val labels = result.collect { case LabelQuery(x) => x}
         val states = result.collectFirst { case StateQuery(x) => x } // when states are conflicting, prefer the first one
         // anything unsupported by the issue query means we have to use the search API
-        val isSearch = result.collectFirst { case SearchWordQuery(word) => word }.nonEmpty
+        val isSearch = (labels ++ states).toSet != result.toSet
+        println(s"is search $isSearch")
         // verify the labels are valid, if not, ignore the filter (happens while typing)
         val allLabels = model.subProp(_.labels).get.map(_.name).toSet
         if (labels.forall(allLabels.contains)) {
@@ -178,15 +179,27 @@ class PagePresenter(
   queryFilter.streamTo(model.subProp(_.filterExpression)) { case ((open, closed), labels) =>
     // if search is detected, leave the query alone
     // TODO: combine supported and unsupported query terms
-    if (model.subProp(_.useSearch).get) model.subProp(_.filterExpression).get
-    val openClosedQuery = (open, closed) match {
-      case (true, true) => ""
-      case (true, false) => "is:open"
-      case (false, true) => "is:closed"
-      case (false, false) => "" // should not happen
+    val oldFilter = model.subProp(_.filterExpression).get
+    ParseFilterQuery(oldFilter) match {
+      case ParseFilterQuery.Success(oldFilterQuery, _) =>
+        val openClosedQuery = (open, closed) match {
+          case (true, true) => Seq.empty
+          case (true, false) => Seq(StateQuery(true))
+          case (false, true) => Seq(StateQuery(false))
+          case (false, false) => Seq.empty // should not happen
+        }
+        val labelsQuery = labels.map(LabelQuery)
+
+        val keep = oldFilterQuery.flatMap {
+          case _: LabelQuery => None
+          case _: StateQuery => None
+          case x => Some(x)
+        }
+
+        (openClosedQuery ++ labelsQuery ++ keep).mkString(" ")
+      case _ =>
+        oldFilter
     }
-    val labelsQuery = labels.map(l => s"label:$l")
-    (openClosedQuery +: labelsQuery).mkString(" ")
   }
 
   val pagingUrls =  mutable.Map.empty[ContextModel, Map[String, String]]
