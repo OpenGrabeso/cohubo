@@ -301,7 +301,12 @@ class PagePresenter(
 
   //noinspection ScalaUnusedSymbol
   private def pageArticles(context: ContextModel, token: String, link: String): Future[DataWithHeaders[Seq[Issue]]] = {
-    githubRestApiClient.requestWithHeaders[Issue](link, token)
+    // page may be a search or a plain issue list
+    if (!model.subProp(_.useSearch).get) {
+      githubRestApiClient.requestWithHeaders[Seq[Issue]](link, token)
+    } else {
+      githubRestApiClient.requestWithHeaders[SearchResultIssues](link, token).map(d => DataWithHeaders(d.data.items, d.headers))
+    }
   }
 
   private def localZoneId: ZoneId = {
@@ -523,7 +528,7 @@ class PagePresenter(
 
         resp.paging.get("next") match {
           case Some(next) =>
-            githubRestApiClient.requestWithHeaders[Comment](next, token).map(c => processComments(done ++ c.data, c.headers)).failed.foreach(apiDone.failure)
+            githubRestApiClient.requestWithHeaders[Seq[Comment]](next, token).map(c => processComments(done ++ c.data, c.headers)).failed.foreach(apiDone.failure)
           case None =>
             val commentRows = done.zipWithIndex.map { case (c, i) =>
               rowFromComment(ArticleIdModel(context.organization, context.repository, id.issueNumber, Some(i, c.id)), c, issue.rawParent)
