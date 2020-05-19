@@ -344,7 +344,7 @@ object SelectPageStyles extends CommonStyle {
         paddingLeft(16 px).important
       ),
 
-      unsafeChild(".highlight") (
+      unsafeChild(".search-highlight") (
         backgroundColor(c"#fc8"),
         fontWeight._900
       )

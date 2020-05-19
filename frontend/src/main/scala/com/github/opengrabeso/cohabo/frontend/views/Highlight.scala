@@ -2,7 +2,7 @@ package com.github.opengrabeso.cohabo
 package frontend.views
 
 object Highlight {
-  def decorate(word: String): String = "<span class='highlight'>" + word + "</span>"
+  def decorate(word: String): String = "<span class='search-highlight'>" + word + "</span>"
 
   def single(html: String, word: String): String = {
     @scala.annotation.tailrec
