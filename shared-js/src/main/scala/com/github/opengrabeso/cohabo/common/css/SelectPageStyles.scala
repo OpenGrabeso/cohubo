@@ -176,7 +176,12 @@ object SelectPageStyles extends CommonStyle {
     ),
     &.hover.attrContains("class", "selected") (
       backgroundColor(c"#A0D0E0")
+    ),
+    unsafeChild(".search-highlight") (
+      backgroundColor(c"#fec"),
+      fontWeight.bold
     )
+
   )
 
   val hightlightIssue = style(
@@ -346,7 +351,7 @@ object SelectPageStyles extends CommonStyle {
 
       unsafeChild(".search-highlight") (
         backgroundColor(c"#fc8"),
-        fontWeight._900
+        fontWeight.bold
       )
     )
   )

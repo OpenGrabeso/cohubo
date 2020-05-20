@@ -25,7 +25,7 @@ import io.udash.bootstrap.button.UdashButton
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Future, Promise}
-import scala.concurrent.duration.{span=>_,_}
+import scala.concurrent.duration.{span => _, _}
 import scala.math.Ordered._
 import ColorUtils.{Color, _}
 import io.udash.bindings.inputs
@@ -261,10 +261,13 @@ class PageView(
     }
 
     def rowTitle(ar: ArticleRowModel): Seq[Node] = {
-      if (ar.labels.nonEmpty) {
-        Seq(ar.title.render, " ".render) ++ ar.labels.map(labelHtml)
+      val highlights = ar.rawParent.text_matches.flatMap(_.matches.map(_.text)).distinct
+      val title = Highlight(ar.title, highlights)
+
+      if(ar.labels.nonEmpty) {
+        Seq(span(raw(title)).render, " ".render) ++ ar.labels.map(labelHtml)
       } else {
-        Seq(ar.title.render)
+        Seq(span(raw(title)).render)
       }
     }
 
