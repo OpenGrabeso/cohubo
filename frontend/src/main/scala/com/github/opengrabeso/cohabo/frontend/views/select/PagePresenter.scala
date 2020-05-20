@@ -225,7 +225,8 @@ class PagePresenter(
         model.subProp(_.selectedArticle).set(Some(s))
         model.subProp(_.selectedArticleParent).set(Some(p))
         model.subProp(_.articleContent).set("...")
-        val highlight = p.rawParent.text_matches.flatMap(_.matches.map(_.text)).toSet
+        // process long matches first (prefer highlighting the longest match whenever possible)
+        val highlight = p.rawParent.text_matches.flatMap(_.matches.map(_.text)).sortBy(_.length).reverse
         renderMarkdown(s.body, s.id.context, Highlight(_, highlight))
       case _ =>
         model.subProp(_.selectedArticle).set(None)
