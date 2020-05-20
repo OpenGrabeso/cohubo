@@ -25,6 +25,7 @@ import scala.scalajs.js.timers._
 import scala.util.{Failure, Success, Try}
 import TimeFormatting._
 import QueryAST._
+import io.udash.utils.URLEncoder
 import io.udash.wrappers.jquery.jQ
 import org.scalajs.dom
 
@@ -127,6 +128,9 @@ object PagePresenter {
   }
 
 
+  sealed trait Filter
+  case class IssueFilter(state: String, labels: Seq[String]) extends Filter
+  case class SearchFilter(expression: String) extends Filter
 }
 
 import PagePresenter._
@@ -160,12 +164,16 @@ class PagePresenter(
         println(s"Query $result")
         val labels = result.collect { case LabelQuery(x) => x}
         val states = result.collectFirst { case StateQuery(x) => x } // when states are conflicting, prefer the first one
+        // anything unsupported by the issue query means we have to use the search API
+        val isSearch = (labels.map(LabelQuery) ++ states.map(StateQuery)).toSet != result.toSet
+        println(s"is search $isSearch ${labels ++ states} $result")
         // verify the labels are valid, if not, ignore the filter (happens while typing)
         val allLabels = model.subProp(_.labels).get.map(_.name).toSet
         if (labels.forall(allLabels.contains)) {
           model.subProp(_.activeLabels).set(labels)
           model.subProp(_.filterOpen).set(!states.contains(false))
           model.subProp(_.filterClosed).set(!states.contains(true))
+          model.subProp(_.useSearch).set(isSearch)
         }
       case _: ParseFilterQuery.NoSuccess =>
     }
@@ -173,14 +181,29 @@ class PagePresenter(
 
 
   queryFilter.streamTo(model.subProp(_.filterExpression)) { case ((open, closed), labels) =>
-    val openClosedQuery = (open, closed) match {
-      case (true, true) => ""
-      case (true, false) => "is:open"
-      case (false, true) => "is:closed"
-      case (false, false) => "" // should not happen
+    // if search is detected, leave the query alone
+    // TODO: combine supported and unsupported query terms
+    val oldFilter = model.subProp(_.filterExpression).get
+    ParseFilterQuery(oldFilter) match {
+      case ParseFilterQuery.Success(oldFilterQuery, _) =>
+        val openClosedQuery = (open, closed) match {
+          case (true, true) => Seq.empty
+          case (true, false) => Seq(StateQuery(true))
+          case (false, true) => Seq(StateQuery(false))
+          case (false, false) => Seq.empty // should not happen
+        }
+        val labelsQuery = labels.map(LabelQuery)
+
+        val keep = oldFilterQuery.flatMap {
+          case _: LabelQuery => None
+          case _: StateQuery => None
+          case x => Some(x)
+        }
+
+        (openClosedQuery ++ labelsQuery ++ keep).mkString(" ")
+      case _ =>
+        oldFilter
     }
-    val labelsQuery = labels.map(l => s"label:$l")
-    (openClosedQuery +: labelsQuery).mkString(" ")
   }
 
   val pagingUrls =  mutable.Map.empty[ContextModel, Map[String, String]]
@@ -202,7 +225,9 @@ class PagePresenter(
         model.subProp(_.selectedArticle).set(Some(s))
         model.subProp(_.selectedArticleParent).set(Some(p))
         model.subProp(_.articleContent).set("...")
-        renderMarkdown(s.body, s.id.context)
+        // process long matches first (prefer highlighting the longest match whenever possible)
+        val highlight = p.rawParent.text_matches.flatMap(_.matches.map(_.text)).sortBy(_.length).reverse
+        renderMarkdown(s.body, s.id.context, Highlight(_, highlight))
       case _ =>
         model.subProp(_.selectedArticle).set(None)
         model.subProp(_.selectedArticleParent).set(None)
@@ -222,10 +247,14 @@ class PagePresenter(
     }
   }
 
-  def filterState(): IssueFilter = {
-    val labels = model.subProp(_.activeLabels).get
-    val state = listFilter(stateFilterProps.get)
-    IssueFilter(state, labels)
+  def filterState(): Filter = {
+    if (model.subProp(_.useSearch).get) {
+      SearchFilter(model.subProp(_.filterExpression).get)
+    } else {
+      val labels = model.subProp(_.activeLabels).get
+      val state = listFilter(stateFilterProps.get)
+      IssueFilter(state, labels)
+    }
   }
 
 
@@ -241,6 +270,7 @@ class PagePresenter(
     // it seems we could load only the difference when extending the filter, but the trouble is with paging URLs, they need updating as well
     clearAllArticles() // this should not be necessary, contexts.touch should handle it, but this way it is more efficient
     model.subProp(_.loading).set(true)
+    unselectedArticle()
     // touch contexts to reload all repositories
     props.subSeq(_.contexts).touch()
   }
@@ -253,14 +283,32 @@ class PagePresenter(
   }
 
 
-  private def initArticles(context: ContextModel, filter: IssueFilter): Future[DataWithHeaders[Seq[Issue]]] = {
-    import filter._
-    userService.call(_.repos(context.organization, context.repository).issues(sort = "updated", state = state, labels = labels.mkString(",")))
+  private def initArticles(context: ContextModel, filter: Filter): Future[DataWithHeaders[Seq[Issue]]] = {
+    println(s"filter $filter")
+    filter match {
+      case i: IssueFilter =>
+        userService.call(_.repos(context.organization, context.repository).issues(sort = "updated", state = i.state, labels = i.labels.mkString(",")))
+      case SearchFilter(expr) =>
+        ParseFilterQuery(expr) match {
+          case ParseFilterQuery.Success(query, _) =>
+            assert(expr.nonEmpty) // empty should be handled as IssueFilter
+            val q = "repo:" + context.relativeUrl + " " + expr
+            userService.call(_.search.issues(q)).map(d => DataWithHeaders(d.data.items, d.headers))
+          case _ =>
+            Future.failed(new UnsupportedOperationException("Bad search query"))
+        }
+    }
   }
 
   //noinspection ScalaUnusedSymbol
   private def pageArticles(context: ContextModel, token: String, link: String): Future[DataWithHeaders[Seq[Issue]]] = {
-    githubRestApiClient.requestWithHeaders[Issue](link, token)
+    // page may be a search or a plain issue list
+    if (!model.subProp(_.useSearch).get) {
+      githubRestApiClient.requestWithHeaders[Seq[Issue]](link, token)
+    } else {
+      githubRestApiClient.requestWithHeaders[SearchResultIssues](link, token, Seq("Accept" -> "application/vnd.github.v3.text-match+json"))
+        .map(d => DataWithHeaders(d.data.items, d.headers))
+    }
   }
 
   private def localZoneId: ZoneId = {
@@ -340,16 +388,17 @@ class PagePresenter(
     }
 
     ArticleRowModel(
-      p, i.comments > 0, true, 0, i.title, i.body, i.state == "closed", i.labels, Option(i.milestone).map(_.title), i.user,
+      p, i.comments > 0, true, 0, i.title, i.body, i.state == "closed", i.labels, Option(i.milestone).map(_.title), i.user, i,
       explicitCreated.getOrElse(i.created_at), explicitCreated.getOrElse(i.created_at), updatedAt
     )
   }
 
 
-  private def rowFromComment(articleId: ArticleIdModel, i: Comment): ArticleRowModel = {
+  private def rowFromComment(articleId: ArticleIdModel, i: Comment, parent: Issue): ArticleRowModel = {
     val explicitCreated = overrideCreatedAt(i.body)
+    val highlight = Set.empty[String]
     ArticleRowModel(
-      articleId, false, false, 0, bodyAbstract(i.body), i.body, false, Seq.empty, None, i.user,
+      articleId, false, false, 0, bodyAbstract(i.body), i.body, false, Seq.empty, None, i.user, parent,
       explicitCreated.getOrElse(i.created_at), explicitCreated.getOrElse(i.updated_at), explicitCreated.getOrElse(i.updated_at)
     )
   }
@@ -361,7 +410,7 @@ class PagePresenter(
     }
   }
 
-  private def processIssueComments(issue: ArticleRowModel, comments: Seq[ArticleRowModel], token: String, context: ContextModel, filter: IssueFilter): Unit = { // the comments
+  private def processIssueComments(issue: ArticleRowModel, comments: Seq[ArticleRowModel], token: String, context: ContextModel, filter: Filter): Unit = { // the comments
 
     if (!loadStillWanted(token, context, filter)) {
       println(s"Discard pending issue for $context, filter $filter, current $pageContexts, filter ${filterState()}")
@@ -462,13 +511,13 @@ class PagePresenter(
 
   var loadInProgress = mutable.Set.empty[Product]
 
-  private def loadStillWanted(token: String, context: ContextModel, filter: IssueFilter): Boolean = {
+  private def loadStillWanted(token: String, context: ContextModel, filter: Filter): Boolean = {
     token == currentToken() &&
     pageContexts.contains(context) &&
     filterState() == filter
   }
 
-  def loadIssueComments(id: ArticleIdModel, token: String, filter: IssueFilter): Future[Unit] = {
+  def loadIssueComments(id: ArticleIdModel, token: String, filter: Filter, issue: Issue): Future[Unit] = {
     userService.call { api =>
       val context = id.context
       val apiDone = Promise[Unit]()
@@ -481,10 +530,10 @@ class PagePresenter(
 
         resp.paging.get("next") match {
           case Some(next) =>
-            githubRestApiClient.requestWithHeaders[Comment](next, token).map(c => processComments(done ++ c.data, c.headers)).failed.foreach(apiDone.failure)
+            githubRestApiClient.requestWithHeaders[Seq[Comment]](next, token).map(c => processComments(done ++ c.data, c.headers)).failed.foreach(apiDone.failure)
           case None =>
             val commentRows = done.zipWithIndex.map { case (c, i) =>
-              rowFromComment(ArticleIdModel(context.organization, context.repository, id.issueNumber, Some(i, c.id)), c)
+              rowFromComment(ArticleIdModel(context.organization, context.repository, id.issueNumber, Some(i, c.id)), c, issue.rawParent)
             }
             processIssueComments(issue, commentRows, token, context, filter)
             apiDone.success(())
@@ -498,11 +547,6 @@ class PagePresenter(
     }.tap(_.failed.foreach(_.printStackTrace()))
 
   }
-
-  case class IssueFilter(
-    state: String,
-    labels: Seq[String]
-  )
 
   def insertIssues(preview: Seq[ArticleRowModel]): Unit = {
     model.subSeq(_.articles).tap { as =>
@@ -526,7 +570,7 @@ class PagePresenter(
     }
   }
 
-  def loadArticlesPage(token: String, context: ContextModel, mode: String, filter: IssueFilter): Unit = {
+  def loadArticlesPage(token: String, context: ContextModel, mode: String, filter: Filter): Unit = {
     val loadId = (token, context, mode, filter)
     // avoid the same load flying twice
     if (loadInProgress.contains(loadId)) {
@@ -587,8 +631,8 @@ class PagePresenter(
         if (true) {
           val loadMaxComments = 10
           def wantIssue(i: Issue) = i.comments > 0 && i.comments <= loadMaxComments
-          val issueFutures = (issuesOrdered zip preview).filter(c => wantIssue(c._1)).map { case (_, row) => // parent issue
-            loadIssueComments(row.id, token, filter)
+          val issueFutures = (issuesOrdered zip preview).filter(c => wantIssue(c._1)).map { case (i, row) => // parent issue
+            loadIssueComments(row.id, token, filter, i)
           }
 
           Future.sequence(issueFutures).onComplete(_ => updateRateLimits())
@@ -664,9 +708,9 @@ class PagePresenter(
           if pageContexts.contains(ContextModel(n.repository.owner.login, n.repository.name))
         } {
           val as = model.subSeq(_.articles).get
-          val issueKnown = as.exists(a => a.id.issueNumber == id._2 && a.id.context == id._1)
+          val issueKnown = as.find(a => a.id.issueNumber == id._2 && a.id.context == id._1)
           val commentKnown = commentId.exists(cid => as.exists(a => a.id.id.exists(_._2 == cid._2) && a.id.context == cid._1))
-          if (!issueKnown) {
+          if (issueKnown.isEmpty) {
             println(s"Unknown issue $issueId")
 
             if (!issuesPending.contains(id)) {
@@ -684,7 +728,7 @@ class PagePresenter(
                 // TODO: insert the issue
                 assert(i.number == id._2)
                 val aid = ArticleIdModel(id._1.organization, id._1.repository, i.number, None)
-                loadIssueComments(aid, token, filter)
+                loadIssueComments(aid, token, filter, i)
               }
             }
           } else if (!commentKnown) {
@@ -694,7 +738,7 @@ class PagePresenter(
               println(s"  Download comments for $id")
               val filter = filterState()
               val aid = ArticleIdModel(id._1.organization, id._1.repository, id._2, None)
-              loadIssueComments(aid, token, filter).foreach(_ => commentsPending -= id)
+              loadIssueComments(aid, token, filter, issueKnown.get.rawParent).foreach(_ => commentsPending -= id)
             }
           }
         }
@@ -740,9 +784,15 @@ class PagePresenter(
   }
 
 
-  private def doLoadArticles(token: String, context: ContextModel, filter: IssueFilter): Unit = {
+  private def doLoadArticles(token: String, context: ContextModel, filter: Filter): Unit = {
     println(s"Load articles $context $token filter = $filter")
     loadArticlesPage(token, context, "init", filter = filter)
+  }
+
+  def unselectedArticle(): Unit = {
+    model.subProp(_.selectedArticle).set(None)
+    model.subProp(_.selectedArticleId).set(None)
+    model.subProp(_.selectedArticleParent).set(None)
   }
 
   def init(): Unit = {
@@ -753,6 +803,7 @@ class PagePresenter(
     println(s"Install loadArticles handlers, token ${currentToken()}")
     props.subProp(_.token).listen { token =>
       model.subProp(_.loading).set(true)
+      unselectedArticle()
       println(s"Token changed to $token, contexts: ${props.subSeq(_.contexts).size}")
       clearAllArticles()
       if (token != null) {
@@ -763,7 +814,7 @@ class PagePresenter(
       }
     }
 
-    props.subProp(_.contexts).combine(props.subProp(_.selectedContext))(_ -> _).listen { case (cs, act) =>
+    (props.subProp(_.contexts) ** props.subProp(_.selectedContext) ** model.subProp(_.filterExpression) ).listen { case ((cs, act), filter) =>
       val ac = act.orElse(cs.headOption)
       // it seems listenStructure handler is called before the table is displayed, listen is not
       // update short names
@@ -778,6 +829,8 @@ class PagePresenter(
       val token = currentToken()
       // completely empty - we can do much simpler cleanup (and shutdown any periodic handlers)
       clearAllArticles()
+      unselectedArticle()
+
       if (act.isEmpty) {
         clearNotifications()
       }
@@ -806,6 +859,7 @@ class PagePresenter(
     // handlers installed, execute them
     // do not touch token, that would initiate another login
     model.subProp(_.loading).set(true)
+    unselectedArticle()
     props.subSeq(_.contexts).touch()
 
   }
@@ -836,7 +890,7 @@ class PagePresenter(
     userService.call(_.markdown.markdown(source._1, "gfm", source._2.relativeUrl)).map(_.data)
   )
 
-  def renderMarkdown(body: String, context: ContextModel): Unit = {
+  def renderMarkdown(body: String, context: ContextModel, postprocess: String => String = identity): Unit = {
     val selectedId = model.subProp(_.selectedArticleId).get
     println(s"renderMarkdown $selectedId")
     val strippedBody = removeColaboHeaders(body)
@@ -846,7 +900,7 @@ class PagePresenter(
       // before setting the value make sure the article is still selected
       // if the selection has changed while the Future was flying, ignore the result
       if (model.subProp(_.selectedArticleId).get.exists(selectedId.contains)) {
-        model.subProp(_.articleContent).set(html)
+        model.subProp(_.articleContent).set(postprocess(html))
       }
     }.failed.foreach { ex =>
       markdownCache.remove(strippedBody -> context) // avoid caching failed requests
@@ -940,8 +994,9 @@ class PagePresenter(
           i <- articles.find(_.id == ArticleIdModel(context.organization, context.repository, selectedId.issueNumber, None))
           comments = articles.filter(a => a.id.sameIssue(selectedId) && a.id.id.nonEmpty)
         } {
+          val parent = model.subProp(_.articles).get.find(_.id == selectedId)
           val newId = ArticleIdModel(context.organization, context.repository, selectedId.issueNumber, Some(comments.length, c.id))
-          val newRow = rowFromComment(newId, c)
+          val newRow = rowFromComment(newId, c, parent.get.rawParent)
           processIssueComments(i, comments :+ newRow, currentToken(), context, filterState())
         }
       }

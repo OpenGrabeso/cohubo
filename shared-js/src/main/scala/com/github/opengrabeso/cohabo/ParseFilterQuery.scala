@@ -13,14 +13,16 @@ class ParseFilterQuery extends RegexParsers {
 
   private def state: Parser[StateQuery] = ("is:" ~> (stateOpenQuery | stateClosedQuery)) ^^ StateQuery
 
-  private def labelName = "[^ ]+".r
-  private def label: Parser[LabelQuery] = ("label:" ~> labelName) ^^ LabelQuery
+  private def name = "[^ ]+".r
+  private def quotedName: Parser[String] = "\"" ~> "[^\"]+".r <~ "\""
+  private def label: Parser[LabelQuery] = ("label:" ~> (quotedName | name)) ^^ LabelQuery
+  private def search: Parser[SearchWordQuery] = "[^ :]+".r ^^ SearchWordQuery
 
-  def singleQuery: Parser[Query] = state | label
-  def emptyQuery = success(Seq.empty[Query])
-  def multipleQuery = (singleQuery ~ rep(whiteSpace ~> singleQuery)) ^^ {
+  def singleQuery: Parser[Query] = state | label | search
+  def emptyQuery: Parser[Seq[Query]] = success(Seq.empty[Query])
+  def multipleQuery: Parser[Seq[Query]] = (singleQuery ~ rep(whiteSpace ~> singleQuery)) ^^ {
     case head ~ tail =>
-      tail.foldLeft(Seq(head))((s, q) => q +: s)
+      tail.foldLeft(Seq(head))((s, q) => s :+ q)
   }
   def query: Parser[Seq[Query]] = multipleQuery | emptyQuery
 }

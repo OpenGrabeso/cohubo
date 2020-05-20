@@ -7,7 +7,7 @@ class ParseFilterQueryTest extends org.scalatest.funsuite.AnyFunSuite {
     ParseFilterQuery(s) match {
       case ParseFilterQuery.Success(r, next) =>
         assert(next.atEnd)
-        assert(r === result)
+        assert(r.toSet === result.toSet)
       case x: ParseFilterQuery.NoSuccess =>
         fail(x.msg)
     }
@@ -32,6 +32,11 @@ class ParseFilterQueryTest extends org.scalatest.funsuite.AnyFunSuite {
     testQuery("label:a", Seq(LabelQuery("a")))
   }
 
+  test("Parse quoted label queries") {
+    testQuery("label:\"a\"", Seq(LabelQuery("a")))
+    testQuery("label:\"a b c\"", Seq(LabelQuery("a b c")))
+  }
+
   test("Reject malformed label queries") {
     assert(!ParseFilterQuery("label:").successful)
   }
@@ -44,7 +49,20 @@ class ParseFilterQueryTest extends org.scalatest.funsuite.AnyFunSuite {
     assert(!ParseFilterQuery("is:openlabel:bug").successful)
   }
 
-    test("Fail on malformed queries") {
+  test("Fail on malformed queries") {
     assert(!ParseFilterQuery("is: label:bug").successful)
+  }
+
+  test("Parse a search query") {
+    testQuery("something", Seq(SearchWordQuery("something")))
+  }
+
+  test("Parse a complex search query") {
+    testQuery("is:open something else", Seq(StateQuery(true), SearchWordQuery("something"), SearchWordQuery("else")))
+  }
+
+  test("Label query produces proper text output") {
+    assert(LabelQuery("a").toString == "label:a")
+    assert(LabelQuery("a b").toString == "label:\"a b\"")
   }
 }

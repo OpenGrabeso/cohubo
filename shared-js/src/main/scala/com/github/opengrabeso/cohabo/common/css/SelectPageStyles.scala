@@ -179,6 +179,21 @@ object SelectPageStyles extends CommonStyle {
     )
   )
 
+  val hightlightIssue = style(
+    backgroundColor(c"#ffcc00"),
+
+    &.hover (
+      backgroundColor(c"#eebb00").important
+    ),
+
+    &.attrContains("class", "selected") (
+      backgroundColor(c"#dd9900")
+    ),
+    &.hover.attrContains("class", "selected") (
+      backgroundColor(c"#cc8800").important
+    )
+  )
+
   val cell = mixin(
     lineHeight(1.0 rem),
     paddingBottom.`0`.important,
@@ -327,6 +342,11 @@ object SelectPageStyles extends CommonStyle {
       ),
       unsafeChild(".pl-3, .px-3") (
         paddingLeft(16 px).important
+      ),
+
+      unsafeChild(".search-highlight") (
+        backgroundColor(c"#fc8"),
+        fontWeight._900
       )
     )
   )

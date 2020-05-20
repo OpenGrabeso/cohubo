@@ -16,6 +16,7 @@ case class ArticleRowModel(
   labels: Seq[Label],
   milestone: Option[String],
   createdBy: User,
+  rawParent: Issue, // the parent issue - used for comments to access their highlights
   createdAt: ZonedDateTime,
   lastEditedAt: ZonedDateTime,
   updatedAt: ZonedDateTime // for an issue includes its children
