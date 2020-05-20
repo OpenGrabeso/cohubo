@@ -309,11 +309,15 @@ class PageView(
         val loading = mutable.HashMap.empty[ArticleIdModel, Future[Unit]]
       }
 
-      def checkHighlight(item: ArticleIdModel, matchInfo: Seq[TextMatchIssue]): Boolean = {
-        if (item.id.nonEmpty) { // a comment
+      def checkHighlight(item: ArticleRowModel, matchInfo: Seq[TextMatchIssue]): Boolean = {
+        if (item.id.id.nonEmpty) { // a comment
           matchInfo.exists(
-            p => p.object_type == "IssueComment" && p.object_url.contains(item.id.get._2.toString)
-          )
+            p => p.object_type == "IssueComment" && p.object_url.contains("/" + item.id.id.get._2.toString)
+          ) || {
+            // extended highlighting - highlight all text matches, not only those returned by the TextMatchIssue
+            val highlights = matchInfo.flatMap(_.matches.map(_.text)).distinct
+            Highlight.isHighlighted(item.title, highlights) || Highlight.isHighlighted(item.body, highlights)
+          }
         } else { // an issue
           matchInfo.exists(p => p.object_type == "Issue")
         }
@@ -331,7 +335,7 @@ class PageView(
           CssStyleName("custom-context-menu"),
           attr("issue-context") := id.context.relativeUrl,
           attr("issue-number") := id.issueNumber,
-          if (checkHighlight(id, ar.rawParent.text_matches)) Seq[Modifier](s.hightlightIssue) else Seq.empty[Modifier],
+          if (checkHighlight(ar, ar.rawParent.text_matches)) Seq[Modifier](s.hightlightIssue) else Seq.empty[Modifier],
           id.id.map(attr("reply-number") := _._1), // include only when the value is present
           id.id.map(attr("comment-number") := _._2) // include only when the value is present
         )

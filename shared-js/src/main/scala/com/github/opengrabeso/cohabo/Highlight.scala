@@ -30,4 +30,15 @@ object Highlight {
   def apply(html: String, highlightWords: Seq[String]): String = {
     highlightWords.foldLeft(html)((s, w) => single(s, w))
   }
+
+  /**
+   * Note: this is not 100 % accurately matching apply, because it ignores HTML:
+   * 1) we do not have HTML yet, only Markdown
+   * 2) There could be some user provided HTML, we ignore that
+   * */
+
+  def isHighlighted(body: String, highlightWords: Seq[String]): Boolean = {
+    // note: we might ignore occurrences in comments
+    highlightWords.foldLeft(false)((s, w) => s || body.contains(w))
+  }
 }
