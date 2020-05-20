@@ -30,6 +30,8 @@ import scala.math.Ordered._
 import ColorUtils.{Color, _}
 import io.udash.bindings.inputs
 import io.udash.bootstrap.modal.UdashModal
+import org.scalajs.dom.html.Span
+import scalatags.JsDom
 
 object PageView {
   object symbols {
@@ -260,14 +262,14 @@ class PageView(
       ).render
     }
 
-    def rowTitle(ar: ArticleRowModel): Seq[Node] = {
+    def rowTitle(ar: ArticleRowModel): Modifier = {
       val highlights = ar.rawParent.text_matches.flatMap(_.matches.map(_.text)).distinct
       val title = Highlight(ar.title, highlights)
 
       if(ar.labels.nonEmpty) {
-        Seq(span(raw(title)).render, " ".render) ++ ar.labels.map(labelHtml)
+        Seq[Modifier](raw(title), " ", ar.labels.map(labelHtml))
       } else {
-        Seq(span(raw(title)).render)
+        raw(title)
       }
     }
 
@@ -284,13 +286,13 @@ class PageView(
       TableFactory.TableAttrib("Article Title", (ar, v, _) =>
         // unicode characters rather than FontAwesome images, as those interacted badly with sticky table header
         if (ar.hasChildren && ar.preview) {
-          div(span(`class` := "preview-fold fold-open", symbols.childrenClosed), rowTitle(ar))
+          div(span(`class` := "preview-fold fold-open", symbols.childrenClosed))(rowTitle(ar))
         } else if (ar.hasChildren && ar.indent > 0) {
-          div(span(`class` := "fold-control fold-open", symbols.childrenOpen), rowTitle(ar))
+          div(span(`class` := "fold-control fold-open", symbols.childrenOpen))(rowTitle(ar))
         } else if (ar.hasChildren) {
-          div(span(`class` := "fold-control", symbols.childrenClosed), rowTitle(ar))
+          div(span(`class` := "fold-control", symbols.childrenClosed))(rowTitle(ar))
         } else {
-          div(span(`class` := "no-fold fold-open", symbols.noChildren), rowTitle(ar))
+          div(span(`class` := "no-fold fold-open", symbols.noChildren))(rowTitle(ar))
         },
         style = widthWide(50, 50),
         modifier = Some(ar => style := s"padding-left: ${indentFromLevel(ar.indent)}px") // item (td) style
