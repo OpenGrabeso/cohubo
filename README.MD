@@ -1,7 +1,7 @@
 CoHubo
 ======
 
-Threaded conversation viewer fot GitHub issues
+Threaded conversation viewer for GitHub issues
 ----------------------------------------------
 
 Live version at https://opengrabeso.github.io/cohubo/
