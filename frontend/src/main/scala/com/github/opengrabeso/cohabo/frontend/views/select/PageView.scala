@@ -288,11 +288,18 @@ class PageView(
     def rowTitle(ar: ArticleRowModel): Modifier = {
       val highlights = ar.rawParent.text_matches.flatMap(_.matches.map(_.text)).distinct
       val title = Highlight(ar.title, highlights)
+      val tasks = if (ar.id.id.isEmpty) TaskList.progress(ar.body) else TaskList.Progress(0, 0)
 
-      if(ar.labels.nonEmpty) {
-        Seq[Modifier](raw(title), " ", ar.labels.map(labelHtml))
-      } else {
-        raw(title)
+      Seq[Modifier](raw(title)) ++ {
+        if (tasks.total > 0) {
+          Seq[Modifier](" ", span(s.taskListProgress, s"${tasks.percent}% (${tasks.done} of ${tasks.total})"))
+        } else {
+          Seq.empty[Modifier]
+        }
+      } ++ {
+        if(ar.labels.nonEmpty) {
+          Seq[Modifier](" ", ar.labels.map(labelHtml))
+        } else Seq.empty[Modifier]
       }
     }
 

@@ -71,6 +71,12 @@ object SelectPageStyles extends CommonStyle {
     //float.right // look nice, but causes some lines to be wrapped
   )
 
+  val taskListProgress = style(
+    backgroundColor(c"#c8c8c8"),
+    fontSize.small,
+    fontStyle.italic,
+  )
+
   val userIcon = style(
     height(0.9 em),
     verticalAlign.baseline
