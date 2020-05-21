@@ -24,7 +24,8 @@ case class PageModel(
   activeLabels: Seq[String] = Seq.empty,
   useSearch: Boolean = false,
   articleContent: String = "",
-  editing: (Boolean, Boolean) = (false, false), // editing, editing is reply
+  editing: (Boolean, Boolean) = (false, false), // editing, editing is reply or new
+  editedArticleTitle: String = "",
   editedArticleMarkdown: String = "",
   editedArticleHTML: String = "",
   unreadInfoFrom: Option[ZonedDateTime] = None, // anything newer than the notification info must be unread

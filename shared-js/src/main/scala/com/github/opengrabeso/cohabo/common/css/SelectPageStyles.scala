@@ -368,6 +368,12 @@ object SelectPageStyles extends CommonStyle {
     //unsafeChild(".article-content") (height(100 %%))
   )
 
+  val titleEdit = style(
+    overflow.auto,
+    width(100 %%),
+    margin(0.2 em, `0`)
+  )
+
   val editArea = style(
     display.grid,
     height(100 %%),

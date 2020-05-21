@@ -27,6 +27,7 @@ import TimeFormatting._
 import QueryAST._
 import io.udash.utils.URLEncoder
 import io.udash.wrappers.jquery.jQ
+import org.querki.jquery.JQuery
 import org.scalajs.dom
 
 import scala.collection.mutable
@@ -474,8 +475,26 @@ class PagePresenter(
     }
   }
 
-  private def focusEdit(): Unit = {
-    jQ(dom.document).find("#edit-text-area").trigger("focus")
+  private def focusElement(toFocus: String) = {
+    jQ(dom.document).find(toFocus).trigger("focus")
+  }
+
+  def focusEditText(): Unit = {
+    focusElement("#edit-text-area")
+      .prop("selectionEnd", 0)
+      .scrollTop(0)
+  }
+
+  def focusEdit(): Unit = {
+    if (model.subProp(_.selectedArticleId).get.isEmpty) {
+      focusEditTitle()
+    } else {
+      focusEditText()
+    }
+  }
+
+  def focusEditTitle(): Unit = {
+    focusElement("#edit-title")
   }
 
 
@@ -1008,14 +1027,13 @@ class PagePresenter(
     }
   }
 
-  def newIssueDone(body: String): Unit = {
-    // TODO: which repository?
+  def newIssueDone(title: String, body: String): Unit = {
+    // there should be always one repository selected
     for (context <- pageContexts.headOption) { // remember the context across the futures, so that we can verify it has not changed
       userService.call { api =>
         api.repos(context.organization, context.repository).createIssue(
-          bodyAbstract(body), // TODO: proper title
+          title,
           body
-          // TODO: allow providing more properties
         )
       }.onComplete {
         case Failure(ex) =>
@@ -1038,7 +1056,7 @@ class PagePresenter(
       case (Some(selectedId), true) =>
         replyDone(selectedId, body)
       case (None, _) => // New issue
-        newIssueDone(body)
+        newIssueDone(model.subProp(_.editedArticleTitle).get, body)
     }
   }
 
@@ -1091,6 +1109,7 @@ class PagePresenter(
     if (!wasEditing()) {
       model.subProp(_.editing).set((true, true))
       model.subProp(_.selectedArticleId).set(None)
+      model.subProp(_.editedArticleTitle).set("")
       model.subProp(_.editedArticleMarkdown).set("")
       model.subProp(_.editedArticleHTML).set("")
       focusEdit()

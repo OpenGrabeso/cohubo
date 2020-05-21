@@ -49,7 +49,7 @@ class PageView(
   model: ModelProperty[PageModel],
   presenter: PagePresenter,
   globals: ModelProperty[SettingsModel]
-) extends FinalView with CssView with PageUtils with TimeFormatting with CssBase {
+) extends FinalView with CssView with PageUtils with TimeFormatting with CssBase with JQEvents {
 
   def shortId(context: ContextModel): String = presenter.shortRepoIds.getOrElse(context, "??")
   def repoColor(context: ContextModel): String = {
@@ -635,17 +635,44 @@ class PageView(
                   div().render
               },
               showIfElse(model.subProp(_.editing).transform(_._1))(
-                div(
-                  s.editArea,
-                  TextArea(model.subProp(_.editedArticleMarkdown))(Form.control, s.editTextArea, id := "edit-text-area"),
+                Seq[Node](
+                  // when we are editing a new issue, show the title input
                   div(
-                    s.editButtons,
-                    s.flexRow,
-                    div(s.useFlex1),
-                    editOKButton,
-                    editCancelButton
-                  )
-                ).render,
+                    showIf(model.subProp(_.selectedArticleId).transform(_.isEmpty))(
+                      Seq[Node](
+                        TextInput(model.subProp(_.editedArticleTitle))(s.titleEdit, id := "edit-title", placeholder := "Title").render.tap { in =>
+                          jQ(in).on("keyup", (el, ev) => {
+                            if (ev.key == "Enter") {
+                              presenter.focusEditText()
+                            } else if (ev.key == "Escape") {
+                              presenter.editCancel()
+                            }
+                          })
+                        }
+                      )
+                    )
+                  ).render,
+                  div(
+                    s.editArea,
+                    TextArea(model.subProp(_.editedArticleMarkdown))(Form.control, s.editTextArea, id := "edit-text-area", placeholder :="Leave a comment")
+                      .render.tap { in =>
+                      jQ(in).on("keyup", (el, ev) => {
+                        if (ev.key == "Enter" && ev.ctrlKey) {
+                          presenter.editOK()
+                        } else if (ev.key == "Escape") {
+                          presenter.editCancel()
+                        }
+                      })
+                    },
+                    div(
+                      s.editButtons,
+                      s.flexRow,
+                      div(s.useFlex1),
+                      editOKButton,
+                      editCancelButton
+                    )
+                  ).render
+                ),
                 div(
                   s.articleContentTextArea,
                   div(`class` := "article-content").render.tap { ac =>
