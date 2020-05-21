@@ -66,6 +66,15 @@ class PageView(
     ArticleIdModel(context.organization, context.repository, issueNumber, commentId)
   }
 
+  def fetchElementLabels(e: JQuery): String = {
+    e.attr("issue-labels").get
+  }
+
+  // searching in the quoted comma separated list for a quoted string is much easier than parsing the list
+  def elementLabelsContains(list: String, l: String): Boolean = {
+    list.contains("\"" + l + "\"")
+  }
+
   def fetchRepoData(e: JQuery): ContextModel = {
     ContextModel.parse(e.attr("repository").get)
   }
@@ -354,6 +363,7 @@ class PageView(
           CssStyleName("custom-context-menu"),
           attr("issue-context") := id.context.relativeUrl,
           attr("issue-number") := id.issueNumber,
+          attr("issue-labels") := ar.labels.map(_.name).mkString("\"", "\",\"", "\""),
           if (checkHighlight(ar, ar.rawParent.text_matches)) Seq[Modifier](s.hightlightIssue) else Seq.empty[Modifier],
           id.id.map(attr("reply-number") := _._1), // include only when the value is present
           id.id.map(attr("comment-number") := _._2) // include only when the value is present
@@ -539,6 +549,7 @@ class PageView(
           jQ(t).addContextMenu(
             new Options {
               override val selector = "tr"
+              override val hideOnSecondTrigger = true
               override val build = js.defined { (item, key) =>
                 val data = fetchRepoData(item)
                 val link = a(
@@ -596,11 +607,18 @@ class PageView(
                 jQ(t).addContextMenu(
                   new Options {
                     override val selector = ".custom-context-menu"
+                    override val hideOnSecondTrigger = true
                     override val build = js.defined { (item, key) =>
                       val data = fetchElementData(item)
-                      val labels = model.subProp(_.labels).get.map(l => "label-" + l.name -> BuildItem(
-                        labelHtml(l).render.asInstanceOf[dom.Element].outerHTML, presenter.addLabel(data, l.name), isHtmlName = true
-                      ))
+                      val itemLabels = fetchElementLabels(item)
+                      val labels = model.subProp(_.labels).get.map { l =>
+                        val prefix = if (elementLabelsContains(itemLabels, l.name)) "<span style='position:absolute;left:1em'>" + Icons.check() + "</span>" else ""
+                        "label-" + l.name -> BuildItem(
+                           prefix + labelHtml(l).render.asInstanceOf[dom.Element].outerHTML,
+                          presenter.addLabel(data, l.name),
+                          isHtmlName = true
+                        )
+                      }
                       new Build(
                         items = js.Dictionary(
                           "markAsRead" -> BuildItem(s"Mark ${data.issueIdName(shortId(data.context))} as read", presenter.markAsRead(data)),

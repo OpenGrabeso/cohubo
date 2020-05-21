@@ -15,6 +15,7 @@ object JQueryMenu {
     val items: js.UndefOr[Item] = js.undefined
     val trigger: js.UndefOr[String] = js.undefined
     val build: js.UndefOr[js.Function2[JQuery, js.Any, Build]] = js.undefined
+    val hideOnSecondTrigger: js.UndefOr[Boolean] = js.undefined
   }
 
   class Item(
