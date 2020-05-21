@@ -587,7 +587,7 @@ class PageView(
                       new Build(
                         items = js.Dictionary(
                           "markAsRead" -> BuildItem(s"Mark ${data.issueIdName(shortId(data.context))} as read", presenter.markAsRead(data)),
-                          "reply" -> BuildItem("Reply", presenter.reply(data)),
+                          "reply" -> BuildItem("Reply", presenter.reply(data), disabled = presenter.wasEditing()),
                           "sep2" -> "------",
                           "close" -> BuildItem("Close", presenter.closeIssue(data)),
                           "sep1" -> "------",

@@ -26,12 +26,13 @@ object JQueryMenu {
   class BuildItem(
     val name: String,
     val callback: js.ThisFunction3[JQuery, String, js.Any, js.Any, Boolean],
-    val isHtmlName: js.UndefOr[Boolean] = js.undefined
+    val isHtmlName: js.UndefOr[Boolean] = js.undefined,
+    val disabled: js.UndefOr[js.Function2[js.Any, js.Any, Boolean]] = js.undefined,
   ) extends ABuildItem
 
   object BuildItem {
-    def apply(name: String, callback: => Unit, isHtmlName: js.UndefOr[Boolean] = js.undefined): BuildItem = {
-      new BuildItem(name, (_, _, _, _) => {callback;true}, isHtmlName)
+    def apply(name: String, callback: => Unit, isHtmlName: js.UndefOr[Boolean] = js.undefined, disabled: Boolean = false): BuildItem = {
+      new BuildItem(name, (_, _, _, _) => {callback;true}, isHtmlName, js.defined((_, _) => disabled))
     }
   }
 

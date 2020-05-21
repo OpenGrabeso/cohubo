@@ -950,7 +950,7 @@ class PagePresenter(
     }
   }
 
-  private def wasEditing(): Boolean = model.subProp(_.editing).get._1
+  def wasEditing(): Boolean = model.subProp(_.editing).get._1
 
   def isEditingProperty: ReadableProperty[Boolean] = model.subProp(_.editing).transform(_._1)
 
