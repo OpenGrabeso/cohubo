@@ -654,9 +654,9 @@ class PagePresenter(
             loadIssueComments(row.id, token, filter, i)
           }
 
-          Future.sequence(issueFutures).onComplete(_ => updateRateLimits())
+          //Future.sequence(issueFutures).onComplete(_ => updateRateLimits())
         } else {
-          updateRateLimits()
+          //updateRateLimits()
         }
       }
 
@@ -1104,6 +1104,34 @@ class PagePresenter(
       focusEdit()
     }
   }
+
+  def addLabel(data: ArticleIdModel, name: String): Unit = {
+    val a = model.subSeq(_.articles)
+    val as = a.get
+    as.find(_.id == data).foreach { ar =>
+      val i = ar.rawParent
+      userService.call(
+        _.repos(ar.id.context.organization, ar.id.context.repository).issuesAPI(ar.id.issueNumber).update(
+          i.title,
+          i.body,
+          i.state,
+          Option(i.milestone).map(_.number).getOrElse(-1),
+          name +: i.labels.map(_.name),
+          i.assignees.map(_.login)
+        )
+      ).foreach { i =>
+        val before = as.indexWhere(_.id.sameIssue(ar.id))
+        if (before >= 0) {
+          val newIssue = rowFromIssue(i, ar.id.context)
+          a.replace(before, 1, ar.copy(labels = newIssue.labels))
+        }
+      }
+
+      ar.rawParent
+
+    }
+  }
+
 
   def newIssue(): Unit = {
     if (!wasEditing()) {

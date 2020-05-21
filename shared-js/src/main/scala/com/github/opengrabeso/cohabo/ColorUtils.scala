@@ -19,7 +19,7 @@ object ColorUtils {
         else if (x > 255) "FF"
         else f"${x.round.toInt}%02X"
       }
-      strColor._1 + strColor._2 + strColor._3
+      "#" + strColor._1 + strColor._2 + strColor._3
     }
     def brightness: Double = c dot (0.299, 0.587, 0.114)
   }

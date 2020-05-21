@@ -16,8 +16,8 @@ class ColorUtilsTest extends org.scalatest.funsuite.AnyFunSuite with ScalaCheckD
   }
 
   test("Clamp color") {
-    assert((Color.parseHex("080808") * 100).toHex == "FFFFFF")
-    assert((Color.parseHex("080808") * -1).toHex == "000000")
+    assert((Color.parseHex("080808") * 100).toHex == "#FFFFFF")
+    assert((Color.parseHex("080808") * -1).toHex == "#000000")
   }
 
   test("Brightness ordering") {

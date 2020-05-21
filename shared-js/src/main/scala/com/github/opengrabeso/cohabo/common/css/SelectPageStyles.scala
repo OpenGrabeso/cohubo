@@ -62,8 +62,9 @@ object SelectPageStyles extends CommonStyle {
   )
 
   val labelInline = style(
-    margin(0 px, 4 px),
+    margin(-1 px, 4 px),
     borderRadius(4 px),
+    //border(solid, 1 px), // looks better, but makes rows higher
     padding(0 px, 4 px),
     display.inlineBlock,
     fontSize.small,

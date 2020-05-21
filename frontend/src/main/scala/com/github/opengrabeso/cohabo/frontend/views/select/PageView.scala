@@ -30,6 +30,7 @@ import scala.math.Ordered._
 import ColorUtils.{Color, _}
 import io.udash.bindings.inputs
 import io.udash.bootstrap.modal.UdashModal
+import org.scalajs.dom
 import org.scalajs.dom.html.Span
 import scalatags.JsDom
 
@@ -143,7 +144,7 @@ class PageView(
     val bColor = Color.parseHex(color)
     val background = if (!b) bColor else bColor * 0.5
     (
-      "#" + background.toHex,
+      background.toHex,
       if (background.brightness >= 100) "#000000" else "#ffffff"
     )
   }
@@ -242,10 +243,23 @@ class PageView(
 
 
     def labelHtml(label: Label): Node = {
+      def contrastColor(c: String) = {
+        if (Color.parseHex(c).brightness >= 100) "#000000" else "#ffffff"
+      }
+      def nonWhiteColor(c: String) = {
+        val cc = Color.parseHex(c)
+        val maxBrightness = 240
+        if (Color.parseHex(c).brightness > maxBrightness) (cc * (maxBrightness / 255.0)).toHex else "#" + c
+      }
+      def darkBorderColor(c: String) = {
+        val cc = Color.parseHex(c)
+        if (cc.brightness >= 100) (cc * 0.8).toHex else "#" + c
+      }
       span(
         label.name,
-        backgroundColor := "#" + label.color,
-        color := (if (Color.parseHex(label.color).brightness >= 100) "#000000" else "#ffffff"),
+        backgroundColor := nonWhiteColor(label.color),
+        color := contrastColor(label.color),
+        borderColor := darkBorderColor(label.color),
         s.labelInline
       ).render
     }
@@ -584,10 +598,16 @@ class PageView(
                     override val selector = ".custom-context-menu"
                     override val build = js.defined { (item, key) =>
                       val data = fetchElementData(item)
+                      val labels = model.subProp(_.labels).get.map(l => "label-" + l.name -> BuildItem(
+                        labelHtml(l).render.asInstanceOf[dom.Element].outerHTML, presenter.addLabel(data, l.name), isHtmlName = true
+                      ))
                       new Build(
                         items = js.Dictionary(
                           "markAsRead" -> BuildItem(s"Mark ${data.issueIdName(shortId(data.context))} as read", presenter.markAsRead(data)),
                           "reply" -> BuildItem("Reply", presenter.reply(data), disabled = presenter.wasEditing()),
+                          "labels" -> new Submenu(
+                            "Labels", js.Dictionary(labels:_*)
+                          ),
                           "sep2" -> "------",
                           "close" -> BuildItem("Close", presenter.closeIssue(data)),
                           "sep1" -> "------",
