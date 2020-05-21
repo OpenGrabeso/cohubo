@@ -612,10 +612,11 @@ class PageView(
                       val data = fetchElementData(item)
                       val itemLabels = fetchElementLabels(item)
                       val labels = model.subProp(_.labels).get.map { l =>
-                        val prefix = if (elementLabelsContains(itemLabels, l.name)) "<span style='position:absolute;left:1em'>" + Icons.check() + "</span>" else ""
+                        val checked = elementLabelsContains(itemLabels, l.name)
+                        val prefix = if (checked) "<span style='position:absolute;left:1em'>" + Icons.check() + "</span>" else ""
                         "label-" + l.name -> BuildItem(
                            prefix + labelHtml(l).render.asInstanceOf[dom.Element].outerHTML,
-                          presenter.addLabel(data, l.name),
+                          if (checked) presenter.removeLabel(data, l.name) else presenter.addLabel(data, l.name),
                           isHtmlName = true
                         )
                       }

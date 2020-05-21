@@ -1105,7 +1105,7 @@ class PagePresenter(
     }
   }
 
-  def addLabel(data: ArticleIdModel, name: String): Unit = {
+  private def changeLabels(data: ArticleIdModel, f: Seq[String] => Seq[String]): Unit = {
     val a = model.subSeq(_.articles)
     val as = a.get
     as.find(_.id == data).foreach { ar =>
@@ -1116,7 +1116,7 @@ class PagePresenter(
           i.body,
           i.state,
           Option(i.milestone).map(_.number).getOrElse(-1),
-          name +: i.labels.map(_.name),
+          f(i.labels.map(_.name)),
           i.assignees.map(_.login)
         )
       ).foreach { i =>
@@ -1126,12 +1126,16 @@ class PagePresenter(
           a.replace(before, 1, ar.copy(labels = newIssue.labels))
         }
       }
-
-      ar.rawParent
-
     }
   }
 
+  def removeLabel(data: ArticleIdModel, name: String): Unit = {
+    changeLabels(data, _ diff Seq(name))
+  }
+
+  def addLabel(data: ArticleIdModel, name: String): Unit = {
+    changeLabels(data, name +: _)
+  }
 
   def newIssue(): Unit = {
     if (!wasEditing()) {
