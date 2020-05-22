@@ -73,8 +73,27 @@ object SelectPageStyles extends CommonStyle {
 
   val taskListProgress = style(
     backgroundColor(c"#c8c8c8"),
+    borderRadius(3 px),
+    display.inlineBlock,
+    padding(`0`, 4 px),
+    margin(-1 px, 0 px),
     fontSize.small,
     fontStyle.italic,
+  )
+
+  val progressBackground = style(
+    display.inlineBlock,
+    height(5 px),
+    backgroundColor.white,
+    borderRadius(2 px),
+    width(40 px),
+  )
+
+  val progressForeground = style(
+    display.block,
+    height(100 %%),
+    borderRadius(2 px),
+    backgroundColor(c"#404060"),
   )
 
   val userIcon = style(
