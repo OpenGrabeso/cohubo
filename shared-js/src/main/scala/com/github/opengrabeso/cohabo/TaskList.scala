@@ -7,9 +7,11 @@ object TaskList {
   }
 
   private def findAllTasks(body: String): Seq[String] = {
-    val task = "\\[([ xX])\\]".r
-    val matches = task.findAllMatchIn(body)
-    matches.map(_.group(1)).toSeq
+    val Task = "\\s*[-+*0-9.)]+\\s+\\[([ xX])\\].*".r
+    body.linesIterator.collect {
+      case Task(check) =>
+        check
+    }.toSeq
   }
 
   def progress(body: String): Progress = {

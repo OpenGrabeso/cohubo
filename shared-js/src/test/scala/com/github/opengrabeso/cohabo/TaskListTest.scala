@@ -19,6 +19,12 @@ class TaskListTest extends org.scalatest.funsuite.AnyFunSuite {
     assert(TaskList.progress("- [xx]") == Progress(0, 0))
   }
 
+  test("Ignore tasks in malformed lists") {
+    assert(TaskList.progress("-[ ]") == Progress(0, 0))
+    assert(TaskList.progress(" x [ ]") == Progress(0, 0))
+    assert(TaskList.progress(" / [ ]") == Progress(0, 0))
+  }
+
   test("Parse multiple tasks with different list styles") {
     val text =
       """
