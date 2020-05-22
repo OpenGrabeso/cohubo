@@ -285,15 +285,25 @@ class PageView(
       ).render
     }
 
+    def progressHtml(percent: Int): Node = {
+      span(
+        s.progressBackground,
+        span(
+          s.progressForeground,
+          style := s"width: $percent%"
+        )
+      ).render
+    }
+
     def rowTitle(ar: ArticleRowModel): Modifier = {
       val highlights = ar.rawParent.text_matches.flatMap(_.matches.map(_.text)).distinct
       val title = Highlight(ar.title, highlights)
+      val tasks = if (ar.id.id.isEmpty) TaskList.progress(ar.body) else TaskList.Progress(0, 0)
+      def seqIf(cond: Boolean)(elems: =>Seq[Modifier]): Seq[Modifier] = if (cond) elems else Seq.empty
 
-      if(ar.labels.nonEmpty) {
-        Seq[Modifier](raw(title), " ", ar.labels.map(labelHtml))
-      } else {
-        raw(title)
-      }
+      Seq[Modifier](raw(title)) ++
+        seqIf(tasks.total > 0) {Seq(" ", span(s.taskListProgress, s"${tasks.done} of ${tasks.total}", " ", progressHtml(tasks.percent)))} ++
+        seqIf(ar.labels.nonEmpty) {Seq(" ", ar.labels.map(labelHtml))}
     }
 
     val attribs = Seq[DisplayAttrib](
