@@ -31,6 +31,6 @@ object ApplicationContext {
     case _: SharedExceptions.UnauthorizedException =>
       // automatic redirection to AboutPage
       println("A routing failure: UnauthorizedException")
-      application.goTo(SelectPageState)
+      application.goTo(SelectPageState(None))
   }
 }

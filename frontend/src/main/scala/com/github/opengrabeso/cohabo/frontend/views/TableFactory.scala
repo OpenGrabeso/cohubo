@@ -71,24 +71,8 @@ object TableFactory {
 
       onclick :+= { e: Event =>
         if (!selDisabled.get) {
-          val td = e.target.asInstanceOf[Element]
-          // e.target may be a td inside of tr, we need to find a tr parent in such case
-          val tr = jQ(td).closest("tr")
-          val wasSelected = tr.hasClass("selected")
-          if (!wasSelected) {
-            val selId = rowHandler.id(elData)
-            tr.addClass("selected")
-            sel.set(Some(selId))
-
-            // once the selection is changed from us, unselect us
-            def listenCallback(newId: Option[SelType]): Unit = {
-              if (newId.contains(selId)) sel.listenOnce(listenCallback) // listen again
-              else {
-                tr.removeClass("selected")
-              }
-            }
-            sel.listenOnce(listenCallback)
-          }
+          val selId = rowHandler.id(elData)
+          sel.set(Some(selId))
         }
 
         false

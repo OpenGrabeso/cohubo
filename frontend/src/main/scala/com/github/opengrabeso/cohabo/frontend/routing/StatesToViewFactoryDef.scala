@@ -8,8 +8,7 @@ class StatesToViewFactoryDef extends ViewFactoryRegistry[RoutingState] {
   def matchStateToResolver(state: RoutingState): ViewFactory[_ <: RoutingState] =
     state match {
       case RootState => new Root.PageViewFactory(ApplicationContext.application, ApplicationContext.userContextService)
-      case SelectPageState => new select.PageViewFactory(ApplicationContext.application, ApplicationContext.userContextService)
+      case SelectPageState(_) => select.PageViewFactory
       case SettingsPageState => new settings.PageViewFactory(ApplicationContext.application, ApplicationContext.userContextService)
-      case EditPageState(articleId) => new edit.PageViewFactory(ApplicationContext.application, ApplicationContext.userContextService, articleId)
     }
 }

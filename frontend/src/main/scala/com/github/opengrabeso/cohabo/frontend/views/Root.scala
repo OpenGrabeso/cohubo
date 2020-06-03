@@ -39,7 +39,7 @@ object Root {
     }
 
     def gotoMain() = {
-      application.goTo(SelectPageState)
+      application.goTo(SelectPageState(None))
     }
   }
 

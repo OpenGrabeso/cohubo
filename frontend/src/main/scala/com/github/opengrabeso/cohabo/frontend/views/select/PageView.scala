@@ -91,6 +91,10 @@ class PageView(
     }
   }
 
+  def isSelected(id: ArticleIdModel): ReadableProperty[Boolean] = {
+    model.subProp(_.selectedArticleId).transform(_.contains(id))
+  }
+
   def hasUnreadChildren(row: ReadableProperty[ArticleRowModel]): ReadableProperty[Boolean] = {
     model.subProp(_.unreadInfo).combine(row)(_ -> _).transform { case (unread, row) =>
       // when the article itself is unread, do not mark it has having unread children
@@ -251,8 +255,10 @@ class PageView(
         if (row.subProp(_.createdBy).get.login == globals.subProp(_.user.login).get) false
         else b
       }
+      val selected = isSelected(row.get.id)
       Seq(
         CssStyleName("closed").styleIf(row.get.closed),
+        CssStyleName("selected").styleIf(selected),
         CssStyleName("unread").styleIf(unread),
         CssStyleName("unread-children").styleIf(hasUnreadChildren(row))
       )

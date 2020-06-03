@@ -141,7 +141,7 @@ class PagePresenter(
   model: ModelProperty[PageModel],
   application: Application[RoutingState],
   userService: services.UserContextService
-)(implicit ec: ExecutionContext) extends Presenter[SelectPageState.type] {
+)(implicit ec: ExecutionContext) extends Presenter[SelectPageState] {
 
   val githubRestApiClient = ApplicationContext.githubRestApiClient
 
@@ -157,12 +157,10 @@ class PagePresenter(
     // cyclical execution does not happen because the properties are set to the value they already have
     ParseFilterQuery(expr) match {
       case ParseFilterQuery.Success(result, next) =>
-        println(s"Query $result")
         val labels = result.collect { case LabelQuery(x) => x}
         val states = result.collectFirst { case StateQuery(x) => x } // when states are conflicting, prefer the first one
         // anything unsupported by the issue query means we have to use the search API
         val isSearch = (labels.map(LabelQuery) ++ states.map(StateQuery)).toSet != result.toSet
-        println(s"is search $isSearch ${labels ++ states} $result")
         // verify the labels are valid, if not, ignore the filter (happens while typing)
         val allLabels = model.subProp(_.labels).get.map(_.name).toSet
         if (labels.forall(allLabels.contains)) {
@@ -229,6 +227,7 @@ class PagePresenter(
         model.subProp(_.selectedArticleParent).set(None)
         model.subProp(_.articleContent).set("")
     }
+    application.goTo(SelectPageState(id) , true)
 
   }
 
@@ -280,7 +279,6 @@ class PagePresenter(
 
 
   private def initArticles(context: ContextModel, filter: Filter): Future[DataWithHeaders[Seq[Issue]]] = {
-    println(s"filter $filter")
     filter match {
       case i: IssueFilter =>
         userService.call(_.repos(context.organization, context.repository).issues(sort = "updated", state = i.state, labels = i.labels.mkString(",")))
@@ -895,7 +893,19 @@ class PagePresenter(
   }
 
 
-  override def handleState(state: SelectPageState.type): Unit = {}
+  override def handleState(state: SelectPageState): Unit = {
+    println(s"handleState ${state.id}")
+    val adjustedId = state.id match {
+      case Some(aid@ArticleIdModel(_, _, _, Some((_, commentId)))) =>
+        val as = model.subProp(_.articles).get
+        val found = as.find(a => a.id.sameIssue(aid) && a.id.id.exists(_._2 == commentId))
+        found.map(_.id)
+      case x =>
+        x
+    }
+
+    model.subProp(_.selectedArticleId).set(adjustedId)
+  }
 
   def loadMore(): Unit = {
     // TODO: be smart, decide which repositories need more issues
@@ -922,7 +932,7 @@ class PagePresenter(
 
   def renderMarkdown(body: String, context: ContextModel, postprocess: String => String = identity): Unit = {
     val selectedId = model.subProp(_.selectedArticleId).get
-    println(s"renderMarkdown $selectedId")
+    //println(s"renderMarkdown $selectedId")
     val strippedBody = removeColaboHeaders(body)
     val htmlResult = markdownCache(strippedBody -> context)
     // update the local data: article display and article content in the article table
