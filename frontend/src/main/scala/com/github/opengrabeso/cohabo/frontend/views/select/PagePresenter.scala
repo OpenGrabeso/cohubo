@@ -558,8 +558,8 @@ class PagePresenter(
           case Some(next) =>
             githubRestApiClient.requestWithHeaders[Seq[Comment]](next, token).map(c => processComments(done ++ c.data, c.headers)).failed.foreach(apiDone.failure)
           case None =>
-            val commentRows = done.zipWithIndex.map { case (c, i) =>
-              rowFromComment(ArticleIdModel(context.organization, context.repository, id.issueNumber, Some(i, c.id)), c, issue.rawParent)
+            val commentRows = done.map { c =>
+              rowFromComment(ArticleIdModel(context.organization, context.repository, id.issueNumber, Some(c.id)), c, issue.rawParent)
             }
             processIssueComments(issue, commentRows, token, context, filter)
             apiDone.success(())
@@ -735,7 +735,7 @@ class PagePresenter(
         } {
           val as = model.subSeq(_.articles).get
           val issueKnown = as.find(a => a.id.issueNumber == id._2 && a.id.context == id._1)
-          val commentKnown = commentId.exists(cid => as.exists(a => a.id.id.exists(_._2 == cid._2) && a.id.context == cid._1))
+          val commentKnown = commentId.exists(cid => as.exists(a => a.id.id.contains(cid) && a.id.context == cid._1))
           if (issueKnown.isEmpty) {
             println(s"Unknown issue $issueId")
 
@@ -904,14 +904,7 @@ class PagePresenter(
       }
     }
 
-    state.id match {
-      case Some(aid@ArticleIdModel(_, _, _, Some((_, commentId)))) =>
-        val as = model.subProp(_.articles).get
-        val found = as.find(a => a.id.sameIssue(aid) && a.id.id.exists(_._2 == commentId)).map(_.id)
-        model.subProp(_.selectedArticleId).set(found)
-      case id =>
-        model.subProp(_.selectedArticleId).set(id)
-    }
+    model.subProp(_.selectedArticleId).set(state.id)
   }
 
   def loadMore(): Unit = {
@@ -1001,7 +994,7 @@ class PagePresenter(
     val context = selectedId.context
     userService.call { api =>
       selectedId match {
-        case ArticleIdModel(_, _, issueId, Some((_, commentId))) =>
+        case ArticleIdModel(_, _, issueId, Some(commentId)) =>
           api.repos(context.organization, context.repository).editComment(commentId, body).map(_.body)
         case ArticleIdModel(_, _, issueId, None) =>
           val issueAPI = api.repos(context.organization, context.repository).issuesAPI(issueId)
@@ -1042,7 +1035,7 @@ class PagePresenter(
           comments = articles.filter(a => a.id.sameIssue(selectedId) && a.id.id.nonEmpty)
         } {
           val parent = model.subProp(_.articles).get.find(_.id == selectedId)
-          val newId = ArticleIdModel(context.organization, context.repository, selectedId.issueNumber, Some(comments.length, c.id))
+          val newId = ArticleIdModel(context.organization, context.repository, selectedId.issueNumber, Some(c.id))
           val newRow = rowFromComment(newId, c, parent.get.rawParent)
           processIssueComments(i, comments :+ newRow, currentToken(), context, filterState())
         }
@@ -1108,9 +1101,9 @@ class PagePresenter(
       // check all existing replies to the issue
       val replies = model.subProp(_.articles).get.filter(_.id.sameIssue(id))
       // there always must exists at least the reply we are replying to, it does not have to be a comment, though
-      val maxReplyNumber = replies.flatMap(_.id.id).map(_._1).maxOpt
+      val maxReplyNumber = replies.flatMap(_.id.id).maxOpt
 
-      val isLast = (id.id.map(_._1), maxReplyNumber) match {
+      val isLast = (id.id, maxReplyNumber) match {
         case (Some(iid), Some(r)) if iid == r =>
           true
         case (None, None) =>

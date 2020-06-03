@@ -9,17 +9,17 @@ import org.scalajs.dom.html.Anchor
 import scala.scalajs.js.URIUtils
 
 
-case class ArticleIdModel(owner: String, repo: String, issueNumber: Long, id: Option[(Int, Long)]) {
+case class ArticleIdModel(owner: String, repo: String, issueNumber: Long, id: Option[Long]) {
 
   def context = ContextModel(owner, repo)
 
   def sameIssue(that: ArticleIdModel) = this.owner == that.owner && this.repo == that.repo && this.issueNumber == that.issueNumber
 
   override def toString = {
-    id.map { case (index, _) =>
-      s"$owner/$repo/#$issueNumber($index)"
+    id.map { c =>
+      s"$owner/$repo/#$issueNumber($c)"
     }.getOrElse {
-      s"$owner/$repo/#$issueNumber($id)"
+      s"$owner/$repo/#$issueNumber()"
     }
   }
 
@@ -29,7 +29,7 @@ case class ArticleIdModel(owner: String, repo: String, issueNumber: Long, id: Op
 
   def issueUri: String = {
     id.map { commentId =>
-      s"https://www.github.com/$owner/$repo/issues/$issueNumber#issuecomment-${commentId._2}"
+      s"https://www.github.com/$owner/$repo/issues/$issueNumber#issuecomment-$commentId"
     }.getOrElse {
       s"https://www.github.com/$owner/$repo/issues/$issueNumber"
     }
@@ -42,13 +42,13 @@ case class ArticleIdModel(owner: String, repo: String, issueNumber: Long, id: Op
   def issueLink(prefix: String): JsDom.TypedTag[Anchor] = {
     a(
       href := issueUri,
-      id.map(commentId => s"(${commentId._1})").getOrElse(issueIdName(prefix)).render
+      id.map(commentId => s"($commentId)").getOrElse(issueIdName(prefix)).render
     )
   }
   def issueLinkFull(prefix: String): JsDom.TypedTag[Anchor] = {
     a(
       href := issueUri,
-      id.map(commentId => issueIdName(prefix) + s"(${commentId._1})").getOrElse(issueIdName(prefix)).render
+      id.map(commentId => issueIdName(prefix) + s"($commentId)").getOrElse(issueIdName(prefix)).render
     )
   }
 }
@@ -61,7 +61,7 @@ object ArticleIdModel extends HasModelPropertyCreator[ArticleIdModel] {
 
   def format(id: ArticleIdModel): String = {
     val parts = id.id.map {cid =>
-      Seq(id.owner, id.repo, id.issueNumber.toString, cid._2.toString)
+      Seq(id.owner, id.repo, id.issueNumber.toString, cid.toString)
     }.getOrElse {
       Seq(id.owner, id.repo, id.issueNumber.toString)
     }
@@ -77,7 +77,7 @@ object ArticleIdModel extends HasModelPropertyCreator[ArticleIdModel] {
       case Seq(owner, repo, id, commentId) =>
         // we do not know the answer "ordinal" number, only the comment id
         // the handleState must handle this
-        Some(ArticleIdModel(owner, repo, id.toLong, Some(0, commentId.toLong)))
+        Some(ArticleIdModel(owner, repo, id.toLong, Some(commentId.toLong)))
       case _ =>
         None
     }

@@ -60,8 +60,7 @@ class PageView(
     val replyNumber = e.attr("reply-number").map(_.toInt)
     val commentNumber = e.attr("comment-number").map(_.toLong)
     val context = e.attr("issue-context").map(ContextModel.parse).get
-    val commentId = (replyNumber zip commentNumber).headOption
-    ArticleIdModel(context.organization, context.repository, issueNumber, commentId)
+    ArticleIdModel(context.organization, context.repository, issueNumber, commentNumber)
   }
 
   def fetchElementLabels(e: JQuery): String = {
@@ -377,7 +376,7 @@ class PageView(
       def checkHighlight(item: ArticleRowModel, matchInfo: Seq[TextMatchIssue]): Boolean = {
         if (item.id.id.nonEmpty) { // a comment
           matchInfo.exists(
-            p => p.object_type == "IssueComment" && p.object_url.contains("/" + item.id.id.get._2.toString)
+            p => p.object_type == "IssueComment" && p.object_url.contains("/" + item.id.id.get.toString)
           ) || {
             // extended highlighting - highlight all text matches, not only those returned by the TextMatchIssue
             val highlights = matchInfo.flatMap(_.matches.map(_.text)).distinct
@@ -403,8 +402,7 @@ class PageView(
           attr("issue-labels") := ar.labels.map(_.name).mkString("\"", "\",\"", "\""),
           attr("issue-assignees") := ar.assignees.map(_.login).mkString("\"", "\",\"", "\""),
           if (checkHighlight(ar, ar.rawParent.text_matches)) Seq[Modifier](s.hightlightIssue) else Seq.empty[Modifier],
-          id.id.map(attr("reply-number") := _._1), // include only when the value is present
-          id.id.map(attr("comment-number") := _._2) // include only when the value is present
+          id.id.map(attr("comment-number") := _) // include only when the value is present
         )
       }
       override def tdModifier = s.td
