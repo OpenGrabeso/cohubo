@@ -31,8 +31,6 @@ import ColorUtils.{Color, _}
 import io.udash.bindings.inputs
 import io.udash.bootstrap.modal.UdashModal
 import org.scalajs.dom
-import org.scalajs.dom.html.Span
-import scalatags.JsDom
 
 object PageView {
   object symbols {
@@ -110,6 +108,9 @@ class PageView(
   private val refreshNotifications = button("Refresh notifications".toProperty)
 
   private val editButton = button("Edit".toProperty, model.subProp(_.editing).transform(_._1))
+  private val replyButton = button("Reply".toProperty,
+    model.subProp(_.selectedArticleId).transform(_.isEmpty) || model.subProp(_.editing).transform(_._1)
+  )
   private val editOKButton = button("OK".toProperty, buttonStyle = BootstrapStyles.Color.Success.toProperty)
   private val editCancelButton = button("Cancel".toProperty)
 
@@ -215,6 +216,7 @@ class PageView(
   buttonOnClick(nextPageButton) {presenter.loadMore()}
   buttonOnClick(refreshNotifications) {presenter.refreshNotifications()}
   buttonOnClick(editButton) {presenter.editCurrentArticle()}
+  buttonOnClick(replyButton) {presenter.reply(model.subProp(_.selectedArticleId).get.get)}
   buttonOnClick(editOKButton) {presenter.editOK()}
   buttonOnClick(editCancelButton) {presenter.editCancel()}
 
@@ -555,7 +557,6 @@ class PageView(
         Spacing.margin(size = SpacingSize.Small),
         repoTable.render.tap { t =>
           import facade.JQueryMenu._
-          import facade.Resizable._
           jQ(t).addContextMenu(
             new Options {
               override val selector = "tr"
@@ -678,7 +679,8 @@ class PageView(
                       div(span(`class` := "createdBy", userHtml(row.createdBy)))
                     ),
                     div(s.useFlex1),
-                    div(editButton)
+                    div(editButton),
+                    div(replyButton)
                   ).render
                 case _ =>
                   div().render

@@ -150,11 +150,6 @@ class PagePresenter(
   def pageContexts = userService.properties.transformToSeq(_.activeContexts).get
 
 
-  implicit class TupleCombine[T](a: ReadableProperty[T]) {
-    def tuple[X](b: ReadableProperty[X]): ReadableProperty[(T, X)] = a.combine(b)(_ -> _)
-    @inline def **[X](b: ReadableProperty[X]): ReadableProperty[(T, X)] = a.tuple(b)
-  }
-
   val stateFilterProps = model.subProp(_.filterOpen) ** model.subProp(_.filterClosed)
   val queryFilter = stateFilterProps ** model.subProp(_.activeLabels)
 
