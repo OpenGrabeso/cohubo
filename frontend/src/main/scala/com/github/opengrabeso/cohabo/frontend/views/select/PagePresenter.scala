@@ -384,7 +384,7 @@ class PagePresenter(
     }
 
     ArticleRowModel(
-      p, i.comments > 0, true, 0, i.title, i.body, i.state == "closed", i.labels, i.assignees.map(_.login), Option(i.milestone).map(_.title), i.user, i,
+      p, i.comments > 0, true, 0, i.title, i.body, i.state == "closed", i.labels, i.assignees, Option(i.milestone).map(_.title), i.user, i,
       explicitCreated.getOrElse(i.created_at), explicitCreated.getOrElse(i.created_at), updatedAt
     )
   }
@@ -505,7 +505,7 @@ class PagePresenter(
   def obtainCollaborators(context: ContextModel): Unit = {
     userService.call(api => api.repos(context.organization, context.repository).collaborators()).onComplete {
       case Success(users) =>
-        model.subProp(_.selectedContextCollaborators).set(users.map(_.login))
+        model.subProp(_.selectedContextCollaborators).set(users)
       case Failure(ex@HttpErrorException(code, _, _)) =>
         println(s"HTTP Error $code loading collaborators from ${context.relativeUrl}: $ex")
         model.subProp(_.selectedContextCollaborators).set(Seq.empty)

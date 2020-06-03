@@ -281,15 +281,27 @@ class PageView(
       ).render
     }
 
+    def userInitials(user: User): String = {
+      user.login.take(1).toUpperCase ++ user.login.drop(1).filter(_.isUpper)
+    }
+
+    def avatarHtml(user: User): Node = {
+      if (user.avatar_url != null && user.avatar_url.nonEmpty) img(src := user.avatar_url, s.userIcon).render
+      else span(userInitials(user)).render
+    }
+
     def userHtml(user: User): Node = {
       span(
-        if (user.avatar_url != null && user.avatar_url.nonEmpty) {
-          img(
-            src := user.avatar_url,
-            s.userIcon
-          )
-        } else span(),
+        avatarHtml(user),
         user.displayName.render
+      ).render
+    }
+
+    def userHtmlShort(user: User): Node = {
+      span(
+        if (user.avatar_url != null && user.avatar_url.nonEmpty) img(src := user.avatar_url, s.userIcon).render
+        else "".render,
+        userInitials(user)
       ).render
     }
 
@@ -311,7 +323,8 @@ class PageView(
 
       Seq[Modifier](raw(title)) ++
         seqIf(tasks.total > 0) {Seq(" ", span(s.taskListProgress, s"${tasks.done} of ${tasks.total}", " ", progressHtml(tasks.percent)))} ++
-        seqIf(ar.labels.nonEmpty) {Seq(" ", ar.labels.map(labelHtml))}
+        seqIf(ar.labels.nonEmpty) {Seq(" ", ar.labels.map(labelHtml))} ++
+        seqIf(ar.assignees.nonEmpty) {Seq(" ", ar.assignees.map(userHtmlShort))}
     }
 
     val attribs = Seq[DisplayAttrib](
@@ -382,7 +395,7 @@ class PageView(
           attr("issue-context") := id.context.relativeUrl,
           attr("issue-number") := id.issueNumber,
           attr("issue-labels") := ar.labels.map(_.name).mkString("\"", "\",\"", "\""),
-          attr("issue-assignees") := ar.assignees.mkString("\"", "\",\"", "\""),
+          attr("issue-assignees") := ar.assignees.map(_.login).mkString("\"", "\",\"", "\""),
           if (checkHighlight(ar, ar.rawParent.text_matches)) Seq[Modifier](s.hightlightIssue) else Seq.empty[Modifier],
           id.id.map(attr("reply-number") := _._1), // include only when the value is present
           id.id.map(attr("comment-number") := _._2) // include only when the value is present
@@ -629,22 +642,23 @@ class PageView(
                     override val build = js.defined { (item, key) =>
 
                       def prefixChecked(checked: Boolean) = if (checked) "<span style='position:absolute;left:1em'>" + Icons.check() + "</span>" else ""
+                      def nodeHtml(node: Node) = node.render.asInstanceOf[dom.Element].outerHTML
 
                       val data = fetchElementData(item)
                       val itemLabels = fetchElementLabels(item)
                       val itemAssignees = fetchElementAssignees(item)
                       val collaborators = model.subProp(_.selectedContextCollaborators).get.map { u =>
-                        val checked = elementAssigneesContains(itemAssignees, u)
+                        val checked = elementAssigneesContains(itemAssignees, u.login)
                         "user-label-" + u -> BuildItem(
-                          prefixChecked(checked) + u,
-                          if (checked) presenter.removeAssignee(data, u) else presenter.addAssignee(data, u),
+                          prefixChecked(checked) + nodeHtml(userHtml(u)),
+                          if (checked) presenter.removeAssignee(data, u.login) else presenter.addAssignee(data, u.login),
                           isHtmlName = true
                         )
                       }
                       val labels = model.subProp(_.labels).get.map { l =>
                         val checked = elementLabelsContains(itemLabels, l.name)
                         "label-" + l.name -> BuildItem(
-                          prefixChecked(checked) + labelHtml(l).render.asInstanceOf[dom.Element].outerHTML,
+                          prefixChecked(checked) + nodeHtml(labelHtml(l)),
                           if (checked) presenter.removeLabel(data, l.name) else presenter.addLabel(data, l.name),
                           isHtmlName = true
                         )
