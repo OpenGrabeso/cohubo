@@ -23,4 +23,3 @@ sealed abstract class FinalRoutingState(parentState: Option[ContainerRoutingStat
 case object RootState extends ContainerRoutingState(None)
 case object SelectPageState extends FinalRoutingState(Some(RootState))
 case object SettingsPageState extends FinalRoutingState(Some(RootState))
-case class EditPageState(articleId: ArticleId) extends FinalRoutingState(Some(RootState))
