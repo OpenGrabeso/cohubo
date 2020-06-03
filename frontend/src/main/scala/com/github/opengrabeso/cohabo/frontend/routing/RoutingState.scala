@@ -1,6 +1,8 @@
 package com.github.opengrabeso.cohabo
-package frontend.routing
+package frontend
+package routing
 
+import dataModel._
 import common.model._
 import io.udash._
 
@@ -21,5 +23,5 @@ sealed abstract class FinalRoutingState(parentState: Option[ContainerRoutingStat
   extends RoutingState(parentState) with FinalState
 
 case object RootState extends ContainerRoutingState(None)
-case object SelectPageState extends FinalRoutingState(Some(RootState))
+case class SelectPageState(id: Option[ArticleIdModel]) extends FinalRoutingState(Some(RootState))
 case object SettingsPageState extends FinalRoutingState(Some(RootState))

@@ -1,8 +1,9 @@
 package com.github.opengrabeso.cohabo
-package frontend.routing
+package frontend
+package routing
 
+import dataModel._
 import io.udash._
-import common.model._
 
 import scala.scalajs.js.URIUtils
 
@@ -16,23 +17,19 @@ class RoutingRegistryDef extends RoutingRegistry[RoutingState] {
     def apply(s: String): String = URIUtils.encodeURIComponent(s)
     def unapply(s: String): Option[String] = Some(URIUtils.decodeURIComponent(s))
   }
-  object ? {
-    def apply(prefix: String, s: ArticleId): String = {
-      prefix + "?" + URIEncoded(s.toString)
+  object IdPar {
+    def apply(id: ArticleIdModel) = {
+      "/" + id.toUrlString
     }
-    def unapply(s: String): Option[(String, ArticleId)] = {
-      val prefix = s.takeWhile(_ != '?')
-      if (prefix.nonEmpty) {
-        val rest = s.drop(prefix.length + 1)
-        val parts = rest.split("&")
-        Some((prefix, parts.flatMap(URIEncoded.unapply(_).map(ArticleId.deserialize)).head))
-      } else {
-        None
-      }
+    def unapply(s: String): Option[ArticleIdModel] = {
+      if (s.startsWith("/")) {
+        ArticleIdModel.parse(s.drop(1))
+      } else None
     }
   }
   private val (url2State, state2Url) = bidirectional {
-    case "/" => SelectPageState
     case "/settings" => SettingsPageState
+    case "/" => SelectPageState(None)
+    case IdPar(id) => SelectPageState(Some(id))
   }
 }
