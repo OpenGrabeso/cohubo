@@ -384,7 +384,7 @@ class PagePresenter(
     }
 
     ArticleRowModel(
-      p, i.comments > 0, true, 0, i.title, i.body, i.state == "closed", i.labels, Option(i.milestone).map(_.title), i.user, i,
+      p, i.comments > 0, true, 0, i.title, i.body, i.state == "closed", i.labels, i.assignees.map(_.login), Option(i.milestone).map(_.title), i.user, i,
       explicitCreated.getOrElse(i.created_at), explicitCreated.getOrElse(i.created_at), updatedAt
     )
   }
@@ -394,7 +394,7 @@ class PagePresenter(
     val explicitCreated = overrideCreatedAt(i.body)
     val highlight = Set.empty[String]
     ArticleRowModel(
-      articleId, false, false, 0, bodyAbstract(i.body), i.body, false, Seq.empty, None, i.user, parent,
+      articleId, false, false, 0, bodyAbstract(i.body), i.body, false, Seq.empty, Seq.empty, None, i.user, parent,
       explicitCreated.getOrElse(i.created_at), explicitCreated.getOrElse(i.updated_at), explicitCreated.getOrElse(i.updated_at)
     )
   }
@@ -500,6 +500,20 @@ class PagePresenter(
     }
     pagingUrls.clear()
     println(s"clearAllArticles: cleared $issues, now ${model.subSeq(_.articles).size}")
+  }
+
+  def obtainCollaborators(context: ContextModel): Unit = {
+    userService.call(api => api.repos(context.organization, context.repository).collaborators()).onComplete {
+      case Success(users) =>
+        model.subProp(_.selectedContextCollaborators).set(users.map(_.login))
+      case Failure(ex@HttpErrorException(code, _, _)) =>
+        println(s"HTTP Error $code loading collaborators from ${context.relativeUrl}: $ex")
+        model.subProp(_.selectedContextCollaborators).set(Seq.empty)
+      case Failure(ex) =>
+        println(s"Error loading collaborators from ${context.relativeUrl}: $ex")
+        ex.printStackTrace()
+        model.subProp(_.selectedContextCollaborators).set(Seq.empty)
+    }
   }
 
   def clearArticles(context: ContextModel): Unit = {
@@ -845,6 +859,7 @@ class PagePresenter(
       clearAllArticles()
       unselectedArticle()
 
+
       if (act.isEmpty) {
         clearNotifications()
       }
@@ -858,6 +873,7 @@ class PagePresenter(
             printf(s"Error loading labels: $ex")
             model.subProp(_.labels).set(Seq.empty)
         }
+        obtainCollaborators(context)
       }
 
       val state = filterState()
@@ -1124,12 +1140,44 @@ class PagePresenter(
     }
   }
 
+  private def changeAssignees(data: ArticleIdModel, f: Seq[String] => Seq[String]): Unit = {
+    val a = model.subSeq(_.articles)
+    val as = a.get
+    as.find(_.id == data).foreach { ar =>
+      val i = ar.rawParent
+      userService.call(
+        _.repos(ar.id.context.organization, ar.id.context.repository).issuesAPI(ar.id.issueNumber).update(
+          i.title,
+          i.body,
+          i.state,
+          Option(i.milestone).map(_.number).getOrElse(-1),
+          i.labels.map(_.name),
+          f(i.assignees.map(_.login))
+        )
+      ).foreach { i =>
+        val before = as.indexWhere(_.id.sameIssue(ar.id))
+        if (before >= 0) {
+          val newIssue = rowFromIssue(i, ar.id.context)
+          a.replace(before, 1, ar.copy(assignees = newIssue.assignees))
+        }
+      }
+    }
+  }
+
   def removeLabel(data: ArticleIdModel, name: String): Unit = {
     changeLabels(data, _ diff Seq(name))
   }
 
   def addLabel(data: ArticleIdModel, name: String): Unit = {
     changeLabels(data, name +: _)
+  }
+
+  def removeAssignee(data: ArticleIdModel, name: String): Unit = {
+    changeAssignees(data, _ diff Seq(name))
+  }
+
+  def addAssignee(data: ArticleIdModel, name: String): Unit = {
+    changeAssignees(data, name +: _)
   }
 
   def newIssue(): Unit = {

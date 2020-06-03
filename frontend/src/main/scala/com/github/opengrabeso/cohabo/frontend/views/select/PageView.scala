@@ -67,9 +67,15 @@ class PageView(
   def fetchElementLabels(e: JQuery): String = {
     e.attr("issue-labels").get
   }
+  def fetchElementAssignees(e: JQuery): String = {
+    e.attr("issue-assignees").get
+  }
 
   // searching in the quoted comma separated list for a quoted string is much easier than parsing the list
   def elementLabelsContains(list: String, l: String): Boolean = {
+    list.contains("\"" + l + "\"")
+  }
+  def elementAssigneesContains(list: String, l: String): Boolean = {
     list.contains("\"" + l + "\"")
   }
 
@@ -376,6 +382,7 @@ class PageView(
           attr("issue-context") := id.context.relativeUrl,
           attr("issue-number") := id.issueNumber,
           attr("issue-labels") := ar.labels.map(_.name).mkString("\"", "\",\"", "\""),
+          attr("issue-assignees") := ar.assignees.mkString("\"", "\",\"", "\""),
           if (checkHighlight(ar, ar.rawParent.text_matches)) Seq[Modifier](s.hightlightIssue) else Seq.empty[Modifier],
           id.id.map(attr("reply-number") := _._1), // include only when the value is present
           id.id.map(attr("comment-number") := _._2) // include only when the value is present
@@ -620,13 +627,24 @@ class PageView(
                     override val selector = ".custom-context-menu"
                     override val hideOnSecondTrigger = true
                     override val build = js.defined { (item, key) =>
+
+                      def prefixChecked(checked: Boolean) = if (checked) "<span style='position:absolute;left:1em'>" + Icons.check() + "</span>" else ""
+
                       val data = fetchElementData(item)
                       val itemLabels = fetchElementLabels(item)
+                      val itemAssignees = fetchElementAssignees(item)
+                      val collaborators = model.subProp(_.selectedContextCollaborators).get.map { u =>
+                        val checked = elementAssigneesContains(itemAssignees, u)
+                        "user-label-" + u -> BuildItem(
+                          prefixChecked(checked) + u,
+                          if (checked) presenter.removeAssignee(data, u) else presenter.addAssignee(data, u),
+                          isHtmlName = true
+                        )
+                      }
                       val labels = model.subProp(_.labels).get.map { l =>
                         val checked = elementLabelsContains(itemLabels, l.name)
-                        val prefix = if (checked) "<span style='position:absolute;left:1em'>" + Icons.check() + "</span>" else ""
                         "label-" + l.name -> BuildItem(
-                           prefix + labelHtml(l).render.asInstanceOf[dom.Element].outerHTML,
+                          prefixChecked(checked) + labelHtml(l).render.asInstanceOf[dom.Element].outerHTML,
                           if (checked) presenter.removeLabel(data, l.name) else presenter.addLabel(data, l.name),
                           isHtmlName = true
                         )
@@ -637,6 +655,9 @@ class PageView(
                           "reply" -> BuildItem("Reply", presenter.reply(data), disabled = presenter.wasEditing()),
                           "labels" -> new Submenu(
                             "Labels", js.Dictionary(labels:_*)
+                          ),
+                          "assignees" -> new Submenu(
+                            "Assigned to", js.Dictionary(collaborators:_*)
                           ),
                           "sep2" -> "------",
                           "close" -> BuildItem("Close", presenter.closeIssue(data)),

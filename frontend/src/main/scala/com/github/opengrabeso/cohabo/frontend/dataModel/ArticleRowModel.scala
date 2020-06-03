@@ -14,6 +14,7 @@ case class ArticleRowModel(
   body: String,
   closed: Boolean,
   labels: Seq[Label],
+  assignees: Seq[String],
   milestone: Option[String],
   createdBy: User,
   rawParent: Issue, // the parent issue - used for comments to access their highlights

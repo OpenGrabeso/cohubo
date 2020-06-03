@@ -14,6 +14,7 @@ case class PageModel(
   loading: Boolean,
   articles: Seq[ArticleRowModel] = Seq.empty,
   selectedContext: Option[ContextModel] = None,
+  selectedContextCollaborators: Seq[String] = Seq.empty,
   selectedArticleId: Option[ArticleIdModel] = None,
   selectedArticleParent: Option[ArticleRowModel] = None,
   selectedArticle: Option[ArticleRowModel] = None,
