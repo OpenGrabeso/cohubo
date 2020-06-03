@@ -895,16 +895,23 @@ class PagePresenter(
 
   override def handleState(state: SelectPageState): Unit = {
     println(s"handleState ${state.id}")
-    val adjustedId = state.id match {
-      case Some(aid@ArticleIdModel(_, _, _, Some((_, commentId)))) =>
-        val as = model.subProp(_.articles).get
-        val found = as.find(a => a.id.sameIssue(aid) && a.id.id.exists(_._2 == commentId))
-        found.map(_.id)
-      case x =>
-        x
+
+    for (ctx <- state.id.map(_.context)) {
+      if (!pageContexts.contains(ctx)) {
+        println(s"Switch context to $ctx")
+        // TODO: if the context is not listed in contexts, add it
+        userService.properties.subProp(_.selectedContext).set(Some(ctx))
+      }
     }
 
-    model.subProp(_.selectedArticleId).set(adjustedId)
+    state.id match {
+      case Some(aid@ArticleIdModel(_, _, _, Some((_, commentId)))) =>
+        val as = model.subProp(_.articles).get
+        val found = as.find(a => a.id.sameIssue(aid) && a.id.id.exists(_._2 == commentId)).map(_.id)
+        model.subProp(_.selectedArticleId).set(found)
+      case id =>
+        model.subProp(_.selectedArticleId).set(id)
+    }
   }
 
   def loadMore(): Unit = {
