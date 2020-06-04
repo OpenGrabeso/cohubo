@@ -57,7 +57,7 @@ case class ArticleIdModel(owner: String, repo: String, issueNumber: Long, id: Op
 object ArticleIdModel extends HasModelPropertyCreator[ArticleIdModel] {
   def format(id: ArticleIdModel): String = {
     val parts = Seq(id.owner, id.repo, "issues") :+ id.id.map {cid =>
-      id.issueNumber.toString + "#" + cid.toString
+      id.issueNumber.toString + "#issuecomment-" + cid.toString
     }.getOrElse {
       id.issueNumber.toString
     }
@@ -68,12 +68,17 @@ object ArticleIdModel extends HasModelPropertyCreator[ArticleIdModel] {
     val parts = s.split('/')
     parts.toSeq match {
       case Seq(owner, repo, "issues", id) =>
-        // TODO: handle a comment number as well
-        id.split('#').toSeq match {
-          case Seq(issueId, commentId) =>
-            Some(ArticleIdModel(owner, repo, issueId.toLong, Some(commentId.toLong)))
-          case Seq(issueId) =>
+        // possible forms
+        val PlainNum = "([0-9]+)".r // 57
+        val IssueNum = "([0-9]+)#issue-([0-9]+)".r // 57#issue-590262333
+        val CommentNum = "([0-9]+)#issuecomment-([0-9]+)".r // 57#issuecomment-638331665
+        id match {
+          case PlainNum(issueId) =>
             Some(ArticleIdModel(owner, repo, issueId.toLong, None))
+          case IssueNum(issueId, _) =>
+            Some(ArticleIdModel(owner, repo, issueId.toLong, None))
+          case CommentNum(issueId, commentId) =>
+            Some(ArticleIdModel(owner, repo, issueId.toLong, Some(commentId.toLong)))
           case _ =>
             None
         }

@@ -211,20 +211,21 @@ class PagePresenter(
   var shortRepoIds = Map.empty[ContextModel, String]
 
   (model.subProp(_.selectedArticleId) ** model.subProp(_.articles)).listen { case (id, articles) =>
-    println(s"selectedArticleId callback for $id")
+    //println(s"selectedArticleId callback for $id")
     val sel = articles.find(id contains _.id)
     val selParent = articles.find(id.map(_.copy(id = None)) contains _.id)
     //println(sel + " " + selParent + " from " + id)
     (sel, selParent) match {
       case (Some(s), Some(p)) =>
-        model.subProp(_.selectedArticle).set(Some(s))
-        model.subProp(_.selectedArticleParent).set(Some(p))
-        model.subProp(_.articleContent).set("...")
-        // process long matches first (prefer highlighting the longest match whenever possible)
-        val highlight = p.rawParent.text_matches.flatMap(_.matches.map(_.text)).sortBy(_.length).reverse
-        renderMarkdown(s.body, s.id.context, Highlight(_, highlight))
+        if (!model.subProp(_.selectedArticle).get.contains(s)) {
+          model.subProp(_.selectedArticle).set(Some(s))
+          model.subProp(_.selectedArticleParent).set(Some(p))
+          model.subProp(_.articleContent).set("...")
+          // process long matches first (prefer highlighting the longest match whenever possible)
+          val highlight = p.rawParent.text_matches.flatMap(_.matches.map(_.text)).sortBy(_.length).reverse
+          renderMarkdown(s.body, s.id.context, Highlight(_, highlight))
+        }
       case _ =>
-        println(s"Article not found $id: $sel, $selParent")
         model.subProp(_.selectedArticle).set(None)
         model.subProp(_.selectedArticleParent).set(None)
         model.subProp(_.articleContent).set("")
@@ -923,7 +924,7 @@ class PagePresenter(
       // will this callback be executed last?
       contextChangedCallback = Some { () =>
         model.subProp(_.selectedArticleId).set(state.id)
-        println(s"contextSwitch callback $ctx")
+        //println(s"contextSwitch callback $ctx")
       }
       s.set(Some(ctx))
     }.getOrElse {
@@ -954,6 +955,24 @@ class PagePresenter(
     userService.call(_.markdown.markdown(source._1, "gfm", source._2.relativeUrl)).map(_.data)
   )
 
+  def adjustLinks(html: String): String = {
+    // adjust github issue links to Cohubo ones
+    val pageUrl = dom.window.location.href
+    val baseUrl = pageUrl.takeWhile(_ != '#') + "#/"
+    val IssueUrl = """(?s)(.*href=")https://[^"]*github.com/([^"]*/issues/[^"]+)(".*)""".r
+    IssueUrl.replaceAllIn(html, { r =>
+      val prefix = r.group(1)
+      val issue = r.group(2)
+      val postfix = r.group(3)
+      // verify issue is something we support
+      if (ArticleIdModel.parse(issue).nonEmpty) {
+        prefix + baseUrl + issue + postfix
+      } else {
+        r.group(0)
+      }
+    })
+  }
+
   def renderMarkdown(body: String, context: ContextModel, postprocess: String => String = identity): Unit = {
     val selectedId = model.subProp(_.selectedArticleId).get
     //println(s"renderMarkdown $selectedId")
@@ -964,7 +983,7 @@ class PagePresenter(
       // before setting the value make sure the article is still selected
       // if the selection has changed while the Future was flying, ignore the result
       if (model.subProp(_.selectedArticleId).get.exists(selectedId.contains)) {
-        model.subProp(_.articleContent).set(postprocess(html))
+        model.subProp(_.articleContent).set(postprocess(adjustLinks(html)))
       }
     }.failed.foreach { ex =>
       markdownCache.remove(strippedBody -> context) // avoid caching failed requests
