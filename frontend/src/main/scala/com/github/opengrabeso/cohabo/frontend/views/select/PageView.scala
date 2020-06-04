@@ -55,13 +55,12 @@ class PageView(
     (shortId(context).hashCode.abs % 10).toString
   }
 
-  def fetchElementData(e: JQuery): ArticleIdModel = {
+  def fetchElementData(e: JQuery): (ArticleIdModel, Int) = {
     val issueNumber = e.attr("issue-number").get.toLong
-    val replyNumber = e.attr("reply-number").map(_.toInt)
+    val replyNumber = e.attr("reply-number").get.toInt
     val commentNumber = e.attr("comment-number").map(_.toLong)
     val context = e.attr("issue-context").map(ContextModel.parse).get
-    val commentId = (replyNumber zip commentNumber).headOption
-    ArticleIdModel(context.organization, context.repository, issueNumber, commentId)
+    ArticleIdModel(context.organization, context.repository, issueNumber, commentNumber) -> replyNumber
   }
 
   def fetchElementLabels(e: JQuery): String = {
@@ -337,7 +336,7 @@ class PageView(
       TableFactory.TableAttrib("#", (ar, _, _) =>
         div(
           ar.id.id.map(_ => style := "margin-left: 20px"),
-          ar.id.issueLink(shortId(ar.id.context))
+          ar.id.issueLink(shortId(ar.id.context), ar.replyNumber)
         ).render,
         style = width(10, 10, 15),
         modifier = Some(ar => CssStyleName("repo-color-" + repoColor(ar.id.context)))
@@ -377,7 +376,7 @@ class PageView(
       def checkHighlight(item: ArticleRowModel, matchInfo: Seq[TextMatchIssue]): Boolean = {
         if (item.id.id.nonEmpty) { // a comment
           matchInfo.exists(
-            p => p.object_type == "IssueComment" && p.object_url.contains("/" + item.id.id.get._2.toString)
+            p => p.object_type == "IssueComment" && p.object_url.contains("/" + item.id.id.get.toString)
           ) || {
             // extended highlighting - highlight all text matches, not only those returned by the TextMatchIssue
             val highlights = matchInfo.flatMap(_.matches.map(_.text)).distinct
@@ -400,11 +399,11 @@ class PageView(
           CssStyleName("custom-context-menu"),
           attr("issue-context") := id.context.relativeUrl,
           attr("issue-number") := id.issueNumber,
+          attr("reply-number") := ar.replyNumber,
           attr("issue-labels") := ar.labels.map(_.name).mkString("\"", "\",\"", "\""),
           attr("issue-assignees") := ar.assignees.map(_.login).mkString("\"", "\",\"", "\""),
           if (checkHighlight(ar, ar.rawParent.text_matches)) Seq[Modifier](s.hightlightIssue) else Seq.empty[Modifier],
-          id.id.map(attr("reply-number") := _._1), // include only when the value is present
-          id.id.map(attr("comment-number") := _._2) // include only when the value is present
+          id.id.map(attr("comment-number") := _) // include only when the value is present
         )
       }
       override def tdModifier = s.td
@@ -455,7 +454,7 @@ class PageView(
           wantsLoading.addClass("loading-fold")
 
           if (true) {
-            val data = fetchElementData(tr)
+            val (data, _) = fetchElementData(tr)
             commentLoader.loading.getOrElseUpdate(data, {
               val token = presenter.props.subProp(_.token).get
               val state = presenter.filterState()
@@ -486,7 +485,7 @@ class PageView(
           val wantsLoading = jQ(control)
           val tr = jQ(control).closest("tr")
           val rows = tr.closest("tbody")
-          val data = fetchElementData(tr)
+          val (data, _) = fetchElementData(tr)
           println(s"Clicked preview-fold of $data")
           startLoading(tr, wantsLoading).onComplete { _ =>
             // beware: the corresponding row was created again when loaded, we need to find it in the rows, tr is no longer valid
@@ -650,7 +649,7 @@ class PageView(
                       def prefixChecked(checked: Boolean) = if (checked) "<span style='position:absolute;left:1em'>" + Icons.check() + "</span>" else ""
                       def nodeHtml(node: Node) = node.render.asInstanceOf[dom.Element].outerHTML
 
-                      val data = fetchElementData(item)
+                      val (data, replyNumber) = fetchElementData(item)
                       val itemLabels = fetchElementLabels(item)
                       val itemAssignees = fetchElementAssignees(item)
                       val collaborators = model.subProp(_.selectedContextCollaborators).get.map { u =>
@@ -682,7 +681,7 @@ class PageView(
                           "sep2" -> "------",
                           "close" -> BuildItem("Close", presenter.closeIssue(data)),
                           "sep1" -> "------",
-                          "link" -> BuildItem("Copy link to " + data.issueLinkFull(shortId(data.context)).render.outerHTML, presenter.copyLink(data), isHtmlName = true),
+                          "link" -> BuildItem("Copy link to " + data.issueLinkFull(shortId(data.context), replyNumber).render.outerHTML, presenter.copyLink(data), isHtmlName = true),
                           "openGitHub" -> BuildItem("Open on GitHub", presenter.gotoGithub(data)),
                         )
                       )
@@ -716,7 +715,7 @@ class PageView(
                     s.flexRow,
                     div(
                       s.selectedArticle,
-                      h4(`class` := "title", span(title), span(`class` := "link", row.id.issueLinkFull(shortId(row.id.context)))),
+                      h4(`class` := "title", span(title), span(`class` := "link", row.id.issueLinkFull(shortId(row.id.context), row.replyNumber))),
                       div(span(`class` := "createdBy", userHtml(row.createdBy)))
                     ),
                     div(s.useFlex1),

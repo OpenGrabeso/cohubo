@@ -25,9 +25,7 @@ import scala.scalajs.js.timers._
 import scala.util.{Failure, Success, Try}
 import TimeFormatting._
 import QueryAST._
-import io.udash.utils.URLEncoder
 import io.udash.wrappers.jquery.jQ
-import org.querki.jquery.JQuery
 import org.scalajs.dom
 
 import scala.collection.mutable
@@ -153,6 +151,8 @@ class PagePresenter(
   val stateFilterProps = model.subProp(_.filterOpen) ** model.subProp(_.filterClosed)
   val queryFilter = stateFilterProps ** model.subProp(_.activeLabels)
 
+  var contextChangedCallback = Option.empty[() => Unit]
+
   model.subProp(_.filterExpression).listen { expr =>
     // cyclical execution does not happen because the properties are set to the value they already have
     ParseFilterQuery(expr) match {
@@ -210,18 +210,21 @@ class PagePresenter(
 
   var shortRepoIds = Map.empty[ContextModel, String]
 
-  model.subProp(_.selectedArticleId).listen { id =>
-    val sel = model.subProp(_.articles).get.find(id contains _.id)
-    val selParent = model.subProp(_.articles).get.find(id.map(_.copy(id = None)) contains _.id)
+  (model.subProp(_.selectedArticleId) ** model.subProp(_.articles)).listen { case (id, articles) =>
+    //println(s"selectedArticleId callback for $id")
+    val sel = articles.find(id contains _.id)
+    val selParent = articles.find(id.map(_.copy(id = None)) contains _.id)
     //println(sel + " " + selParent + " from " + id)
     (sel, selParent) match {
       case (Some(s), Some(p)) =>
-        model.subProp(_.selectedArticle).set(Some(s))
-        model.subProp(_.selectedArticleParent).set(Some(p))
-        model.subProp(_.articleContent).set("...")
-        // process long matches first (prefer highlighting the longest match whenever possible)
-        val highlight = p.rawParent.text_matches.flatMap(_.matches.map(_.text)).sortBy(_.length).reverse
-        renderMarkdown(s.body, s.id.context, Highlight(_, highlight))
+        if (!model.subProp(_.selectedArticle).get.contains(s)) {
+          model.subProp(_.selectedArticle).set(Some(s))
+          model.subProp(_.selectedArticleParent).set(Some(p))
+          model.subProp(_.articleContent).set("...")
+          // process long matches first (prefer highlighting the longest match whenever possible)
+          val highlight = p.rawParent.text_matches.flatMap(_.matches.map(_.text)).sortBy(_.length).reverse
+          renderMarkdown(s.body, s.id.context, Highlight(_, highlight))
+        }
       case _ =>
         model.subProp(_.selectedArticle).set(None)
         model.subProp(_.selectedArticleParent).set(None)
@@ -382,17 +385,17 @@ class PagePresenter(
     }
 
     ArticleRowModel(
-      p, i.comments > 0, true, 0, i.title, i.body, i.state == "closed", i.labels, i.assignees, Option(i.milestone).map(_.title), i.user, i,
+      p, 0, i.comments > 0, true, 0, i.title, i.body, i.state == "closed", i.labels, i.assignees, Option(i.milestone).map(_.title), i.user, i,
       explicitCreated.getOrElse(i.created_at), explicitCreated.getOrElse(i.created_at), updatedAt
     )
   }
 
 
-  private def rowFromComment(articleId: ArticleIdModel, i: Comment, parent: Issue): ArticleRowModel = {
+  private def rowFromComment(articleId: ArticleIdModel, replyNumber: Int, i: Comment, parent: Issue): ArticleRowModel = {
     val explicitCreated = overrideCreatedAt(i.body)
     val highlight = Set.empty[String]
     ArticleRowModel(
-      articleId, false, false, 0, bodyAbstract(i.body), i.body, false, Seq.empty, Seq.empty, None, i.user, parent,
+      articleId, replyNumber, false, false, 0, bodyAbstract(i.body), i.body, false, Seq.empty, Seq.empty, None, i.user, parent,
       explicitCreated.getOrElse(i.created_at), explicitCreated.getOrElse(i.updated_at), explicitCreated.getOrElse(i.updated_at)
     )
   }
@@ -556,10 +559,16 @@ class PagePresenter(
 
         resp.paging.get("next") match {
           case Some(next) =>
-            githubRestApiClient.requestWithHeaders[Seq[Comment]](next, token).map(c => processComments(done ++ c.data, c.headers)).failed.foreach(apiDone.failure)
+            githubRestApiClient.requestWithHeaders[Seq[Comment]](next, token).map { c =>
+              processComments(done ++ c.data, c.headers)
+            }.failed.foreach(apiDone.failure)
           case None =>
             val commentRows = done.zipWithIndex.map { case (c, i) =>
-              rowFromComment(ArticleIdModel(context.organization, context.repository, id.issueNumber, Some(i, c.id)), c, issue.rawParent)
+              rowFromComment(
+                ArticleIdModel(context.organization, context.repository, id.issueNumber, Some(c.id)),
+                i,
+                c, issue.rawParent
+              )
             }
             processIssueComments(issue, commentRows, token, context, filter)
             apiDone.success(())
@@ -656,8 +665,12 @@ class PagePresenter(
 
         if (true) {
           val loadMaxComments = 10
-          def wantIssue(i: Issue) = i.comments > 0 && i.comments <= loadMaxComments
-          val issueFutures = (issuesOrdered zip preview).filter(c => wantIssue(c._1)).map { case (i, row) => // parent issue
+          val selectedId = model.subProp(_.selectedArticleId).get
+          def wantIssue(i: Issue, r: ArticleRowModel) = {
+            // force expansion for the selected issue - important for the state (URL) change
+            i.comments > 0 && (i.comments <= loadMaxComments ||  selectedId.exists(r.id.sameIssue))
+          }
+          val issueFutures = (issuesOrdered zip preview).filter(c => wantIssue(c._1, c._2)).map { case (i, row) => // parent issue
             loadIssueComments(row.id, token, filter, i)
           }
 
@@ -735,7 +748,7 @@ class PagePresenter(
         } {
           val as = model.subSeq(_.articles).get
           val issueKnown = as.find(a => a.id.issueNumber == id._2 && a.id.context == id._1)
-          val commentKnown = commentId.exists(cid => as.exists(a => a.id.id.exists(_._2 == cid._2) && a.id.context == cid._1))
+          val commentKnown = commentId.exists(cid => as.exists(a => a.id.id.contains(cid) && a.id.context == cid._1))
           if (issueKnown.isEmpty) {
             println(s"Unknown issue $issueId")
 
@@ -883,6 +896,8 @@ class PagePresenter(
         loadNotifications(token)
       }
       SettingsModel.store(props.get)
+      contextChangedCallback.foreach(_())
+      contextChangedCallback = None
     }
     // handlers installed, execute them
     // do not touch token, that would initiate another login
@@ -896,21 +911,24 @@ class PagePresenter(
   override def handleState(state: SelectPageState): Unit = {
     println(s"handleState ${state.id}")
 
-    for (ctx <- state.id.map(_.context)) {
-      if (!pageContexts.contains(ctx)) {
-        println(s"Switch context to $ctx")
-        // TODO: if the context is not listed in contexts, add it
-        userService.properties.subProp(_.selectedContext).set(Some(ctx))
-      }
+    val contextSwitch = for {
+      ctx <- state.id.map(_.context)
+      if (!pageContexts.contains(ctx))
+    } yield {
+      println(s"Switch context to $ctx")
+      // TODO: if the context is not listed in contexts, add it
+      ctx -> userService.properties.subProp(_.selectedContext)
     }
 
-    state.id match {
-      case Some(aid@ArticleIdModel(_, _, _, Some((_, commentId)))) =>
-        val as = model.subProp(_.articles).get
-        val found = as.find(a => a.id.sameIssue(aid) && a.id.id.exists(_._2 == commentId)).map(_.id)
-        model.subProp(_.selectedArticleId).set(found)
-      case id =>
-        model.subProp(_.selectedArticleId).set(id)
+    contextSwitch.map { case (ctx, s) =>
+      // will this callback be executed last?
+      contextChangedCallback = Some { () =>
+        model.subProp(_.selectedArticleId).set(state.id)
+        //println(s"contextSwitch callback $ctx")
+      }
+      s.set(Some(ctx))
+    }.getOrElse {
+      model.subProp(_.selectedArticleId).set(state.id)
     }
   }
 
@@ -937,6 +955,24 @@ class PagePresenter(
     userService.call(_.markdown.markdown(source._1, "gfm", source._2.relativeUrl)).map(_.data)
   )
 
+  def adjustLinks(html: String): String = {
+    // adjust github issue links to Cohubo ones
+    val pageUrl = dom.window.location.href
+    val baseUrl = pageUrl.takeWhile(_ != '#') + "#/"
+    val IssueUrl = """(?s)(.*href=")https://[^"]*github.com/([^"]*/issues/[^"]+)(".*)""".r
+    IssueUrl.replaceAllIn(html, { r =>
+      val prefix = r.group(1)
+      val issue = r.group(2)
+      val postfix = r.group(3)
+      // verify issue is something we support
+      if (ArticleIdModel.parse(issue).nonEmpty) {
+        prefix + baseUrl + issue + postfix
+      } else {
+        r.group(0)
+      }
+    })
+  }
+
   def renderMarkdown(body: String, context: ContextModel, postprocess: String => String = identity): Unit = {
     val selectedId = model.subProp(_.selectedArticleId).get
     //println(s"renderMarkdown $selectedId")
@@ -947,7 +983,7 @@ class PagePresenter(
       // before setting the value make sure the article is still selected
       // if the selection has changed while the Future was flying, ignore the result
       if (model.subProp(_.selectedArticleId).get.exists(selectedId.contains)) {
-        model.subProp(_.articleContent).set(postprocess(html))
+        model.subProp(_.articleContent).set(postprocess(adjustLinks(html)))
       }
     }.failed.foreach { ex =>
       markdownCache.remove(strippedBody -> context) // avoid caching failed requests
@@ -1001,7 +1037,7 @@ class PagePresenter(
     val context = selectedId.context
     userService.call { api =>
       selectedId match {
-        case ArticleIdModel(_, _, issueId, Some((_, commentId))) =>
+        case ArticleIdModel(_, _, issueId, Some(commentId)) =>
           api.repos(context.organization, context.repository).editComment(commentId, body).map(_.body)
         case ArticleIdModel(_, _, issueId, None) =>
           val issueAPI = api.repos(context.organization, context.repository).issuesAPI(issueId)
@@ -1042,8 +1078,8 @@ class PagePresenter(
           comments = articles.filter(a => a.id.sameIssue(selectedId) && a.id.id.nonEmpty)
         } {
           val parent = model.subProp(_.articles).get.find(_.id == selectedId)
-          val newId = ArticleIdModel(context.organization, context.repository, selectedId.issueNumber, Some(comments.length, c.id))
-          val newRow = rowFromComment(newId, c, parent.get.rawParent)
+          val newId = ArticleIdModel(context.organization, context.repository, selectedId.issueNumber, Some(c.id))
+          val newRow = rowFromComment(newId, comments.size, c, parent.get.rawParent)
           processIssueComments(i, comments :+ newRow, currentToken(), context, filterState())
         }
       }
@@ -1108,9 +1144,9 @@ class PagePresenter(
       // check all existing replies to the issue
       val replies = model.subProp(_.articles).get.filter(_.id.sameIssue(id))
       // there always must exists at least the reply we are replying to, it does not have to be a comment, though
-      val maxReplyNumber = replies.flatMap(_.id.id).map(_._1).maxOpt
+      val maxReplyNumber = replies.flatMap(_.id.id).maxOpt
 
-      val isLast = (id.id.map(_._1), maxReplyNumber) match {
+      val isLast = (id.id, maxReplyNumber) match {
         case (Some(iid), Some(r)) if iid == r =>
           true
         case (None, None) =>
