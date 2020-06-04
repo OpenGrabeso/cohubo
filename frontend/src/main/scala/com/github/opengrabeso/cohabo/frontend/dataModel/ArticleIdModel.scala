@@ -55,29 +55,28 @@ case class ArticleIdModel(owner: String, repo: String, issueNumber: Long, id: Op
 
 
 object ArticleIdModel extends HasModelPropertyCreator[ArticleIdModel] {
-  def encode(s: String): String = URIUtils.encodeURIComponent(s)
-  def decode(s: String): Option[String] = Some(URIUtils.decodeURIComponent(s))
-
-
   def format(id: ArticleIdModel): String = {
-    val parts = id.id.map {cid =>
-      Seq(id.owner, id.repo, id.issueNumber.toString, cid.toString)
+    val parts = Seq(id.owner, id.repo, "issues") :+ id.id.map {cid =>
+      id.issueNumber.toString + "#" + cid.toString
     }.getOrElse {
-      Seq(id.owner, id.repo, id.issueNumber.toString)
+      id.issueNumber.toString
     }
-    parts.map(encode).mkString("/")
+    parts.mkString("/")
   }
 
   def parse(s: String): Option[ArticleIdModel] = {
     val parts = s.split('/')
     parts.toSeq match {
-      case Seq(owner, repo, id) =>
+      case Seq(owner, repo, "issues", id) =>
         // TODO: handle a comment number as well
-        Some(ArticleIdModel(owner, repo, id.toLong, None))
-      case Seq(owner, repo, id, commentId) =>
-        // we do not know the answer "ordinal" number, only the comment id
-        // the handleState must handle this
-        Some(ArticleIdModel(owner, repo, id.toLong, Some(commentId.toLong)))
+        id.split('#').toSeq match {
+          case Seq(issueId, commentId) =>
+            Some(ArticleIdModel(owner, repo, issueId.toLong, Some(commentId.toLong)))
+          case Seq(issueId) =>
+            Some(ArticleIdModel(owner, repo, issueId.toLong, None))
+          case _ =>
+            None
+        }
       case _ =>
         None
     }
