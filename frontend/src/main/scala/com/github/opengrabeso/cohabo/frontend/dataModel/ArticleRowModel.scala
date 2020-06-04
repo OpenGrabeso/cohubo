@@ -7,6 +7,7 @@ import io.udash.HasModelPropertyCreator
 
 case class ArticleRowModel(
   id: ArticleIdModel,
+  replyNumber: Int, // user friendly comment (reply) number in the issue, zero for the main issue
   hasChildren: Boolean,
   preview: Boolean, // preview means full content (comments) is not fully loaded yet
   indent: Int,

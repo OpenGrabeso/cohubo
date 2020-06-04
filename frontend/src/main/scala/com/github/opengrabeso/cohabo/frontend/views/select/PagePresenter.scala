@@ -384,17 +384,17 @@ class PagePresenter(
     }
 
     ArticleRowModel(
-      p, i.comments > 0, true, 0, i.title, i.body, i.state == "closed", i.labels, i.assignees, Option(i.milestone).map(_.title), i.user, i,
+      p, 0, i.comments > 0, true, 0, i.title, i.body, i.state == "closed", i.labels, i.assignees, Option(i.milestone).map(_.title), i.user, i,
       explicitCreated.getOrElse(i.created_at), explicitCreated.getOrElse(i.created_at), updatedAt
     )
   }
 
 
-  private def rowFromComment(articleId: ArticleIdModel, i: Comment, parent: Issue): ArticleRowModel = {
+  private def rowFromComment(articleId: ArticleIdModel, replyNumber: Int, i: Comment, parent: Issue): ArticleRowModel = {
     val explicitCreated = overrideCreatedAt(i.body)
     val highlight = Set.empty[String]
     ArticleRowModel(
-      articleId, false, false, 0, bodyAbstract(i.body), i.body, false, Seq.empty, Seq.empty, None, i.user, parent,
+      articleId, replyNumber, false, false, 0, bodyAbstract(i.body), i.body, false, Seq.empty, Seq.empty, None, i.user, parent,
       explicitCreated.getOrElse(i.created_at), explicitCreated.getOrElse(i.updated_at), explicitCreated.getOrElse(i.updated_at)
     )
   }
@@ -558,10 +558,16 @@ class PagePresenter(
 
         resp.paging.get("next") match {
           case Some(next) =>
-            githubRestApiClient.requestWithHeaders[Seq[Comment]](next, token).map(c => processComments(done ++ c.data, c.headers)).failed.foreach(apiDone.failure)
+            githubRestApiClient.requestWithHeaders[Seq[Comment]](next, token).map { c =>
+              processComments(done ++ c.data, c.headers)
+            }.failed.foreach(apiDone.failure)
           case None =>
-            val commentRows = done.map { c =>
-              rowFromComment(ArticleIdModel(context.organization, context.repository, id.issueNumber, Some(c.id)), c, issue.rawParent)
+            val commentRows = done.zipWithIndex.map { case (c, i) =>
+              rowFromComment(
+                ArticleIdModel(context.organization, context.repository, id.issueNumber, Some(c.id)),
+                i,
+                c, issue.rawParent
+              )
             }
             processIssueComments(issue, commentRows, token, context, filter)
             apiDone.success(())
@@ -1054,7 +1060,7 @@ class PagePresenter(
         } {
           val parent = model.subProp(_.articles).get.find(_.id == selectedId)
           val newId = ArticleIdModel(context.organization, context.repository, selectedId.issueNumber, Some(c.id))
-          val newRow = rowFromComment(newId, c, parent.get.rawParent)
+          val newRow = rowFromComment(newId, comments.size, c, parent.get.rawParent)
           processIssueComments(i, comments :+ newRow, currentToken(), context, filterState())
         }
       }
