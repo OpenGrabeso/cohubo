@@ -25,9 +25,7 @@ import scala.scalajs.js.timers._
 import scala.util.{Failure, Success, Try}
 import TimeFormatting._
 import QueryAST._
-import io.udash.utils.URLEncoder
 import io.udash.wrappers.jquery.jQ
-import org.querki.jquery.JQuery
 import org.scalajs.dom
 
 import scala.collection.mutable
@@ -153,6 +151,8 @@ class PagePresenter(
   val stateFilterProps = model.subProp(_.filterOpen) ** model.subProp(_.filterClosed)
   val queryFilter = stateFilterProps ** model.subProp(_.activeLabels)
 
+  var contextChangedCallback = Option.empty[() => Unit]
+
   model.subProp(_.filterExpression).listen { expr =>
     // cyclical execution does not happen because the properties are set to the value they already have
     ParseFilterQuery(expr) match {
@@ -210,9 +210,10 @@ class PagePresenter(
 
   var shortRepoIds = Map.empty[ContextModel, String]
 
-  model.subProp(_.selectedArticleId).listen { id =>
-    val sel = model.subProp(_.articles).get.find(id contains _.id)
-    val selParent = model.subProp(_.articles).get.find(id.map(_.copy(id = None)) contains _.id)
+  (model.subProp(_.selectedArticleId) ** model.subProp(_.articles)).listen { case (id, articles) =>
+    println(s"selectedArticleId callback for $id")
+    val sel = articles.find(id contains _.id)
+    val selParent = articles.find(id.map(_.copy(id = None)) contains _.id)
     //println(sel + " " + selParent + " from " + id)
     (sel, selParent) match {
       case (Some(s), Some(p)) =>
@@ -223,6 +224,7 @@ class PagePresenter(
         val highlight = p.rawParent.text_matches.flatMap(_.matches.map(_.text)).sortBy(_.length).reverse
         renderMarkdown(s.body, s.id.context, Highlight(_, highlight))
       case _ =>
+        println(s"Article not found $id: $sel, $selParent")
         model.subProp(_.selectedArticle).set(None)
         model.subProp(_.selectedArticleParent).set(None)
         model.subProp(_.articleContent).set("")
@@ -656,8 +658,12 @@ class PagePresenter(
 
         if (true) {
           val loadMaxComments = 10
-          def wantIssue(i: Issue) = i.comments > 0 && i.comments <= loadMaxComments
-          val issueFutures = (issuesOrdered zip preview).filter(c => wantIssue(c._1)).map { case (i, row) => // parent issue
+          val selectedId = model.subProp(_.selectedArticleId).get
+          def wantIssue(i: Issue, r: ArticleRowModel) = {
+            // force expansion for the selected issue - important for the state (URL) change
+            i.comments > 0 && (i.comments <= loadMaxComments ||  selectedId.exists(r.id.sameIssue))
+          }
+          val issueFutures = (issuesOrdered zip preview).filter(c => wantIssue(c._1, c._2)).map { case (i, row) => // parent issue
             loadIssueComments(row.id, token, filter, i)
           }
 
@@ -883,6 +889,8 @@ class PagePresenter(
         loadNotifications(token)
       }
       SettingsModel.store(props.get)
+      contextChangedCallback.foreach(_())
+      contextChangedCallback = None
     }
     // handlers installed, execute them
     // do not touch token, that would initiate another login
@@ -896,15 +904,25 @@ class PagePresenter(
   override def handleState(state: SelectPageState): Unit = {
     println(s"handleState ${state.id}")
 
-    for (ctx <- state.id.map(_.context)) {
-      if (!pageContexts.contains(ctx)) {
-        println(s"Switch context to $ctx")
-        // TODO: if the context is not listed in contexts, add it
-        userService.properties.subProp(_.selectedContext).set(Some(ctx))
-      }
+    val contextSwitch = for {
+      ctx <- state.id.map(_.context)
+      if (!pageContexts.contains(ctx))
+    } yield {
+      println(s"Switch context to $ctx")
+      // TODO: if the context is not listed in contexts, add it
+      ctx -> userService.properties.subProp(_.selectedContext)
     }
 
-    model.subProp(_.selectedArticleId).set(state.id)
+    contextSwitch.map { case (ctx, s) =>
+      // will this callback be executed last?
+      contextChangedCallback = Some { () =>
+        model.subProp(_.selectedArticleId).set(state.id)
+        println(s"contextSwitch callback $ctx")
+      }
+      s.set(Some(ctx))
+    }.getOrElse {
+      model.subProp(_.selectedArticleId).set(state.id)
+    }
   }
 
   def loadMore(): Unit = {
