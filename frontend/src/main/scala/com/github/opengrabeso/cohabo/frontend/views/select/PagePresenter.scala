@@ -128,7 +128,7 @@ object PagePresenter {
 
 
   sealed trait Filter
-  case class IssueFilter(state: String, labels: Seq[String]) extends Filter
+  case class IssueFilter(state: String, labels: Seq[String], assignee: Option[String]) extends Filter
   case class SearchFilter(expression: String) extends Filter
 }
 
@@ -149,7 +149,8 @@ class PagePresenter(
 
 
   val stateFilterProps = model.subProp(_.filterOpen) ** model.subProp(_.filterClosed)
-  val queryFilter = stateFilterProps ** model.subProp(_.activeLabels)
+  val assignFilterProps = model.subProp(_.filterUser)
+  val queryFilter = stateFilterProps ** assignFilterProps ** model.subProp(_.activeLabels)
 
   var contextChangedCallback = Option.empty[() => Unit]
 
@@ -159,6 +160,7 @@ class PagePresenter(
       case ParseFilterQuery.Success(result, next) =>
         val labels = result.collect { case LabelQuery(x) => x}
         val states = result.collectFirst { case StateQuery(x) => x } // when states are conflicting, prefer the first one
+        val assignees = result.collectFirst { case AssigneeQuery(name) => name} // use only the first assignee
         // anything unsupported by the issue query means we have to use the search API
         val isSearch = (labels.map(LabelQuery) ++ states.map(StateQuery)).toSet != result.toSet
         // verify the labels are valid, if not, ignore the filter (happens while typing)
@@ -167,6 +169,7 @@ class PagePresenter(
           model.subProp(_.activeLabels).set(labels)
           model.subProp(_.filterOpen).set(!states.contains(false))
           model.subProp(_.filterClosed).set(!states.contains(true))
+          model.subProp(_.filterUser).set(assignees)
           model.subProp(_.useSearch).set(isSearch)
         }
       case _: ParseFilterQuery.NoSuccess =>
@@ -174,9 +177,8 @@ class PagePresenter(
   }
 
 
-  queryFilter.streamTo(model.subProp(_.filterExpression)) { case ((open, closed), labels) =>
-    // if search is detected, leave the query alone
-    // TODO: combine supported and unsupported query terms
+  queryFilter.streamTo(model.subProp(_.filterExpression)) { case (((open, closed), user), labels) =>
+    // if search is detected, try to parse the query and adjust it as necessary
     val oldFilter = model.subProp(_.filterExpression).get
     ParseFilterQuery(oldFilter) match {
       case ParseFilterQuery.Success(oldFilterQuery, _) =>
@@ -187,14 +189,16 @@ class PagePresenter(
           case (false, false) => Seq.empty // should not happen
         }
         val labelsQuery = labels.map(LabelQuery)
+        val assigneeQuery = user.map(AssigneeQuery)
 
         val keep = oldFilterQuery.flatMap {
           case _: LabelQuery => None
           case _: StateQuery => None
+          case _: AssigneeQuery => None
           case x => Some(x)
         }
 
-        (openClosedQuery ++ labelsQuery ++ keep).mkString(" ")
+        (openClosedQuery ++ labelsQuery ++ assigneeQuery ++ keep).mkString(" ")
       case _ =>
         oldFilter
     }
@@ -251,7 +255,8 @@ class PagePresenter(
     } else {
       val labels = model.subProp(_.activeLabels).get
       val state = listFilter(stateFilterProps.get)
-      IssueFilter(state, labels)
+      val assignee = model.subProp(_.filterUser).get
+      IssueFilter(state, labels, assignee)
     }
   }
 
@@ -284,7 +289,10 @@ class PagePresenter(
   private def initArticles(context: ContextModel, filter: Filter): Future[DataWithHeaders[Seq[Issue]]] = {
     filter match {
       case i: IssueFilter =>
-        userService.call(_.repos(context.organization, context.repository).issues(sort = "updated", state = i.state, labels = i.labels.mkString(",")))
+        userService.call(_
+          .repos(context.organization, context.repository)
+          .issues(sort = "updated", state = i.state, labels = i.labels.mkString(","), assignee = i.assignee.orNull)
+        )
       case SearchFilter(expr) =>
         ParseFilterQuery(expr) match {
           case ParseFilterQuery.Success(query, _) =>

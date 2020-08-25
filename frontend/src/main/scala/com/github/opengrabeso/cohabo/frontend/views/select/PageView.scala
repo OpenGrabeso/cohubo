@@ -49,11 +49,47 @@ class PageView(
   presenter: PagePresenter,
   globals: ModelProperty[SettingsModel]
 ) extends FinalView with CssView with PageUtils with TimeFormatting with CssBase with JQEvents {
+  val s = SelectPageStyles
 
   def shortId(context: ContextModel): String = presenter.shortRepoIds.getOrElse(context, "??")
   def repoColor(context: ContextModel): String = {
     (shortId(context).hashCode.abs % 10).toString
   }
+
+  def userInitials(user: User): String = {
+    user.login.take(1).toUpperCase ++ user.login.drop(1).filter(_.isUpper)
+  }
+
+  def avatarHtml(user: User): Node = {
+    if (user.avatar_url != null && user.avatar_url.nonEmpty) img(src := user.avatar_url, s.userIcon).render
+    else span(userInitials(user)).render
+  }
+
+  def userHtml(user: User): Node = {
+    span(
+      avatarHtml(user),
+      user.displayName.render
+    ).render
+  }
+
+  def userHtmlShort(user: User): Node = {
+    span(
+      if (user.avatar_url != null && user.avatar_url.nonEmpty) img(src := user.avatar_url, s.userIcon).render
+      else "".render,
+      userInitials(user)
+    ).render
+  }
+
+  def progressHtml(percent: Int): Node = {
+    span(
+      s.progressBackground,
+      span(
+        s.progressForeground,
+        style := s"width: $percent%"
+      )
+    ).render
+  }
+
 
   def fetchElementData(e: JQuery): (ArticleIdModel, Int) = {
     val issueNumber = e.attr("issue-number").get.toLong
@@ -108,7 +144,6 @@ class PageView(
   }
 
 
-  val s = SelectPageStyles
 
   private val settingsButton = button("Settings".toProperty)
   private val newIssueButton = button("New issue".toProperty, buttonStyle = BootstrapStyles.Color.Success.toProperty)
@@ -168,7 +203,7 @@ class PageView(
     )
   }
 
-  private def createColoredButton(prop: ReadableProperty[Boolean], text: String, buttonColor: String) = {
+  private def createColoredButton(prop: ReadableProperty[Boolean], text: Modifier, buttonColor: String) = {
     UdashButton(size = Some(BootstrapStyles.Size.Small).toProperty) { nested =>
       Seq[Modifier](
         Spacing.margin(size = SpacingSize.ExtraSmall),
@@ -200,8 +235,8 @@ class PageView(
     createFilterHeader("Labels"),
     div(s.labelButtons,
       produceWithNested(model.subSeq(_.labels)) { (labels, nested) =>
+        val selectedLabels = model.subSeq(_.activeLabels)
         labels.map { label =>
-          val selectedLabels = model.subSeq(_.activeLabels)
           val prop = selectedLabels.transform((s: Seq[String]) => s.contains(label.name))
           createColoredButton(prop, label.name, label.color).tap {
             _.listen { case _ =>
@@ -216,6 +251,27 @@ class PageView(
       }
     )
 
+  )
+
+  private val assignButtons = Seq(
+    createFilterHeader("Assigned to"),
+    div(s.labelButtons,
+      produceWithNested(model.subSeq(_.selectedContextCollaborators)) { (users, nested) =>
+        users.map { user =>
+          val selectedUser = model.subProp(_.filterUser)
+          val prop = selectedUser.transform((s: Option[String]) => s.contains(user.login))
+          createColoredButton(prop, userHtml(user), "f0f0f0").tap {
+            _.listen { case _ =>
+              if (selectedUser.get.contains(user.login)) {
+                selectedUser.set(None)
+              } else {
+                selectedUser.set(Some(user.login))
+              }
+            }
+          }.render
+        }
+      }
+    )
   )
 
 
@@ -283,40 +339,6 @@ class PageView(
         color := contrastColor(label.color),
         borderColor := darkBorderColor(label.color),
         s.labelInline
-      ).render
-    }
-
-    def userInitials(user: User): String = {
-      user.login.take(1).toUpperCase ++ user.login.drop(1).filter(_.isUpper)
-    }
-
-    def avatarHtml(user: User): Node = {
-      if (user.avatar_url != null && user.avatar_url.nonEmpty) img(src := user.avatar_url, s.userIcon).render
-      else span(userInitials(user)).render
-    }
-
-    def userHtml(user: User): Node = {
-      span(
-        avatarHtml(user),
-        user.displayName.render
-      ).render
-    }
-
-    def userHtmlShort(user: User): Node = {
-      span(
-        if (user.avatar_url != null && user.avatar_url.nonEmpty) img(src := user.avatar_url, s.userIcon).render
-        else "".render,
-        userInitials(user)
-      ).render
-    }
-
-    def progressHtml(percent: Int): Node = {
-      span(
-        s.progressBackground,
-        span(
-          s.progressForeground,
-          style := s"width: $percent%"
-        )
       ).render
     }
 
@@ -606,7 +628,8 @@ class PageView(
         },
         div(cls := "row justify-content-left")(addRepoButton),
         labelButtons,
-        filterButtons
+        filterButtons,
+        assignButtons
       ),
       div(
         s.gridAreaFilters,

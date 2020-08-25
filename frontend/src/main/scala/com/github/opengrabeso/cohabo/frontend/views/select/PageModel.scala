@@ -23,6 +23,7 @@ case class PageModel(
   filterClosed: Boolean = false,
   labels: Seq[Label] = Seq.empty,
   activeLabels: Seq[String] = Seq.empty,
+  filterUser: Option[String] = None,
   useSearch: Boolean = false,
   articleContent: String = "",
   editing: (Boolean, Boolean) = (false, false), // editing, editing is reply or new

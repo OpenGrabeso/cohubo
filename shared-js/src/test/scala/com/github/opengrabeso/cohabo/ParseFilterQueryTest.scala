@@ -32,6 +32,10 @@ class ParseFilterQueryTest extends org.scalatest.funsuite.AnyFunSuite {
     testQuery("label:a", Seq(LabelQuery("a")))
   }
 
+  test("Parse simple assignee queries") {
+    testQuery("assignee:a", Seq(AssigneeQuery("a")))
+  }
+
   test("Parse quoted label queries") {
     testQuery("label:\"a\"", Seq(LabelQuery("a")))
     testQuery("label:\"a b c\"", Seq(LabelQuery("a b c")))
