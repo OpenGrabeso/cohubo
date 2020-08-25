@@ -4,7 +4,7 @@ import sbt.Keys.scalacOptions
 import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
 
 
-val udashVersion = "0.8.2"
+val udashVersion = "0.8.5"
 
 val bootstrapVersion = "4.3.1"
 
@@ -16,9 +16,9 @@ lazy val commonSettings = Seq(
   scalaVersion := "2.12.10",
   scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
 
-  libraryDependencies += "org.scalatest" %%% "scalatest" % "3.1.0" % Test,
-  libraryDependencies += "org.scalacheck" %%% "scalacheck" % "1.14.1" % Test,
-  libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-14" % "3.1.1.1" % Test,
+  libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.2" % Test,
+  libraryDependencies += "org.scalacheck" %%% "scalacheck" % "1.14.3" % Test,
+  libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-14" % "3.2.2.0" % Test,
 
   libraryDependencies += "io.udash" %%% "udash-core" % udashVersion,
   libraryDependencies += "io.udash" %%% "udash-rest" % udashVersion,
@@ -42,8 +42,8 @@ lazy val jsLibs = libraryDependencies ++= Seq(
   "io.udash" %%% "udash-charts" % udashVersion,
   "io.udash" %%% "udash-jquery" % udashJQueryVersion,
 
-  "com.zoepepper" %%% "scalajs-jsjoda" % "1.1.1",
-  "com.zoepepper" %%% "scalajs-jsjoda-as-java-time" % "1.1.1"
+  "com.zoepepper" %%% "scalajs-jsjoda" % "1.1.2",
+  "com.zoepepper" %%% "scalajs-jsjoda-as-java-time" % "1.1.2"
 )
 
 lazy val sharedJs = crossProject(JSPlatform, JVMPlatform)
