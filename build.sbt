@@ -13,7 +13,7 @@ val udashJQueryVersion = "3.0.1"
 lazy val commonSettings = Seq(
   organization := "com.github.ondrejspanel",
   version := "0.0.1-alpha",
-  scalaVersion := "2.12.10",
+  scalaVersion := "2.12.12",
   scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
 
   libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.2" % Test,
