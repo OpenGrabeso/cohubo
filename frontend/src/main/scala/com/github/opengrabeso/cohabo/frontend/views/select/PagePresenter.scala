@@ -1177,25 +1177,30 @@ class PagePresenter(
     }
   }
 
+  private def parentArticle(ar: ArticleRowModel): ArticleRowModel = {
+    val a = model.subSeq(_.articles)
+    val as = a.get
+    val parentId = ar.id.copy(issueNumber = ar.rawParent.number, id = None)
+    val parentI = as.indexWhere(_.id.sameIssue(parentId))
+    as(parentI)
+  }
+
   private def changeLabels(data: ArticleIdModel, f: Seq[String] => Seq[String]): Unit = {
     val a = model.subSeq(_.articles)
     val as = a.get
     as.find(_.id == data).foreach { ar =>
-      val i = ar.rawParent
+      // beware: the parent article may have changed meanwhile
+      val i = parentArticle(ar)
       userService.call(
         _.repos(ar.id.context.organization, ar.id.context.repository).issuesAPI(ar.id.issueNumber).update(
-          i.title,
-          i.body,
-          i.state,
-          Option(i.milestone).map(_.number).getOrElse(-1),
-          f(i.labels.map(_.name)),
-          i.assignees.map(_.login)
+          labels = f(i.labels.map(_.name))
         )
       ).foreach { i =>
         val before = as.indexWhere(_.id.sameIssue(ar.id))
         if (before >= 0) {
           val newIssue = rowFromIssue(i, ar.id.context)
           a.replace(before, 1, ar.copy(labels = newIssue.labels))
+
         }
       }
     }
@@ -1205,17 +1210,13 @@ class PagePresenter(
     val a = model.subSeq(_.articles)
     val as = a.get
     as.find(_.id == data).foreach { ar =>
-      val i = ar.rawParent
+      val i = parentArticle(ar)
       userService.call(
         _.repos(ar.id.context.organization, ar.id.context.repository).issuesAPI(ar.id.issueNumber).update(
-          i.title,
-          i.body,
-          i.state,
-          Option(i.milestone).map(_.number).getOrElse(-1),
-          i.labels.map(_.name),
-          f(i.assignees.map(_.login))
+          assignees = f(i.assignees.map(_.login))
         )
       ).foreach { i =>
+        println(s"Changed assign on $i")
         val before = as.indexWhere(_.id.sameIssue(ar.id))
         if (before >= 0) {
           val newIssue = rowFromIssue(i, ar.id.context)
