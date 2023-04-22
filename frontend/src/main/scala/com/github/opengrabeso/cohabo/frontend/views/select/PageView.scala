@@ -4,7 +4,6 @@ package views
 package select
 
 import java.time.ZonedDateTime
-
 import com.github.opengrabeso.facade
 import common.css._
 import io.udash._
@@ -20,7 +19,7 @@ import org.scalajs.dom.{Element, Node}
 
 import scala.scalajs.js
 import common.Util._
-import io.udash.bootstrap.button.UdashButton
+import io.udash.bootstrap.button.{UdashButton, UdashButtonOptions}
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -28,6 +27,7 @@ import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration.{span => _, _}
 import scala.math.Ordered._
 import ColorUtils.{Color, _}
+import com.avsystem.commons.BSeq
 import io.udash.bindings.inputs
 import io.udash.bootstrap.modal.UdashModal
 import org.scalajs.dom
@@ -48,7 +48,7 @@ class PageView(
   model: ModelProperty[PageModel],
   presenter: PagePresenter,
   globals: ModelProperty[SettingsModel]
-) extends FinalView with CssView with PageUtils with TimeFormatting with CssBase with JQEvents {
+) extends View with CssView with PageUtils with TimeFormatting with CssBase with JQEvents {
   val s = SelectPageStyles
 
   def shortId(context: ContextModel): String = presenter.shortRepoIds.getOrElse(context, "??")
@@ -146,7 +146,7 @@ class PageView(
 
 
   private val settingsButton = button("Settings".toProperty)
-  private val newIssueButton = button("New issue".toProperty, buttonStyle = BootstrapStyles.Color.Success.toProperty)
+  private val newIssueButton = button("New issue".toProperty, buttonStyle = BootstrapStyles.Color.Success)
 
   private val nextPageButton = button("Load more issues".toProperty)
   private val refreshNotifications = button("Refresh notifications".toProperty)
@@ -155,13 +155,13 @@ class PageView(
   private val replyButton = button("Reply".toProperty,
     model.subProp(_.selectedArticleId).transform(_.isEmpty) || model.subProp(_.editing).transform(_._1)
   )
-  private val editOKButton = button("OK".toProperty, buttonStyle = BootstrapStyles.Color.Success.toProperty)
+  private val editOKButton = button("OK".toProperty, buttonStyle = BootstrapStyles.Color.Success)
   private val editCancelButton = button("Cancel".toProperty)
 
-  private val addRepoButton = button("Add repository".toProperty, buttonStyle = BootstrapStyles.Color.Success.toProperty)
+  private val addRepoButton = button("Add repository".toProperty, buttonStyle = BootstrapStyles.Color.Success)
   private val addRepoInput = Property[String]("")
 
-  private val addRepoOkButton = UdashButton(BootstrapStyles.Color.Success.toProperty)(_ => Seq[Modifier](UdashModal.CloseButtonAttr, "OK"))
+  private val addRepoOkButton = UdashButton(options = BootstrapStyles.Color.Success.option)(_ => Seq[Modifier](UdashModal.CloseButtonAttr, "OK"))
     .tap(buttonOnClick(_)(presenter.addRepository(addRepoInput.get)))
 
   val addRepoModal = UdashModal(Some(Size.Small).toProperty)(
@@ -178,7 +178,7 @@ class PageView(
     footerFactory = Some { _ =>
       div(
         addRepoOkButton.render,
-        UdashButton(BootstrapStyles.Color.Danger.toProperty)(_ => Seq[Modifier](UdashModal.CloseButtonAttr, "Cancel")).render
+        UdashButton(options = BootstrapStyles.Color.Danger.option)(_ => Seq[Modifier](UdashModal.CloseButtonAttr, "Cancel")).render
       ).render
     }
   )
@@ -204,7 +204,7 @@ class PageView(
   }
 
   private def createColoredButton(prop: ReadableProperty[Boolean], text: Modifier, buttonColor: String) = {
-    UdashButton(size = Some(BootstrapStyles.Size.Small).toProperty) { nested =>
+    UdashButton(options = UdashButtonOptions(size = BootstrapStyles.Size.Small.opt)) { nested =>
       Seq[Modifier](
         Spacing.margin(size = SpacingSize.ExtraSmall),
         nested(backgroundColor.bind(prop.transform(buttonColors(_, buttonColor)._1))),
@@ -237,7 +237,7 @@ class PageView(
       produceWithNested(model.subSeq(_.labels)) { (labels, nested) =>
         val selectedLabels = model.subSeq(_.activeLabels)
         labels.map { label =>
-          val prop = selectedLabels.transform((s: Seq[String]) => s.contains(label.name))
+          val prop = selectedLabels.transform((s: BSeq[String]) => s.contains(label.name))
           createColoredButton(prop, label.name, label.color).tap {
             _.listen { case _ =>
               if (selectedLabels.get.contains(label.name)) {
@@ -456,7 +456,7 @@ class PageView(
             children.show()
 
             val childrenClosed = children.filter((e: Element, _: Int, _: Element) => jQ(e).find(".fold-open").length == 0)
-            childrenClosed.get.foreach { close =>
+            childrenClosed.get().foreach { close =>
               val hide = findChildren(jQ(close))
               hide.hide()
             }
@@ -489,7 +489,7 @@ class PageView(
           } else {
             // create a future which will never complete
             // used for simulating long loading when debugging
-            Promise[Unit].future
+            Promise[Unit]().future
           }
         }
 
@@ -531,7 +531,7 @@ class PageView(
     )
 
     val repoUrl = globals.subSeq(_.contexts)
-    val repoSelected = globals.subProp(_.selectedContext).transform(_.getOrElse(repoUrl.get.head), Some(_: ContextModel))
+    val repoSelected = globals.subProp(_.selectedContext).bitransform(_.getOrElse(repoUrl.get.head))(Some(_: ContextModel))
 
     val repoAttribs = Seq[TableFactory.TableAttrib[ContextModel]](
       TableFactory.TableAttrib(

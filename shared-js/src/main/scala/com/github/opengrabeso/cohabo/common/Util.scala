@@ -30,12 +30,7 @@ trait Util {
     override def compare(x: ZonedDateTime, y: ZonedDateTime): Int = x.compareTo(y)
   }
 
-  implicit class MinMaxOptTraversable[T](val seq: Traversable[T]) {
-    def minOpt(implicit ev: Ordering[T]): Option[T] = if (seq.isEmpty) None else Some(seq.min)
-    def maxOpt(implicit ev: Ordering[T]): Option[T] = if (seq.isEmpty) None else Some(seq.max)
-  }
-
-  def slidingRepeatHeadTail[T, X](s: IndexedSeq[T], slide: Int)(map: Seq[T] => X): TraversableOnce[X] = {
+  def slidingRepeatHeadTail[T, X](s: IndexedSeq[T], slide: Int)(map: Seq[T] => X): Iterable[X] = {
     if (s.nonEmpty) {
       val prefix = (1 until slide).foldLeft(s.take(1))((s, head) => s ++ s.take(1))
       val postfix = Seq.fill(slide - 1 - slide / 2)(s.last)
@@ -62,8 +57,8 @@ trait Util {
 
   def humanReadableByteCount(bytes: Long): String = {
     val unit = 1024
-    if (bytes < unit) return bytes + " B"
-    val exp = (Math.log(bytes) / Math.log(unit)).toInt
+    if (bytes < unit) return bytes.toString + " B"
+    val exp = (Math.log(bytes.toDouble) / Math.log(unit)).toInt
     val pre = "kMGTPE".charAt(exp - 1)
     "%.1f %sB".format(bytes / Math.pow(unit, exp), pre)
   }

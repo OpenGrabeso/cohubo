@@ -5,11 +5,10 @@ package select
 
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneId, ZonedDateTime}
-
 import com.github.opengrabeso.github.{rest => githubRest}
 import com.github.opengrabeso.github.model._
 import githubRest.DataWithHeaders._
-import com.softwaremill.sttp.Method
+import sttp.client3._
 import githubRest.DataWithHeaders
 import dataModel._
 import common.Util._
@@ -27,6 +26,7 @@ import TimeFormatting._
 import QueryAST._
 import io.udash.wrappers.jquery.jQ
 import org.scalajs.dom
+import sttp.model.Method
 
 import scala.collection.mutable
 import scala.scalajs.js
@@ -869,7 +869,7 @@ class PagePresenter(
 
       println(s"activeContexts $ac")
 
-      val names = contexts.map(c => Seq(c.organization, c.repository))
+      val names = contexts.toSeq.map(c => Seq(c.organization, c.repository))
       val shortNames = ShortIds.compute(names)
       shortRepoIds = (contexts zip shortNames).toMap
 
@@ -1152,7 +1152,7 @@ class PagePresenter(
       // check all existing replies to the issue
       val replies = model.subProp(_.articles).get.filter(_.id.sameIssue(id))
       // there always must exists at least the reply we are replying to, it does not have to be a comment, though
-      val maxReplyNumber = replies.flatMap(_.id.id).maxOpt
+      val maxReplyNumber = replies.flatMap(_.id.id).maxOption
 
       val isLast = (id.id, maxReplyNumber) match {
         case (Some(iid), Some(r)) if iid == r =>

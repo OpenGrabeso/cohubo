@@ -17,7 +17,7 @@ import io.udash.css._
 class PageView(
   model: ModelProperty[PageModel],
   presenter: PagePresenter,
-) extends FinalView with CssView with PageUtils with settings_base.SettingsView {
+) extends View with CssView with PageUtils with settings_base.SettingsView {
   val s = SelectPageStyles
 
   import scalatags.JsDom.all._

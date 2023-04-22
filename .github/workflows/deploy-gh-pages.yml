@@ -23,12 +23,12 @@ jobs:
           # call products to make sure css is built
           sbt products frontend/fullOptJS
           mkdir public
-          cp frontend/target/scala-2.12/*-opt.js public/.
-          cp frontend/target/scala-2.12/*-jsdeps.js public/.
-          cp frontend/target/scala-2.12/index.html public/.
-          cp frontend/target/scala-2.12/*.css public/.
-          cp frontend/target/scala-2.12/*.svg public/.
-          cp frontend/target/scala-2.12/favicon.ico public/.
+          cp frontend/target/scala-2.13/*-opt.js public/.
+          cp frontend/target/scala-2.13/*-jsdeps.js public/.
+          cp frontend/target/scala-2.13/index.html public/.
+          cp frontend/target/scala-2.13/*.css public/.
+          cp frontend/target/scala-2.13/*.svg public/.
+          cp frontend/target/scala-2.13/favicon.ico public/.
       - name: Deploy
         if: success()
         uses: crazy-max/ghaction-github-pages@v1

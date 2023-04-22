@@ -13,7 +13,7 @@ case class BinaryData(data: Array[Byte])
 object BinaryData extends EnhancedRestDataCompanion[BinaryData] {
   private val contentType = "application/octet-stream"
   implicit val rawReal: AsRawReal[RestResponse, BinaryData] = AsRawReal.create(
-    real => RestResponse(200, IMapping[PlainValue](), HttpBody.binary(real.data, contentType)),
+    real => RestResponse(200, IMapping.create[PlainValue](), HttpBody.binary(real.data, contentType)),
     raw => BinaryData(raw.body.readBytes(contentType))
   )
 

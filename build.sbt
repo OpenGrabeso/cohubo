@@ -4,16 +4,16 @@ import sbt.Keys.scalacOptions
 import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
 
 
-val udashVersion = "0.8.5"
+val udashVersion = "0.9.0"
 
 val bootstrapVersion = "4.3.1"
 
-val udashJQueryVersion = "3.0.1"
+val udashJQueryVersion = "3.0.4"
 
 lazy val commonSettings = Seq(
   organization := "com.github.ondrejspanel",
-  version := "0.0.1-alpha",
-  scalaVersion := "2.12.12",
+  version := "0.1.0",
+  scalaVersion := "2.13.10",
   scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
 
   libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.2" % Test,
@@ -31,26 +31,25 @@ lazy val commonSettings = Seq(
 )
 
 lazy val jsCommonSettings = Seq(
-  scalacOptions ++= Seq("-P:scalajs:sjsDefinedByDefault")
+  excludeDependencies += ExclusionRule(organization = "io.github.cquiroz") // workaround for https://github.com/cquiroz/scala-java-time/issues/257
 )
 
 lazy val jsLibs = libraryDependencies ++= Seq(
-  "org.scala-js" %%% "scalajs-dom" % "0.9.7", // it seems we cannot use a newer scalajs-dom with Udash 0.8.2
-  "org.querki" %%% "jquery-facade" % "1.2",
+  "org.scala-js" %%% "scalajs-dom" % "2.4.0",
+  "org.querki" %%% "jquery-facade" % "2.1",
 
   "io.udash" %%% "udash-bootstrap4" % udashVersion,
-  "io.udash" %%% "udash-charts" % udashVersion,
   "io.udash" %%% "udash-jquery" % udashJQueryVersion,
 
-  "com.zoepepper" %%% "scalajs-jsjoda" % "1.1.2",
-  "com.zoepepper" %%% "scalajs-jsjoda-as-java-time" % "1.1.2"
+  "com.zoepepper" %%% "scalajs-jsjoda" % "1.2.0",
+  "com.zoepepper" %%% "scalajs-jsjoda-as-java-time" % "1.2.0"
 )
 
 lazy val sharedJs = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Pure).in(file("shared-js"))
+  .jsConfigure(_.enablePlugins(JSDependenciesPlugin))
   .settings(commonSettings)
   .jvmSettings(
-
   ).jsSettings(
     jsCommonSettings,
     jsLibs,
@@ -117,7 +116,7 @@ lazy val frontend = project.settings(
 
     (fastOptJS in Compile) := (fastOptJS in Compile).dependsOn(generateIndexTask("index-fast.html","fastopt"), copyAssets()).value,
     (fullOptJS in Compile) := (fullOptJS in Compile).dependsOn(generateIndexTask("index.html","opt"), copyAssets()).value
-  ).enablePlugins(ScalaJSPlugin)
+  ).enablePlugins(ScalaJSPlugin, JSDependenciesPlugin)
     .dependsOn(sharedJs_JS)
 
 lazy val backend = (project in file("backend"))
@@ -132,7 +131,7 @@ lazy val root = (project in file("."))
   .settings(
     name := "Cohubo",
     Compile / compile := Def.taskDyn {
-      (frontend / Compile / fastOptJS).value // the CSS and JS need to be produced first
+      val doFastOptJS = (frontend / Compile / fastOptJS).value // the CSS and JS need to be produced first
       val c = (Compile / compile).value
       val log = streams.value.log
       val dir = (frontend / Compile / fastOptJS / crossTarget).value
@@ -140,7 +139,7 @@ lazy val root = (project in file("."))
       log.info(s"Compile css in $dir")
       dir.mkdirs()
       Def.task {
-        (backend / Compile / runMain).toTask(s" com.github.opengrabeso.cohubo.CompileCss $path true").value
+        val doRunMain = (backend / Compile / runMain).toTask(s" com.github.opengrabeso.cohubo.CompileCss $path true").value
         c // return compile result
       }
     }.value,

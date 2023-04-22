@@ -17,10 +17,10 @@ sealed abstract class RoutingState(val parentState: Option[ContainerRoutingState
 }
 
 sealed abstract class ContainerRoutingState(parentState: Option[ContainerRoutingState])
-  extends RoutingState(parentState) with ContainerState
+  extends RoutingState(parentState) with State
 
 sealed abstract class FinalRoutingState(parentState: Option[ContainerRoutingState])
-  extends RoutingState(parentState) with FinalState
+  extends RoutingState(parentState) with State
 
 case object RootState extends ContainerRoutingState(None)
 case class SelectPageState(id: Option[ArticleIdModel]) extends FinalRoutingState(Some(RootState))

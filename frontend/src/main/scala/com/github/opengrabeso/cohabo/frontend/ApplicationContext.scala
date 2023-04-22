@@ -13,7 +13,7 @@ object ApplicationContext {
   private val routingRegistry = new RoutingRegistryDef
   private val viewFactoryRegistry = new StatesToViewFactoryDef
 
-  object githubRestApiClient extends github.RestAPIClient(SttpRestClient.defaultBackend())
+  object githubRestApiClient extends github.RestAPIClient[github.rest.RestAPI](SttpRestClient.defaultBackend(), "https://api.github.com")
 
   val application = new Application[RoutingState](routingRegistry, viewFactoryRegistry)
   val userContextService = new services.UserContextService(githubRestApiClient.api)
