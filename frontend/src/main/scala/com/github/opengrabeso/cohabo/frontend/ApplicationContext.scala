@@ -7,6 +7,9 @@ import io.udash._
 import com.github.opengrabeso.github
 import io.udash.rest.SttpRestClient
 
+import scala.annotation.nowarn
+
+@nowarn("msg=The global execution context")
 object ApplicationContext {
   import scala.concurrent.ExecutionContext.Implicits.global
 

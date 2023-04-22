@@ -227,7 +227,7 @@ class PagePresenter(
           model.subProp(_.articleContent).set("...")
           // process long matches first (prefer highlighting the longest match whenever possible)
           val highlight = p.rawParent.text_matches.flatMap(_.matches.map(_.text)).sortBy(_.length).reverse
-          renderMarkdown(s.body, s.id.context, Highlight(_, highlight))
+          renderMarkdown(s.body, s.id.context, Highlight(_, highlight.toSeq))
         }
       case _ =>
         model.subProp(_.selectedArticle).set(None)
@@ -393,7 +393,7 @@ class PagePresenter(
     }
 
     ArticleRowModel(
-      p, 0, i.comments > 0, true, 0, i.title, i.body, i.state == "closed", i.labels, i.assignees, Option(i.milestone).map(_.title), i.user, i,
+      p, 0, i.comments > 0, true, 0, i.title, i.body, i.state == "closed", i.labels.toSeq, i.assignees.toSeq, Option(i.milestone).map(_.title), i.user, i,
       explicitCreated.getOrElse(i.created_at), explicitCreated.getOrElse(i.created_at), updatedAt
     )
   }
@@ -442,7 +442,7 @@ class PagePresenter(
             if (log) println(s"byQuote ${byQuote.map(_.map(_.id)).toVector}")
             // try to find an intersection (article containing all quotes)
             // check
-            val mostQuoted = byQuote.flatten.groupBy(identity).mapValues(_.size).maxBy(_._2)._1
+            val mostQuoted = byQuote.flatten.groupBy(identity).view.mapValues(_.size).maxBy(_._2)._1
             processLast(tail, (mostQuoted -> head) :: doneChildren)
           } else {
             // when nothing is found, take previous article
@@ -454,7 +454,7 @@ class PagePresenter(
       }
     }
     if (log) println(s"fromEnd ${fromEnd.map(_.body)}")
-    val childrenOf = processLast(fromEnd.toList, Nil).groupBy(_._1).mapValues(_.map(_._2))
+    val childrenOf = processLast(fromEnd.toList, Nil).groupBy(_._1).view.mapValues(_.map(_._2))
     if (log) println(s"root $issue")
     if (log) println(s"childrenOf ${childrenOf.map { case (k, v) => k.id -> v.map(_.id) }}")
     def traverseDepthFirst(i: ArticleRowModel, level: Int): List[ArticleRowModel] = {
@@ -1055,8 +1055,8 @@ class PagePresenter(
               body,
               i.state,
               Option(i.milestone).map(_.number).getOrElse(-1),
-              i.labels.map(_.name),
-              i.assignees.map(_.login)
+              i.labels.toSeq.map(_.name),
+              i.assignees.toSeq.map(_.login)
             )
           }.map(_.body)
       }
@@ -1280,8 +1280,8 @@ class PagePresenter(
           i.body,
           "closed",
           Option(i.milestone).map(_.number).getOrElse(-1),
-          i.labels.map(_.name),
-          i.assignees.map(_.login)
+          i.labels.toSeq.map(_.name),
+          i.assignees.toSeq.map(_.login)
         )
       }.map(_.body)
     }.onComplete {

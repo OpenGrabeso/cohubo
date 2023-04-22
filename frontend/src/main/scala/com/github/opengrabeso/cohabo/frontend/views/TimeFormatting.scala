@@ -3,8 +3,8 @@ package com.github.opengrabeso.cohabo.frontend.views
 import java.time.{ZoneOffset, ZonedDateTime}
 
 import scala.scalajs.js
-import org.scalajs.dom.experimental.intl
-import org.scalajs.dom.experimental.intl.DateTimeFormatOptions
+import org.scalajs.dom.intl
+import org.scalajs.dom.intl.DateTimeFormatOptions
 
 import scala.scalajs.js.annotation.JSGlobal
 import scala.scalajs.js.|
@@ -25,13 +25,13 @@ trait TimeFormatting {
     try {
       new intl.DateTimeFormat(
         locale,
-        options = intl.DateTimeFormatOptions(
-          year = "numeric",
-          month = "numeric",
-          day = "numeric",
-          hour = "numeric",
+        options = new intl.DateTimeFormatOptions {
+          year = "numeric"
+          month = "numeric"
+          day = "numeric"
+          hour = "numeric"
           minute = "numeric"
-        )
+        }
       ).format(t)
     } catch {
       case _: Exception =>
@@ -49,10 +49,10 @@ trait TimeFormatting {
     try {
       new intl.DateTimeFormat(
         locale,
-        options = intl.DateTimeFormatOptions(
-          hour = "numeric",
-          minute = "numeric",
-        )
+        options = new intl.DateTimeFormatOptions {
+          hour = "numeric"
+          minute = "numeric"
+        }
       ).format(t)
     } catch {
       case _: Exception =>
@@ -64,11 +64,11 @@ trait TimeFormatting {
     try {
       new intl.DateTimeFormat(
         locale,
-        options = intl.DateTimeFormatOptions(
-          hour = "numeric",
-          minute = "numeric",
-          second = "numeric",
-        )
+        options = new intl.DateTimeFormatOptions {
+          hour = "numeric"
+          minute = "numeric"
+          second = "numeric"
+        }
       ).format(t)
     } catch {
       case _: Exception =>

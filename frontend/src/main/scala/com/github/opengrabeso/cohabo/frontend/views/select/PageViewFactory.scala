@@ -5,6 +5,8 @@ package views.select
 import routing._
 import io.udash._
 
+import scala.annotation.nowarn
+
 /**
  * Use the same factory for all views
  * see https://guide.udash.io/frontend/routing/pizza and https://guide.udash.io/frontend/routing:
@@ -14,6 +16,7 @@ import io.udash._
  * will be informed about the state changed through calling the handleState method.
  * */
 
+@nowarn("msg=The global execution context")
 case object PageViewFactory extends ViewFactory[SelectPageState] {
 
   val application = ApplicationContext.application

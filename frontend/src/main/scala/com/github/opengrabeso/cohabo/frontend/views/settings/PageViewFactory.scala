@@ -4,14 +4,15 @@ package views
 package settings
 
 import java.time.ZonedDateTime
-
 import com.github.opengrabeso.cohabo.frontend.dataModel.SettingsModel
 import routing.{RoutingState, SettingsPageState}
 import io.udash._
 
+import scala.annotation.nowarn
 import scala.concurrent.Future
 
 /** Prepares model, view and presenter for demo view. */
+@nowarn("msg=The global execution context")
 class PageViewFactory(
   application: Application[RoutingState],
   userService: services.UserContextService,

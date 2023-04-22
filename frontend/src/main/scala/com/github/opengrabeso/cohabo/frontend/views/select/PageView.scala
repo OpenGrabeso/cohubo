@@ -32,6 +32,8 @@ import io.udash.bindings.inputs
 import io.udash.bootstrap.modal.UdashModal
 import org.scalajs.dom
 
+import scala.annotation.nowarn
+
 object PageView {
   object symbols {
     val childrenPreview = "\u2299" // (.) circled dot
@@ -44,6 +46,7 @@ object PageView {
 
 import PageView._
 
+@nowarn("msg=The global execution context")
 class PageView(
   model: ModelProperty[PageModel],
   presenter: PagePresenter,
@@ -344,7 +347,7 @@ class PageView(
 
     def rowTitle(ar: ArticleRowModel): Modifier = {
       val highlights = ar.rawParent.text_matches.flatMap(_.matches.map(_.text)).distinct
-      val title = Highlight(ar.title, highlights)
+      val title = Highlight(ar.title, highlights.toSeq)
       val tasks = if (ar.id.id.isEmpty) TaskList.progress(ar.body) else TaskList.Progress(0, 0)
       def seqIf(cond: Boolean)(elems: =>Seq[Modifier]): Seq[Modifier] = if (cond) elems else Seq.empty
 
@@ -424,7 +427,7 @@ class PageView(
           attr("reply-number") := ar.replyNumber,
           attr("issue-labels") := ar.labels.map(_.name).mkString("\"", "\",\"", "\""),
           attr("issue-assignees") := ar.assignees.map(_.login).mkString("\"", "\",\"", "\""),
-          if (checkHighlight(ar, ar.rawParent.text_matches)) Seq[Modifier](s.hightlightIssue) else Seq.empty[Modifier],
+          if (checkHighlight(ar, ar.rawParent.text_matches.toSeq)) Seq[Modifier](s.hightlightIssue) else Seq.empty[Modifier],
           id.id.map(attr("comment-number") := _) // include only when the value is present
         )
       }

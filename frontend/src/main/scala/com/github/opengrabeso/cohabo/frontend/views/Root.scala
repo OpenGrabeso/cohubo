@@ -10,10 +10,12 @@ import io.udash.css._
 import common.css._
 import io.udash.bootstrap.utils.BootstrapStyles._
 import org.scalajs.dom
-import org.scalajs.dom.raw.HTMLElement
+import org.scalajs.dom.HTMLElement
 
+import scala.annotation.nowarn
 import scala.concurrent.ExecutionContext
 
+@nowarn("msg=The global execution context")
 object Root {
 
   case class PageModel(userName: String, userId: String)
