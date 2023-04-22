@@ -1,0 +1,1047 @@
+.com-github-opengrabeso-cohabo-common-css-CommonStyle-flexRow {
+  display: -moz-flex;
+  display: -ms-flex;
+  display: -o-flex;
+  display: -webkit-flex;
+  display: flex;
+  -moz-flex-direction: row;
+  -ms-flex-direction: row;
+  -o-flex-direction: row;
+  -webkit-flex-direction: row;
+  flex-direction: row;
+}
+
+.com-github-opengrabeso-cohabo-common-css-CommonStyle-passFlex1 {
+  -moz-flex-grow: 1;
+  -ms-flex-grow: 1;
+  -o-flex-grow: 1;
+  -webkit-flex-grow: 1;
+  flex-grow: 1;
+  display: -moz-flex;
+  display: -ms-flex;
+  display: -o-flex;
+  display: -webkit-flex;
+  display: flex;
+  -moz-flex-direction: column;
+  -ms-flex-direction: column;
+  -o-flex-direction: column;
+  -webkit-flex-direction: column;
+  flex-direction: column;
+}
+
+.com-github-opengrabeso-cohabo-common-css-CommonStyle-useFlex1 {
+  -moz-flex-grow: 1;
+  -ms-flex-grow: 1;
+  -o-flex-grow: 1;
+  -webkit-flex-grow: 1;
+  flex-grow: 1;
+}
+
+.com-github-opengrabeso-cohabo-common-css-CommonStyle-useFlex0 {
+  -moz-flex-grow: 0;
+  -ms-flex-grow: 0;
+  -o-flex-grow: 0;
+  -webkit-flex-grow: 0;
+  flex-grow: 0;
+}
+
+.com-github-opengrabeso-cohabo-common-css-GlobalStyles-rootContainer {
+  display: -ms-grid;
+  display: grid;
+  height: 100vh;
+  min-height: 500px;
+  -ms-grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  -ms-grid-template-areas: "header" "main" "footer";
+  grid-template-areas: "header" "main" "footer";
+}
+
+.com-github-opengrabeso-cohabo-common-css-GlobalStyles-rootContainer #header {
+  background-color: #def;
+  overflow: hidden;
+  display: -moz-flex;
+  display: -ms-flex;
+  display: -o-flex;
+  display: -webkit-flex;
+  display: flex;
+  -moz-flex-grow: 0;
+  -ms-flex-grow: 0;
+  -o-flex-grow: 0;
+  -webkit-flex-grow: 0;
+  flex-grow: 0;
+  -moz-flex-direction: row;
+  -ms-flex-direction: row;
+  -o-flex-direction: row;
+  -webkit-flex-direction: row;
+  flex-direction: row;
+  -ms-grid-area: header;
+  grid-area: header;
+}
+
+.com-github-opengrabeso-cohabo-common-css-GlobalStyles-rootContainer #footer {
+  background-color: #def;
+  overflow: hidden;
+  display: -moz-flex;
+  display: -ms-flex;
+  display: -o-flex;
+  display: -webkit-flex;
+  display: flex;
+  -moz-flex-grow: 0;
+  -ms-flex-grow: 0;
+  -o-flex-grow: 0;
+  -webkit-flex-grow: 0;
+  flex-grow: 0;
+  -moz-flex-direction: row;
+  -ms-flex-direction: row;
+  -o-flex-direction: row;
+  -webkit-flex-direction: row;
+  flex-direction: row;
+  height: 24px;
+  -ms-grid-area: footer;
+  grid-area: footer;
+}
+
+.com-github-opengrabeso-cohabo-common-css-GlobalStyles-rootContainer > div {
+  -ms-grid-area: main;
+  grid-area: main;
+}
+
+.com-github-opengrabeso-cohabo-common-css-GlobalStyles-floatRight {
+  float: right;
+}
+
+.com-github-opengrabeso-cohabo-common-css-GlobalStyles-footerText {
+  color: darkblue;
+}
+
+.com-github-opengrabeso-cohabo-common-css-GlobalStyles-footerLink {
+  color: inherit;
+}
+
+body {
+  display: -moz-flex;
+  display: -ms-flex;
+  display: -o-flex;
+  display: -webkit-flex;
+  display: flex;
+  -moz-flex-direction: column;
+  -ms-flex-direction: column;
+  -o-flex-direction: column;
+  -webkit-flex-direction: column;
+  flex-direction: column;
+  padding: 0;
+  margin: 0;
+  height: 100%;
+}
+
+html {
+  padding: 0;
+  margin: 0;
+  height: 100%;
+}
+
+#application {
+  display: -moz-flex;
+  display: -ms-flex;
+  display: -o-flex;
+  display: -webkit-flex;
+  display: flex;
+  -moz-flex-direction: column;
+  -ms-flex-direction: column;
+  -o-flex-direction: column;
+  -webkit-flex-direction: column;
+  flex-direction: column;
+  -moz-flex-grow: 1;
+  -ms-flex-grow: 1;
+  -o-flex-grow: 1;
+  -webkit-flex-grow: 1;
+  flex-grow: 1;
+}
+
+.container {
+  max-width: 100vw !important;
+  display: -moz-flex;
+  display: -ms-flex;
+  display: -o-flex;
+  display: -webkit-flex;
+  display: flex;
+  -moz-flex-direction: column;
+  -ms-flex-direction: column;
+  -o-flex-direction: column;
+  -webkit-flex-direction: column;
+  flex-direction: column;
+  -moz-flex-grow: 1;
+  -ms-flex-grow: 1;
+  -o-flex-grow: 1;
+  -webkit-flex-grow: 1;
+  flex-grow: 1;
+}
+
+.container > div {
+  display: -moz-flex;
+  display: -ms-flex;
+  display: -o-flex;
+  display: -webkit-flex;
+  display: flex;
+  -moz-flex-direction: column;
+  -ms-flex-direction: column;
+  -o-flex-direction: column;
+  -webkit-flex-direction: column;
+  flex-direction: column;
+  -moz-flex-grow: 1;
+  -ms-flex-grow: 1;
+  -o-flex-grow: 1;
+  -webkit-flex-grow: 1;
+  flex-grow: 1;
+}
+
+table .form-group {
+  margin-bottom: 0;
+}
+
+table .input-group-text {
+  padding-bottom: 0;
+  padding-top: 0;
+}
+
+.com-github-opengrabeso-cohabo-common-css-CommonStyle-flexRow {
+  display: -moz-flex;
+  display: -ms-flex;
+  display: -o-flex;
+  display: -webkit-flex;
+  display: flex;
+  -moz-flex-direction: row;
+  -ms-flex-direction: row;
+  -o-flex-direction: row;
+  -webkit-flex-direction: row;
+  flex-direction: row;
+}
+
+.com-github-opengrabeso-cohabo-common-css-CommonStyle-passFlex1 {
+  -moz-flex-grow: 1;
+  -ms-flex-grow: 1;
+  -o-flex-grow: 1;
+  -webkit-flex-grow: 1;
+  flex-grow: 1;
+  display: -moz-flex;
+  display: -ms-flex;
+  display: -o-flex;
+  display: -webkit-flex;
+  display: flex;
+  -moz-flex-direction: column;
+  -ms-flex-direction: column;
+  -o-flex-direction: column;
+  -webkit-flex-direction: column;
+  flex-direction: column;
+}
+
+.com-github-opengrabeso-cohabo-common-css-CommonStyle-useFlex1 {
+  -moz-flex-grow: 1;
+  -ms-flex-grow: 1;
+  -o-flex-grow: 1;
+  -webkit-flex-grow: 1;
+  flex-grow: 1;
+}
+
+.com-github-opengrabeso-cohabo-common-css-CommonStyle-useFlex0 {
+  -moz-flex-grow: 0;
+  -ms-flex-grow: 0;
+  -o-flex-grow: 0;
+  -webkit-flex-grow: 0;
+  flex-grow: 0;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-textCenter {
+  text-align: center;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-infoIcon {
+  font-size: 1rem;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-settingsContainer {
+  display: -moz-flex;
+  display: -ms-flex;
+  display: -o-flex;
+  display: -webkit-flex;
+  display: flex;
+  -moz-flex-direction: column;
+  -ms-flex-direction: column;
+  -o-flex-direction: column;
+  -webkit-flex-direction: column;
+  flex-direction: column;
+  margin: auto;
+  margin: 10px;
+  border-color: lightgray;
+  padding: 5px;
+  border-style: solid;
+  border-width: 1px;
+  -moz-border-radius: 10px;
+  border-radius: 10px;
+  height: 100%;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-container {
+  display: -ms-grid;
+  display: grid;
+  margin: auto;
+  margin: 10px;
+  border-color: lightgray;
+  padding: 5px;
+  border-style: solid;
+  border-width: 1px;
+  -moz-border-radius: 10px;
+  border-radius: 10px;
+  height: 100%;
+  background-color: #f7fcff;
+  -ms-grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr);
+  -ms-grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  -ms-grid-template-areas: "nav filters" "nav table-container";
+  grid-template-areas: "nav filters" "nav table-container";
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-labelButtons {
+  width: 25vw;
+  min-width: 200px;
+  display: -moz-flex;
+  display: -ms-flex;
+  display: -o-flex;
+  display: -webkit-flex;
+  display: flex;
+  -moz-flex-direction: row;
+  -ms-flex-direction: row;
+  -o-flex-direction: row;
+  -webkit-flex-direction: row;
+  flex-direction: row;
+  -moz-flex-wrap: wrap;
+  -ms-flex-wrap: wrap;
+  -o-flex-wrap: wrap;
+  -webkit-flex-wrap: wrap;
+  flex-wrap: wrap;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-labelButton {
+  -moz-flex-grow: 0;
+  -ms-flex-grow: 0;
+  -o-flex-grow: 0;
+  -webkit-flex-grow: 0;
+  flex-grow: 0;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-labelInline {
+  margin: -1px 4px;
+  -moz-border-radius: 4px;
+  border-radius: 4px;
+  padding: 0 4px;
+  display: inline-block;
+  font-size: small;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-taskListProgress {
+  background-color: #c8c8c8;
+  -moz-border-radius: 3px;
+  border-radius: 3px;
+  display: inline-block;
+  padding: 0 4px;
+  margin: -1px 0;
+  font-size: small;
+  font-style: italic;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-progressBackground {
+  display: inline-block;
+  height: 5px;
+  background-color: white;
+  -moz-border-radius: 2px;
+  border-radius: 2px;
+  width: 40px;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-progressForeground {
+  display: block;
+  height: 100%;
+  -moz-border-radius: 2px;
+  border-radius: 2px;
+  background-color: #404060;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-userIcon {
+  height: 0.9em;
+  vertical-align: baseline;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-gridAreaNavigation {
+  -ms-grid-area: nav;
+  grid-area: nav;
+  display: -moz-flex;
+  display: -ms-flex;
+  display: -o-flex;
+  display: -webkit-flex;
+  display: flex;
+  -moz-flex-direction: column;
+  -ms-flex-direction: column;
+  -o-flex-direction: column;
+  -webkit-flex-direction: column;
+  flex-direction: column;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-gridAreaFilters {
+  -ms-grid-area: filters;
+  grid-area: filters;
+  display: -moz-flex;
+  display: -ms-flex;
+  display: -o-flex;
+  display: -webkit-flex;
+  display: flex;
+  -moz-flex-direction: column;
+  -ms-flex-direction: column;
+  -o-flex-direction: column;
+  -webkit-flex-direction: column;
+  flex-direction: column;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-filterExpression {
+  -moz-flex-direction: row;
+  -ms-flex-direction: row;
+  -o-flex-direction: row;
+  -webkit-flex-direction: row;
+  flex-direction: row;
+  -moz-flex-grow: 1;
+  -ms-flex-grow: 1;
+  -o-flex-grow: 1;
+  -webkit-flex-grow: 1;
+  flex-grow: 1;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-filterExpressionInput {
+  width: 100%;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-gridAreaTableContainer {
+  -ms-grid-area: table-container;
+  grid-area: table-container;
+  display: -ms-grid;
+  display: grid;
+  -ms-grid-template-rows: 1fr 0fr 10fr;
+  grid-template-rows: 1fr 0fr 10fr;
+  -ms-grid-template-areas: "table" "table-buttons" "article";
+  grid-template-areas: "table" "table-buttons" "article";
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-gridAreaArticle {
+  -ms-grid-area: article;
+  grid-area: article;
+  display: -moz-flex;
+  display: -ms-flex;
+  display: -o-flex;
+  display: -webkit-flex;
+  display: flex;
+  overflow: auto;
+  -moz-flex-direction: column;
+  -ms-flex-direction: column;
+  -o-flex-direction: column;
+  -webkit-flex-direction: column;
+  flex-direction: column;
+  max-width: 60em;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-gridAreaTableButtons {
+  -ms-grid-area: table-buttons;
+  grid-area: table-buttons;
+  display: -moz-flex;
+  display: -ms-flex;
+  display: -o-flex;
+  display: -webkit-flex;
+  display: flex;
+  -moz-flex-direction: row;
+  -ms-flex-direction: row;
+  -o-flex-direction: row;
+  -webkit-flex-direction: row;
+  flex-direction: row;
+}
+
+@keyframes com-github-opengrabeso-cohabo-common-css-SelectPageStyles-spin {
+  0.0% {
+  }
+
+  100.0% {
+    -moz-transform: rotate(360deg);
+    -o-transform: rotate(360deg);
+    -webkit-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-selectTableContainer {
+  background-color: white;
+  -ms-grid-area: table;
+  grid-area: table;
+  overflow: auto;
+  -moz-resize: vertical;
+  resize: vertical;
+  max-height: 70vh;
+  min-height: 10vh;
+  border: 2px solid darkgray;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-selectTableContainer thead tr th {
+  position: sticky !important;
+  top: 0 !important;
+  background-color: #f0f0f0;
+  border-left: 1px dotted rgba(200,209,224,0.6);
+  border-bottom: 1px solid #e8e8e8;
+  border-top: 2px solid #f0f0f0;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-selectTableContainer .fold-control {
+  color: darkgray;
+  font-weight: 900;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-selectTableContainer .preview-fold {
+  color: lightgray;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-selectTableContainer .loading-fold {
+  display: inline-block;
+  color: darkblue;
+  -moz-animation-name: com-github-opengrabeso-cohabo-common-css-SelectPageStyles-spin;
+  -o-animation-name: com-github-opengrabeso-cohabo-common-css-SelectPageStyles-spin;
+  -webkit-animation-name: com-github-opengrabeso-cohabo-common-css-SelectPageStyles-spin;
+  animation-name: com-github-opengrabeso-cohabo-common-css-SelectPageStyles-spin;
+  -moz-animation-duration: 2s;
+  -o-animation-duration: 2s;
+  -webkit-animation-duration: 2s;
+  animation-duration: 2s;
+  -moz-animation-timing-function: linear;
+  -o-animation-timing-function: linear;
+  -webkit-animation-timing-function: linear;
+  animation-timing-function: linear;
+  -moz-animation-iteration-count: infinite;
+  -o-animation-iteration-count: infinite;
+  -webkit-animation-iteration-count: infinite;
+  animation-iteration-count: infinite;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-selectTableContainer .no-fold {
+  color: lightgray;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-tr[class~="closed"] {
+  -moz-text-decoration: line-through;
+  text-decoration: line-through;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-tr[class~="selected"] {
+  background-color: #add8e6;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-tr[class~="selected"]:hover {
+  background-color: #a0d0e0;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-tr[class~="unread"] {
+  font-weight: bold;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-tr[class~="unread-children"] {
+  font-weight: bold;
+  color: #808080;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-tr .search-highlight {
+  background-color: #fec;
+  font-weight: bold;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-hightlightIssue {
+  background-color: #ffcc00;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-hightlightIssue:hover {
+  background-color: #eebb00 !important;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-hightlightIssue[class~="selected"] {
+  background-color: #dd9900;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-hightlightIssue[class~="selected"]:hover {
+  background-color: #cc8800 !important;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-td {
+  line-height: 1.0rem;
+  padding-bottom: 0 !important;
+  padding-top: 0 !important;
+  max-width: 20px;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-td div {
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-th {
+  line-height: 1.0rem;
+  padding-bottom: 0 !important;
+  padding-top: 0 !important;
+  max-width: 20px;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-th div {
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-tdRepo {
+  line-height: 1.1rem;
+  padding-bottom: 2px !important;
+  padding-top: 2px !important;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-titleStyle {
+  margin-right: 8px;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-uploading {
+  background-color: lightblue;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-error {
+  background-color: red;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-limitWidth {
+  max-width: 500px;
+}
+
+@media not all and (min-width:1000px) {
+  .com-github-opengrabeso-cohabo-common-css-SelectPageStyles-wideMedia {
+    display: none;
+  }
+}
+
+@media (min-width:1000px) {
+  .com-github-opengrabeso-cohabo-common-css-SelectPageStyles-narrowMedia {
+    display: none;
+  }
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-hidden {
+  display: none;
+}
+
+.article-content blockquote {
+  padding: 0 1em;
+  color: #6a737d;
+  border-left: 0.25em solid #dfe2e5;
+}
+
+.article-content pre {
+  background-color: rgba(27,31,35,0.05);
+}
+
+.article-content pre code,.article-content  pre tt {
+  color: #000000;
+  padding: 0;
+  margin: 0;
+  overflow: auto;
+  font-size: 85%;
+  line-height: 1.45;
+  background-color: initial;
+  -moz-border-radius: 3px;
+  border-radius: 3px;
+  border: 0;
+}
+
+.article-content pre>code {
+  font-size: 100%;
+  word-break: normal;
+  white-space: pre;
+  background-color: transparent;
+}
+
+.article-content code {
+  color: #000000;
+  margin: 0;
+  padding: 0.2em 0.4em;
+  background-color: rgba(27,31,35,0.05);
+  font-size: 85%;
+  -moz-border-radius: 3px;
+  border-radius: 3px;
+}
+
+.article-content table td,.article-content table  th {
+  padding: 6px 13px;
+  border: 1px solid #dfe2e5;
+}
+
+.article-content table tr:nth-child(2n) {
+  background-color: #f6f8fa;
+}
+
+.article-content .lh-condensed {
+  line-height: 1.25 !important;
+}
+
+.article-content .bg-gray-light {
+  background-color: #fafbfc !important;
+}
+
+.article-content .js-file-line-container .tab-size[data-tab-size="8"] {
+  -moz-tab-size: 8;
+  -o-tab-size: 8;
+  -webkit-tab-size: 8;
+  tab-size: 8;
+}
+
+.article-content .blob-num {
+  width: 1%;
+  min-width: 50px;
+  text-align: right;
+  white-space: nowrap;
+  vertical-align: top;
+  font-family: SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.article-content .blob-num:before {
+  content: attr(data-line-number);
+}
+
+.article-content .blob-code-inner {
+  font-family: SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace;
+  font-size: 12px;
+  color: #24292e;
+  word-wrap: normal;
+  white-space: pre;
+}
+
+.article-content .pl-k {
+  color: #d73a49;
+}
+
+.article-content .pl-en {
+  color: #6f42c1;
+}
+
+.article-content .pl-pds,.article-content  .pl-s,.article-content  .pl-s .pl-pse .pl-s1,.article-content  .pl-sr,.article-content  .pl-sr .pl-cce,.article-content  .pl-sr .pl-sra,.article-content  .pl-sr .pl-sre {
+  color: #032f62;
+}
+
+.article-content .pl-3,.article-content  .px-3 {
+  padding-left: 16px !important;
+}
+
+.article-content .search-highlight {
+  background-color: #fc8;
+  font-weight: bold;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-articleContentTextArea {
+  overflow: auto;
+  height: 100%;
+  border-style: solid;
+  border-width: 1px;
+  border-color: #8080c0;
+  background-color: white;
+  margin-top: 4px;
+  margin-bottom: 6px;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-titleEdit {
+  overflow: auto;
+  width: 100%;
+  margin: 0.2em 0;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-editArea {
+  display: -ms-grid;
+  display: grid;
+  height: 100%;
+  -ms-grid-template-rows: 1fr auto;
+  grid-template-rows: 1fr auto;
+  -ms-grid-template-areas: "text" "buttons";
+  grid-template-areas: "text" "buttons";
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-editTextArea {
+  -ms-grid-area: text;
+  grid-area: text;
+  overflow: auto;
+  width: 100%;
+  height: 100%;
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+  -moz-resize: none;
+  resize: none;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-editButtons {
+  -ms-grid-area: buttons;
+  grid-area: buttons;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-selectedArticle .title {
+  margin: 0;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-selectedArticle .link {
+  margin: 8px;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SelectPageStyles-selectedArticle .createdBy {
+  color: #808080;
+  font-weight: bold;
+  margin: 0;
+}
+
+.com-github-opengrabeso-cohabo-common-css-CommonStyle-flexRow {
+  display: -moz-flex;
+  display: -ms-flex;
+  display: -o-flex;
+  display: -webkit-flex;
+  display: flex;
+  -moz-flex-direction: row;
+  -ms-flex-direction: row;
+  -o-flex-direction: row;
+  -webkit-flex-direction: row;
+  flex-direction: row;
+}
+
+.com-github-opengrabeso-cohabo-common-css-CommonStyle-passFlex1 {
+  -moz-flex-grow: 1;
+  -ms-flex-grow: 1;
+  -o-flex-grow: 1;
+  -webkit-flex-grow: 1;
+  flex-grow: 1;
+  display: -moz-flex;
+  display: -ms-flex;
+  display: -o-flex;
+  display: -webkit-flex;
+  display: flex;
+  -moz-flex-direction: column;
+  -ms-flex-direction: column;
+  -o-flex-direction: column;
+  -webkit-flex-direction: column;
+  flex-direction: column;
+}
+
+.com-github-opengrabeso-cohabo-common-css-CommonStyle-useFlex1 {
+  -moz-flex-grow: 1;
+  -ms-flex-grow: 1;
+  -o-flex-grow: 1;
+  -webkit-flex-grow: 1;
+  flex-grow: 1;
+}
+
+.com-github-opengrabeso-cohabo-common-css-CommonStyle-useFlex0 {
+  -moz-flex-grow: 0;
+  -ms-flex-grow: 0;
+  -o-flex-grow: 0;
+  -webkit-flex-grow: 0;
+  flex-grow: 0;
+}
+
+.repo-color-0 {
+  background-color: #ffa799;
+}
+
+.repo-color-0 a {
+  color: black;
+}
+
+.repo-color-1 {
+  background-color: #ffeecc;
+}
+
+.repo-color-1 a {
+  color: black;
+}
+
+.repo-color-2 {
+  background-color: #ffeb99;
+}
+
+.repo-color-2 a {
+  color: black;
+}
+
+.repo-color-3 {
+  background-color: #b4ff99;
+}
+
+.repo-color-3 a {
+  color: black;
+}
+
+.repo-color-4 {
+  background-color: #99ffdd;
+}
+
+.repo-color-4 a {
+  color: black;
+}
+
+.repo-color-5 {
+  background-color: #ccfffc;
+}
+
+.repo-color-5 a {
+  color: black;
+}
+
+.repo-color-6 {
+  background-color: #99cfff;
+}
+
+.repo-color-6 a {
+  color: black;
+}
+
+.repo-color-7 {
+  background-color: #99a7ff;
+}
+
+.repo-color-7 a {
+  color: black;
+}
+
+.repo-color-8 {
+  background-color: #ff99eb;
+}
+
+.repo-color-8 a {
+  color: black;
+}
+
+.repo-color-9 {
+  background-color: #ffcce7;
+}
+
+.repo-color-9 a {
+  color: black;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SettingsPageStyles-container {
+  margin: 10px;
+  padding: 5px;
+  border-color: lightgray;
+  -moz-border-radius: 10px;
+  border-radius: 10px;
+  border-style: solid;
+  border-width: 1px;
+}
+
+.com-github-opengrabeso-cohabo-common-css-SettingsPageStyles-flexContainer {
+  display: -moz-flex;
+  display: -ms-flex;
+  display: -o-flex;
+  display: -webkit-flex;
+  display: flex;
+  -moz-flex-direction: row;
+  -ms-flex-direction: row;
+  -o-flex-direction: row;
+  -webkit-flex-direction: row;
+  flex-direction: row;
+  -moz-flex-wrap: wrap;
+  -ms-flex-wrap: wrap;
+  -o-flex-wrap: wrap;
+  -webkit-flex-wrap: wrap;
+  flex-wrap: wrap;
+  margin: auto;
+  -moz-flex-grow: 1;
+  -ms-flex-grow: 1;
+  -o-flex-grow: 1;
+  -webkit-flex-grow: 1;
+  flex-grow: 1;
+}
+
+@media (max-aspect-ratio:1/1) {
+  .com-github-opengrabeso-cohabo-common-css-SettingsPageStyles-flexContainer {
+    -moz-flex-direction: column;
+    -ms-flex-direction: column;
+    -o-flex-direction: column;
+    -webkit-flex-direction: column;
+    flex-direction: column;
+  }
+}
+
+@media (max-width:900px) {
+  .com-github-opengrabeso-cohabo-common-css-SettingsPageStyles-flexContainer {
+    -moz-flex-direction: column;
+    -ms-flex-direction: column;
+    -o-flex-direction: column;
+    -webkit-flex-direction: column;
+    flex-direction: column;
+  }
+}
+
+.com-github-opengrabeso-cohabo-common-css-SettingsPageStyles-flexItem {
+  -moz-flex-grow: 1;
+  -ms-flex-grow: 1;
+  -o-flex-grow: 1;
+  -webkit-flex-grow: 1;
+  flex-grow: 1;
+}
+
+.com-github-opengrabeso-cohabo-common-css-EditPageStyles-container {
+  margin-top: 10px;
+  -moz-flex-grow: 1;
+  -ms-flex-grow: 1;
+  -o-flex-grow: 1;
+  -webkit-flex-grow: 1;
+  flex-grow: 1;
+  display: -moz-flex;
+  display: -ms-flex;
+  display: -o-flex;
+  display: -webkit-flex;
+  display: flex;
+  -moz-flex-direction: row;
+  -ms-flex-direction: row;
+  -o-flex-direction: row;
+  -webkit-flex-direction: row;
+  flex-direction: row;
+  -moz-flex-wrap: wrap;
+  -ms-flex-wrap: wrap;
+  -o-flex-wrap: wrap;
+  -webkit-flex-wrap: wrap;
+  flex-wrap: wrap;
+  padding: 5px;
+  border-color: lightgray;
+  -moz-border-radius: 10px;
+  border-radius: 10px;
+  border-style: solid;
+  border-width: 1px;
+}
+
+@media (max-aspect-ratio:1/1) {
+  .com-github-opengrabeso-cohabo-common-css-EditPageStyles-container {
+    -moz-flex-direction: column;
+    -ms-flex-direction: column;
+    -o-flex-direction: column;
+    -webkit-flex-direction: column;
+    flex-direction: column;
+  }
+}
+
+@media (max-width:900px) {
+  .com-github-opengrabeso-cohabo-common-css-EditPageStyles-container {
+    -moz-flex-direction: column;
+    -ms-flex-direction: column;
+    -o-flex-direction: column;
+    -webkit-flex-direction: column;
+    flex-direction: column;
+  }
+}
+
+.com-github-opengrabeso-cohabo-common-css-EditPageStyles-tableContainer {
+  overflow: auto;
+}
+
+
