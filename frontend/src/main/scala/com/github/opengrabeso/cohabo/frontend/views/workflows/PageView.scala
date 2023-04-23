@@ -22,6 +22,8 @@ import io.udash.bindings.inputs
 import io.udash.bootstrap.table.UdashTable
 import org.scalajs.dom.Element
 
+import java.time.temporal.ChronoUnit
+
 class PageView(
   model: ModelProperty[PageModel],
   val presenter: PagePresenter,
@@ -38,9 +40,16 @@ class PageView(
 
     type DisplayAttrib = TableFactory.TableAttrib[RunModel]
     val attribs = Seq[DisplayAttrib](
-      TableFactory.TableAttrib("#", (run, _, _) => div(run.runId.toString)),
-      TableFactory.TableAttrib("Workflow", (run, _, _) => "???"),
+      TableFactory.TableAttrib("#", (run, _, _) =>
+        div(
+          a(run.runId.toString, href := run.html_url),
+        )
+      ),
+      TableFactory.TableAttrib("Workflow", (run, _, _) => run.name),
       TableFactory.TableAttrib("Branch", (run, _, _) => "???"),
+      TableFactory.TableAttrib("Duration", (run, _, _) =>
+        ChronoUnit.SECONDS.between(run.created_at, run.updated_at)
+      ),
     )
 
     implicit object rowHandler extends views.TableFactory.TableRowHandler[RunModel, RunIdModel] {
