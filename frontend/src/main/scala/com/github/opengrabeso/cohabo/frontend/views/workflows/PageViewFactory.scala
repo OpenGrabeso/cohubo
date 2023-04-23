@@ -23,6 +23,9 @@ class PageViewFactory(
 
     val presenter = new PagePresenter(model, userService, application)
     val view = new PageView(model, presenter, userService.properties)
+
+    presenter.init()
+
     (view, presenter)
   }
 }

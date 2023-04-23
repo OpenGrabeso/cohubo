@@ -7,7 +7,8 @@ import dataModel._
 import io.udash._
 
 case class PageModel(
-  selectedContext: Option[ContextModel] = None
+  selectedContext: Option[ContextModel] = None,
+  filterExpression: String = ""
 )
 
 object PageModel extends HasModelPropertyCreator[PageModel]

@@ -115,6 +115,7 @@ trait RepoView extends View with CssView with PageUtils with TimeFormatting with
       TableFactory.TableAttrib(
         "", { (ar, arProp, _) =>
           val shortName = shortId(ar)
+          println(s"shortName $shortName, ar $ar")
           val checked = repoSelected.transform(_ == ar)
           // inspired by io.udash.bindings.inputs.Checkbox and io.udash.bindings.inputs.RadioButtons
           Seq(

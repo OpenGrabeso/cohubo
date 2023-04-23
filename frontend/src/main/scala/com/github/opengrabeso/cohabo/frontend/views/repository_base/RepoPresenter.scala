@@ -4,6 +4,7 @@ package views
 package repository_base
 
 import com.avsystem.commons.BSeq
+import com.github.opengrabeso.cohabo.common.ShortIds
 import com.github.opengrabeso.cohabo.frontend.routing.{RoutingState, SettingsPageState}
 import dataModel._
 import io.udash.Application
@@ -29,6 +30,11 @@ trait RepoPresenter {
 
   var shortRepoIds = Map.empty[ContextModel, String]
 
+  def updateShortNames(contexts: BSeq[ContextModel]): Unit = {
+    val names = contexts.toSeq.map(c => Seq(c.organization, c.repository))
+    val shortNames = ShortIds.compute(names)
+    shortRepoIds = (contexts zip shortNames).toMap
+  }
 
   def copyToClipboard(text: String): Unit = {
     dom.window.navigator.asInstanceOf[js.Dynamic].clipboard.writeText(text)

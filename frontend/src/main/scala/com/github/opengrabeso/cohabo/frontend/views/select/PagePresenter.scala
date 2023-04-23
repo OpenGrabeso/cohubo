@@ -860,9 +860,7 @@ class PagePresenter(
 
       println(s"activeContexts $ac")
 
-      val names = contexts.toSeq.map(c => Seq(c.organization, c.repository))
-      val shortNames = ShortIds.compute(names)
-      shortRepoIds = (contexts zip shortNames).toMap
+      updateShortNames(contexts)
 
       val token = currentToken()
       // completely empty - we can do much simpler cleanup (and shutdown any periodic handlers)
