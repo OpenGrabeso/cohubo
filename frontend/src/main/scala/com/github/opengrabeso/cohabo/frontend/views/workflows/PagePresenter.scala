@@ -11,21 +11,12 @@ import scala.concurrent.ExecutionContext
 
 /** Contains the business logic of this view. */
 class PagePresenter(
-  model: ModelProperty[PageModel],
-  userContextService: services.UserContextService,
-  application: Application[RoutingState]
-)(implicit ec: ExecutionContext) extends Presenter[WorkflowsPageState.type] {
-
-  val subModel = model.subModel(_.s)
-  subModel.set(WorkflowsModel.load)
+   model: ModelProperty[PageModel],
+   val userService: services.UserContextService,
+   val application: Application[RoutingState]
+)(implicit ec: ExecutionContext) extends Presenter[WorkflowsPageState.type] with repository_base.RepoPresenter {
 
   /** We don't need any initialization, so it's empty. */
   override def handleState(state: WorkflowsPageState.type): Unit = {
-  }
-
-  def submit(): Unit = {
-    WorkflowsModel.store(subModel.get)
-    userContextService.properties.subProp(_.token).set(subModel.subProp(_.token).get)
-    application.goTo(SelectPageState(None))
   }
 }

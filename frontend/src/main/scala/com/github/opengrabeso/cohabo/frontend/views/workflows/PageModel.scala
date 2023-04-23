@@ -3,9 +3,11 @@ package frontend
 package views
 package workflows
 
-import com.github.opengrabeso.cohabo.frontend.dataModel.WorkflowsModel
+import dataModel._
 import io.udash._
 
-case class PageModel(s: WorkflowsModel)
+case class PageModel(
+  selectedContext: Option[ContextModel] = None
+)
 
 object PageModel extends HasModelPropertyCreator[PageModel]

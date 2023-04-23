@@ -137,16 +137,9 @@ import PagePresenter._
 /** Contains the business logic of this view. */
 class PagePresenter(
   model: ModelProperty[PageModel],
-  application: Application[RoutingState],
-  userService: services.UserContextService
-)(implicit ec: ExecutionContext) extends Presenter[SelectPageState] {
-
-  val githubRestApiClient = ApplicationContext.githubRestApiClient
-
-  def props = userService.properties
-  def currentToken(): String = props.subProp(_.token).get
-  def pageContexts = userService.properties.transformToSeq(_.activeContexts).get
-
+  val application: Application[RoutingState],
+  val userService: services.UserContextService
+)(implicit ec: ExecutionContext) extends Presenter[SelectPageState] with repository_base.RepoPresenter {
 
   val stateFilterProps = model.subProp(_.filterOpen) ** model.subProp(_.filterClosed)
   val assignFilterProps = model.subProp(_.filterUser)
@@ -211,8 +204,6 @@ class PagePresenter(
 
   var lastNotifications =  Option.empty[String]
   var scheduled = Option.empty[SetTimeoutHandle]
-
-  var shortRepoIds = Map.empty[ContextModel, String]
 
   (model.subProp(_.selectedArticleId) ** model.subProp(_.articles)).listen { case (id, articles) =>
     //println(s"selectedArticleId callback for $id")
@@ -1003,25 +994,6 @@ class PagePresenter(
     model.subProp(_.editing).set((false, false))
   }
 
-  def addRepository(repo: String): Unit = {
-    val repos = props.subSeq(_.contexts)
-    Try(ContextModel.parse(repo)).foreach { ctx =>
-      if (!repos.get.contains(ctx)) {
-        repos.replace(repos.size, 0, ctx)
-        SettingsModel.store(props.get)
-      }
-    }
-  }
-
-  def removeRepository(context: ContextModel): Unit = {
-    val repos = props.subSeq(_.contexts)
-    val find = repos.get.indexOf(context)
-    if (find >= 0) {
-      repos.replace(find, 1)
-      SettingsModel.store(props.get)
-    }
-  }
-
   def wasEditing(): Boolean = model.subProp(_.editing).get._1
 
   def isEditingProperty: ReadableProperty[Boolean] = model.subProp(_.editing).transform(_._1)
@@ -1253,17 +1225,9 @@ class PagePresenter(
     }
   }
 
-  def copyToClipboard(text: String): Unit = {
-    dom.window.navigator.asInstanceOf[js.Dynamic].clipboard.writeText(text)
-  }
-
   def copyLink(id: ArticleIdModel): Unit = {
     val link: String = id.issueUri
     copyToClipboard(link)
-  }
-
-  def gotoUrl(url: String): Unit = {
-    dom.window.location.href = url
   }
 
   def gotoGithub(id: ArticleIdModel): Unit = {
@@ -1306,11 +1270,6 @@ class PagePresenter(
         println(s"Error closing #${id.issueNumber}: $ex")
     }
 
-  }
-
-
-  def gotoSettings(): Unit = {
-    application.goTo(SettingsPageState)
   }
 
 }

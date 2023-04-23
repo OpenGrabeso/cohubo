@@ -49,39 +49,13 @@ import PageView._
 @nowarn("msg=The global execution context")
 class PageView(
   model: ModelProperty[PageModel],
-  presenter: PagePresenter,
-  globals: ModelProperty[SettingsModel]
-) extends View with CssView with PageUtils with TimeFormatting with CssBase with JQEvents {
-  val s = SelectPageStyles
+  val presenter: PagePresenter,
+  val globals: ModelProperty[SettingsModel]
+) extends View with CssView with PageUtils with TimeFormatting with CssBase with JQEvents with repository_base.RepoView {
 
-  def shortId(context: ContextModel): String = presenter.shortRepoIds.getOrElse(context, "??")
-  def repoColor(context: ContextModel): String = {
-    (shortId(context).hashCode.abs % 10).toString
-  }
+  def selectedContextModel: Property[Option[ContextModel]] = model.subProp(_.selectedContext)
 
-  def userInitials(user: User): String = {
-    user.login.take(1).toUpperCase ++ user.login.drop(1).filter(_.isUpper)
-  }
-
-  def avatarHtml(user: User): Node = {
-    if (user.avatar_url != null && user.avatar_url.nonEmpty) img(src := user.avatar_url, s.userIcon).render
-    else span(userInitials(user)).render
-  }
-
-  def userHtml(user: User): Node = {
-    span(
-      avatarHtml(user),
-      user.displayName.render
-    ).render
-  }
-
-  def userHtmlShort(user: User): Node = {
-    span(
-      if (user.avatar_url != null && user.avatar_url.nonEmpty) img(src := user.avatar_url, s.userIcon).render
-      else "".render,
-      userInitials(user)
-    ).render
-  }
+  private val s = SelectPageStyles
 
   def progressHtml(percent: Int): Node = {
     span(
@@ -117,10 +91,6 @@ class PageView(
     list.contains("\"" + l + "\"")
   }
 
-  def fetchRepoData(e: JQuery): ContextModel = {
-    ContextModel.parse(e.attr("repository").get)
-  }
-
   // each row is checking dynamically in the list of unread rows using a property created by this function
   def isUnread(id: ArticleIdModel, time: ReadableProperty[ZonedDateTime]): ReadableProperty[Boolean] = {
     val key = id.context -> id.issueNumber
@@ -146,9 +116,6 @@ class PageView(
 
   }
 
-
-
-  private val settingsButton = button("Settings".toProperty)
   private val newIssueButton = button("New issue".toProperty, buttonStyle = BootstrapStyles.Color.Success)
 
   private val nextPageButton = button("Load more issues".toProperty)
@@ -160,36 +127,6 @@ class PageView(
   )
   private val editOKButton = button("OK".toProperty, buttonStyle = BootstrapStyles.Color.Success)
   private val editCancelButton = button("Cancel".toProperty)
-
-  private val addRepoButton = button("Add repository".toProperty, buttonStyle = BootstrapStyles.Color.Success)
-  private val addRepoInput = Property[String]("")
-
-  private val addRepoOkButton = UdashButton(options = BootstrapStyles.Color.Success.option)(_ => Seq[Modifier](UdashModal.CloseButtonAttr, "OK"))
-    .tap(buttonOnClick(_)(presenter.addRepository(addRepoInput.get)))
-
-  val addRepoModal = UdashModal(Some(Size.Small).toProperty)(
-    headerFactory = Some(_ => div("Add repository").render),
-    bodyFactory = Some { nested =>
-      div(
-        Spacing.margin(),
-        Card.card, Card.body, Background.color(BootstrapStyles.Color.Light),
-      )(
-        "User/Repository:",
-        TextInput(addRepoInput)()
-      ).render
-    },
-    footerFactory = Some { _ =>
-      div(
-        addRepoOkButton.render,
-        UdashButton(options = BootstrapStyles.Color.Danger.option)(_ => Seq[Modifier](UdashModal.CloseButtonAttr, "Cancel")).render
-      ).render
-    }
-  )
-
-  def showRepoModal(): Unit = {
-    addRepoInput.set("")
-    addRepoModal.show()
-  }
 
   private def createFilterHeader(content: Modifier*) = {
     div(Grid.row)(
@@ -278,7 +215,6 @@ class PageView(
   )
 
 
-  buttonOnClick(settingsButton) {presenter.gotoSettings()}
   buttonOnClick(newIssueButton) {presenter.newIssue()}
 
   buttonOnClick(nextPageButton) {presenter.loadMore()}
@@ -288,7 +224,6 @@ class PageView(
   buttonOnClick(editOKButton) {presenter.editOK()}
   buttonOnClick(editCancelButton) {presenter.editCancel()}
 
-  buttonOnClick(addRepoButton) {showRepoModal()}
 
   private def indentFromLevel(indent: Int): Int = {
     val base = 8
@@ -533,70 +468,7 @@ class PageView(
       )
     )
 
-    val repoUrl = globals.subSeq(_.contexts)
-    val repoSelected = globals.subProp(_.selectedContext).bitransform(_.getOrElse(repoUrl.get.head))(Some(_: ContextModel))
-
-    val repoAttribs = Seq[TableFactory.TableAttrib[ContextModel]](
-      TableFactory.TableAttrib(
-        "", { (ar, arProp, _) =>
-          val shortName = shortId(ar)
-          val checked = repoSelected.transform(_ == ar)
-          // inspired by io.udash.bindings.inputs.Checkbox and io.udash.bindings.inputs.RadioButtons
-          Seq(
-            input("", tpe := "radio").render.tap(in =>
-              checked.listen(in.checked = _, initUpdate = true),
-            ).tap (_.onchange = _ => repoSelected.set(ar)),
-            " ".render,
-            shortName.render
-          )
-        },
-        modifier = Some(ar => CssStyleName("repo-color-" + repoColor(ar)))
-      ),
-      TableFactory.TableAttrib(
-        "Repository", { (ar, _, _) =>
-        val ro = ar.relativeUrl
-          div(
-            ro,
-            br(),
-            a(
-              Spacing.margin(size = SpacingSize.Small),
-              href := s"https://www.github.com/$ro/issues",
-              "Issues"
-            ).render,
-            a(
-              Spacing.margin(size = SpacingSize.Small),
-              href := s"https://www.github.com/$ro/milestones",
-              "Milestones"
-            ).render
-
-          ).render
-        } /*, style = width(5, 5, 10)*/
-      ),
-    )
-
-    implicit object repoRowHandler extends views.TableFactory.TableRowHandler[ContextModel, ContextModel] {
-      override def id(item: ContextModel) = item
-      override def indent(item: ContextModel) = 0
-      override def rowModifier(itemModel: ModelProperty[ContextModel]) = {
-        val id = itemModel.get
-        Seq[Modifier](
-          attr("repository") := id.relativeUrl,
-        )
-      }
-      def tdModifier: Modifier = s.tdRepo
-      def rowModifyElement(element: Element): Unit = ()
-
-    }
-
-    val repoTable = UdashTable(repoUrl, bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
-      headerFactory = Some(TableFactory.headerFactory(repoAttribs)),
-      rowFactory = TableFactory.rowFactory[ContextModel, ContextModel](
-        false.toProperty,
-        model.subProp(_.selectedContext),
-        repoAttribs
-      )
-    )
-
+    val repoTable = repoTableTemplate
 
     div(
       s.container,
@@ -605,30 +477,7 @@ class PageView(
         s.gridAreaNavigation,
         settingsButton.render,
         Spacing.margin(size = SpacingSize.Small),
-        repoTable.render.tap { t =>
-          import facade.JQueryMenu._
-          jQ(t).addContextMenu(
-            new Options {
-              override val selector = "tr"
-              override val hideOnSecondTrigger = true
-              override val build = js.defined { (item, key) =>
-                val data = fetchRepoData(item)
-                val link = a(
-                  href := data.absoluteUrl,
-                  data.relativeUrl
-                ).render.outerHTML
-                new Build(
-                  items = js.Dictionary(
-                    "remove" -> BuildItem(s"Remove ${data.relativeUrl}", presenter.removeRepository(data)),
-                    "sep2" -> "------",
-                    "link" -> BuildItem(s"Copy link to $link", presenter.copyToClipboard(data.absoluteUrl), isHtmlName = true),
-                    "openGitHub" -> BuildItem("Open on GitHub", presenter.gotoUrl(data.absoluteUrl)),
-                  )
-                )
-              }
-            }
-          )
-        },
+        repoTableRender(repoTable),
         div(cls := "row justify-content-left")(addRepoButton),
         labelButtons,
         filterButtons,

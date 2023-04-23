@@ -4,7 +4,6 @@ package views
 package workflows
 
 import java.time.ZonedDateTime
-import com.github.opengrabeso.cohabo.frontend.dataModel.WorkflowsModel
 import routing.{RoutingState, WorkflowsPageState}
 import io.udash._
 
@@ -20,10 +19,10 @@ class PageViewFactory(
   import scala.concurrent.ExecutionContext.Implicits.global
 
   override def create(): (View, Presenter[WorkflowsPageState.type]) = {
-    val model = ModelProperty(PageModel(WorkflowsModel(null, null, null)))
+    val model = ModelProperty(PageModel())
 
     val presenter = new PagePresenter(model, userService, application)
-    val view = new PageView(model, presenter)
+    val view = new PageView(model, presenter, userService.properties)
     (view, presenter)
   }
 }
