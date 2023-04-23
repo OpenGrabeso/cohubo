@@ -8,6 +8,8 @@ import io.udash._
 
 case class PageModel(
   selectedContext: Option[ContextModel] = None,
+  runs: Seq[RunModel] = Seq.empty,
+  selectedRunId: Option[RunIdModel] = None,
   filterExpression: String = ""
 )
 

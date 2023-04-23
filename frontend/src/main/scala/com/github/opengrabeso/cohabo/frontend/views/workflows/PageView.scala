@@ -12,12 +12,15 @@ import io.udash._
 import io.udash.bootstrap.button.UdashButton
 import io.udash.bootstrap.form.{UdashForm, UdashInputGroup}
 import io.udash.bootstrap.utils.BootstrapStyles.SpacingSize
+
 import scala.concurrent.duration.{span => _, _}
 import io.udash.component.ComponentId
 import io.udash.css._
 import org.scalajs.dom
 import io.udash.bootstrap.utils.BootstrapStyles._
 import io.udash.bindings.inputs
+import io.udash.bootstrap.table.UdashTable
+import org.scalajs.dom.Element
 
 class PageView(
   model: ModelProperty[PageModel],
@@ -32,6 +35,38 @@ class PageView(
   import scalatags.JsDom.all._
 
   def getTemplate: Modifier = {
+
+    type DisplayAttrib = TableFactory.TableAttrib[RunModel]
+    val attribs = Seq[DisplayAttrib](
+      TableFactory.TableAttrib("#", (run, _, _) => div(run.runId.toString)),
+      TableFactory.TableAttrib("Workflow", (run, _, _) => "???"),
+      TableFactory.TableAttrib("Branch", (run, _, _) => "???"),
+    )
+
+    implicit object rowHandler extends views.TableFactory.TableRowHandler[RunModel, RunIdModel] {
+      override def id(item: RunModel) = RunIdModel(item.runId)
+
+      override def indent(item: RunModel) = 0
+
+      override def rowModifier(itemModel: ModelProperty[RunModel]) = {
+        val id = itemModel.get
+        Seq[Modifier]()
+      }
+
+      def tdModifier: Modifier = s.tdRepo
+
+      def rowModifyElement(element: Element): Unit = ()
+
+    }
+
+    val table = UdashTable(model.subSeq(_.runs), bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
+      headerFactory = Some(TableFactory.headerFactory(attribs)),
+      rowFactory = TableFactory.rowFactory[RunModel, RunIdModel](
+        false.toProperty,
+        model.subProp(_.selectedRunId),
+        attribs
+      )
+    )
 
     val repoTable = repoTableTemplate
 
@@ -55,6 +90,7 @@ class PageView(
 
       div(
         s.gridAreaTableContainer,
+        table.render
       ),
       div(
         //display.none,
