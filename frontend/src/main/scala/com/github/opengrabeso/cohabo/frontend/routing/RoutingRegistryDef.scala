@@ -29,6 +29,7 @@ class RoutingRegistryDef extends RoutingRegistry[RoutingState] {
   }
   private val (url2State, state2Url) = bidirectional {
     case "/settings" => SettingsPageState
+    case "/workflows" => WorkflowsPageState
     case "/" => SelectPageState(None)
     case IdPar(id) => SelectPageState(Some(id))
   }

@@ -10,5 +10,6 @@ class StatesToViewFactoryDef extends ViewFactoryRegistry[RoutingState] {
       case RootState => new Root.PageViewFactory(ApplicationContext.application, ApplicationContext.userContextService)
       case SelectPageState(_) => select.PageViewFactory
       case SettingsPageState => new settings.PageViewFactory(ApplicationContext.application, ApplicationContext.userContextService)
+      case WorkflowsPageState => new workflows.PageViewFactory(ApplicationContext.application, ApplicationContext.userContextService)
     }
 }
