@@ -110,6 +110,7 @@ class PagePresenter(
     RunModel(
       runId = i.id, name = i.name,
       html_url = i.html_url,
+      branch = i.head_branch,
       run_started_at = i.run_started_at, created_at = i.created_at, updated_at = i.updated_at
     )
   }

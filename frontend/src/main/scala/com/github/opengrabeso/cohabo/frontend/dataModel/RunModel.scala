@@ -8,6 +8,7 @@ case class RunModel(
   runId: Long,
   html_url: String,
   name: String,
+  branch: String,
   run_started_at: ZonedDateTime,
   created_at: ZonedDateTime,
   updated_at: ZonedDateTime,

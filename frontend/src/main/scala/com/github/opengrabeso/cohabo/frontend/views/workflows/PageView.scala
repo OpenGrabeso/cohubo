@@ -52,7 +52,7 @@ class PageView(
         )
       ),
       TableFactory.TableAttrib("Workflow", (run, _, _) => run.name),
-      TableFactory.TableAttrib("Branch", (run, _, _) => "???"),
+      TableFactory.TableAttrib("Branch", (run, _, _) => run.branch),
       TableFactory.TableAttrib("Duration", (run, _, _) =>
         ChronoUnit.SECONDS.between(run.created_at, run.updated_at)
       ),
