@@ -82,6 +82,13 @@ class PagePresenter(
 
   }
 
+  def loadMore(): Unit = {
+    // TODO: be smart, decide which repositories need more issues
+    val token = currentToken()
+    for (context <- pageContexts) {
+      loadWorkflowsPage(token, context, "next", filter = filterState()) // state should not matter for next page
+    }
+  }
   def filterState(): Filter = {
     SearchFilter(model.subProp(_.filterExpression).get)
   }

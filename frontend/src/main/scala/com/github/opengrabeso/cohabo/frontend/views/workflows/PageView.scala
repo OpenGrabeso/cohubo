@@ -12,6 +12,8 @@ import io.udash._
 import io.udash.bootstrap.button.UdashButton
 import io.udash.bootstrap.form.{UdashForm, UdashInputGroup}
 import io.udash.bootstrap.utils.BootstrapStyles.SpacingSize
+import io.udash.wrappers.jquery.{JQuery, jQ}
+import com.github.opengrabeso.facade
 
 import scala.concurrent.duration.{span => _, _}
 import io.udash.component.ComponentId
@@ -35,6 +37,10 @@ class PageView(
   val s = SelectPageStyles
 
   import scalatags.JsDom.all._
+
+  private val nextPageButton = button("Load more".toProperty)
+
+  buttonOnClick(nextPageButton) {presenter.loadMore()}
 
   def getTemplate: Modifier = {
 
@@ -99,7 +105,19 @@ class PageView(
 
       div(
         s.gridAreaTableContainer,
-        table.render
+        div (
+          s.runsTableContainer,
+          table.render.tap { t =>
+            import facade.Resizable._
+            import facade.JQueryMenu._
+            jQ(t).resizableColumns()
+          },
+        ),
+        div(
+          s.flexRow,
+          nextPageButton.render,
+          div(s.useFlex1).render
+        ).render,
       ),
       div(
         //display.none,

@@ -185,6 +185,11 @@ object SelectPageStyles extends CommonStyle {
 
   )
 
+  val runsTableContainer = style(
+    selectTableContainer,
+    minHeight(50 vh),
+  )
+
   val tr = style(
     &.attrContains("class", "selected") (
       backgroundColor(c"#ADD8E6") // lightblue
