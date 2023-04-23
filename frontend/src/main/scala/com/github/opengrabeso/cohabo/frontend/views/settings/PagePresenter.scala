@@ -14,7 +14,7 @@ class PagePresenter(
   model: ModelProperty[PageModel],
   userContextService: services.UserContextService,
   application: Application[RoutingState]
-)(implicit ec: ExecutionContext) extends Presenter[SettingsPageState.type] with settings_base.SettingsPresenter {
+)(implicit ec: ExecutionContext) extends Presenter[SettingsPageState.type] {
 
   val subModel = model.subModel(_.s)
   subModel.set(SettingsModel.load)
