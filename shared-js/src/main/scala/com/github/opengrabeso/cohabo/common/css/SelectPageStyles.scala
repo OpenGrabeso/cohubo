@@ -113,6 +113,10 @@ object SelectPageStyles extends CommonStyle {
     flexDirection.column
   )
 
+  val optionsRow = style(
+    flexDirection.row,
+    flexGrow(1)
+  )
   val filterExpression = style(
     flexDirection.row,
     flexGrow(1)

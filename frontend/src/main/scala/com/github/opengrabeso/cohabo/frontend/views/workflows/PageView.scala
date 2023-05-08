@@ -27,10 +27,16 @@ import org.scalajs.dom.Element
 import java.time.temporal.ChronoUnit
 
 object PageView {
+  case class StatsRow(
+    total_duration: Long = 0,
+    total_count: Long = 0,
+    average_duration: Long = 0
+  )
+
   case class Stats(
     count: Int,
     oldest: Option[ZonedDateTime],
-    stats: Seq[(String, Long)]
+    stats: Seq[(String, StatsRow)]
   )
 
   def fromRuns(pageModel: ModelProperty[PageModel]): ReadableProperty[Stats] = {
@@ -40,8 +46,13 @@ object PageView {
           count = runs.size,
           oldest = runs.lastOption.map(_.created_at),
           stats = runs.groupBy(_.name).map { case (name, named) =>
-            name -> named.map(_.duration).sum
-          }.toSeq.sortBy(-_._2)
+            val total = named.map(_.duration).sum
+            name -> StatsRow(
+              total_duration = total,
+              total_count = named.size,
+              average_duration = total / named.size
+            )
+          }.toSeq.sortBy(-_._2.total_duration)
         )
     }
   }
@@ -66,36 +77,6 @@ class PageView(
 
   def getTemplate: Modifier = {
 
-    type DisplayAttrib = TableFactory.TableAttrib[RunModel]
-    val attribs = Seq[DisplayAttrib](
-      TableFactory.TableAttrib("#", (run, _, _) =>
-        div(
-          a(run.runId.toString, href := run.html_url),
-        )
-      ),
-      TableFactory.TableAttrib("Workflow", (run, _, _) => run.name),
-      TableFactory.TableAttrib("Branch", (run, _, _) => run.branch),
-      TableFactory.TableAttrib("Duration", (run, _, _) =>
-        ChronoUnit.SECONDS.between(run.created_at, run.updated_at)
-      ),
-    )
-
-    implicit object rowHandler extends views.TableFactory.TableRowHandler[RunModel, RunIdModel] {
-      override def id(item: RunModel) = RunIdModel(item.runId)
-
-      override def indent(item: RunModel) = 0
-
-      override def rowModifier(itemModel: ModelProperty[RunModel]) = {
-        val id = itemModel.get
-        Seq[Modifier]()
-      }
-
-      def tdModifier: Modifier = s.tdRepo
-
-      def rowModifyElement(element: Element): Unit = ()
-
-    }
-
     val repoTable = repoTableTemplate
     val stats = PageView.fromRuns(model)
 
@@ -112,6 +93,10 @@ class PageView(
       div(
         s.gridAreaFilters,
         div(
+          s.optionsRow,
+          RadioButtons[String](model.subProp(_.timespan), options = Seq("7 days", "30 days").toSeqProperty)(RadioButtons.spanWithLabelDecorator(x => x)),
+        ),
+        div(
           s.filterExpression,
           inputs.TextInput(model.subProp(_.filterExpression), 1.second)(s.filterExpressionInput)
         ).render,
@@ -122,12 +107,14 @@ class PageView(
         div (
           s.runsTableContainer,
           UdashTable(stats.transformToSeq(_.stats))(
-            headerFactory = Some( interceptor =>
-              tr(th(s.th, "Name"), th(s.th, "Total duration"))
-            ),
+            headerFactory = Some { interceptor =>
+              tr(th(s.th, "Name") +: PageView.StatsRow().productElementNames.toSeq.map { elementName =>
+                th(s.th, elementName.replaceAll("_", " "))
+              })
+            },
             rowFactory = (stat, interceptor) => tr(
               td(bind(stat.transform(_._1))),
-              td(bind(stat.transform(_._2)))
+              produce(stat.transformToSeq(_._2.productIterator.toSeq))(x => x.map(value => td(value.toString).render))
             ).render
           ).render
         ),
