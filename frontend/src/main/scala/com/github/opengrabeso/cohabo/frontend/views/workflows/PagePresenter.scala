@@ -157,15 +157,24 @@ class PagePresenter(
       val issuesOrdered = is.workflow_runs.map(rowFromIssue(_, context)).sortBy(_.updated_at).reverse
       insertIssues(issuesOrdered)
 
+      updateRateLimits()
     }
 
+  }
+
+  private def updateRateLimits(): Unit = {
+    userService.call(_.rate_limit).foreach { limits =>
+      val c = limits.resources.core
+      println(c)
+      userService.properties.subProp(_.rateLimits).set(Some(c.limit, c.remaining, c.reset))
+    }
   }
 
   private def initArticles(context: ContextModel, filter: Filter): Future[DataWithHeaders[Runs]] = {
       userService.call(_
         .repos(context.organization, context.repository)
-        .actions.runs()
-      )
+        .actions.runs(per_page = 100)
+      ).tap(_.onComplete(_ => updateRateLimits()))
   }
 
   //noinspection ScalaUnusedSymbol

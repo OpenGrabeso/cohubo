@@ -26,6 +26,28 @@ import org.scalajs.dom.Element
 
 import java.time.temporal.ChronoUnit
 
+object PageView {
+  case class Stats(
+    count: Int,
+    oldest: Option[ZonedDateTime],
+    stats: Seq[(String, Long)]
+  )
+
+  def fromRuns(pageModel: ModelProperty[PageModel]): ReadableProperty[Stats] = {
+    pageModel.subSeq(_.runs).transform {
+      runs =>
+        Stats(
+          count = runs.size,
+          oldest = runs.lastOption.map(_.created_at),
+          stats = runs.groupBy(_.name).map { case (name, named) =>
+            name -> named.map(_.duration).sum
+          }.toSeq.sortBy(-_._2)
+        )
+    }
+  }
+
+}
+
 class PageView(
   model: ModelProperty[PageModel],
   val presenter: PagePresenter,
@@ -74,16 +96,8 @@ class PageView(
 
     }
 
-    val table = UdashTable(model.subSeq(_.runs), bordered = true.toProperty, hover = true.toProperty, small = true.toProperty)(
-      headerFactory = Some(TableFactory.headerFactory(attribs)),
-      rowFactory = TableFactory.rowFactory[RunModel, RunIdModel](
-        false.toProperty,
-        model.subProp(_.selectedRunId),
-        attribs
-      )
-    )
-
     val repoTable = repoTableTemplate
+    val stats = PageView.fromRuns(model)
 
     div (
       s.container,
@@ -107,17 +121,25 @@ class PageView(
         s.gridAreaTableContainer,
         div (
           s.runsTableContainer,
-          table.render.tap { t =>
-            import facade.Resizable._
-            import facade.JQueryMenu._
-            jQ(t).resizableColumns()
-          },
+          UdashTable(stats.transformToSeq(_.stats))(
+            headerFactory = Some( interceptor =>
+              tr(th(s.th, "Name"), th(s.th, "Total duration"))
+            ),
+            rowFactory = (stat, interceptor) => tr(
+              td(bind(stat.transform(_._1))),
+              td(bind(stat.transform(_._2)))
+            ).render
+          ).render
         ),
         div(
           s.flexRow,
           nextPageButton.render,
           div(s.useFlex1).render
         ).render,
+        p(
+          "Total workflows ", bind(stats.transform(_.count)),
+          " Oldest workflow ", bind(stats.transform(_.oldest))
+        ),
       ),
       div(
         //display.none,
