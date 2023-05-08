@@ -26,38 +26,6 @@ import org.scalajs.dom.Element
 
 import java.time.temporal.ChronoUnit
 
-object PageView {
-  case class StatsRow(
-    total_duration: Long = 0,
-    total_count: Long = 0,
-    average_duration: Long = 0
-  )
-
-  case class Stats(
-    count: Int,
-    oldest: Option[ZonedDateTime],
-    stats: Seq[(String, StatsRow)]
-  )
-
-  def fromRuns(pageModel: ModelProperty[PageModel]): ReadableProperty[Stats] = {
-    pageModel.subSeq(_.runs).transform {
-      runs =>
-        Stats(
-          count = runs.size,
-          oldest = runs.lastOption.map(_.created_at),
-          stats = runs.groupBy(_.name).map { case (name, named) =>
-            val total = named.map(_.duration).sum
-            name -> StatsRow(
-              total_duration = total,
-              total_count = named.size,
-              average_duration = total / named.size
-            )
-          }.toSeq.sortBy(-_._2.total_duration)
-        )
-    }
-  }
-
-}
 
 class PageView(
   model: ModelProperty[PageModel],
@@ -71,14 +39,10 @@ class PageView(
 
   import scalatags.JsDom.all._
 
-  private val nextPageButton = button("Load more".toProperty)
-
-  buttonOnClick(nextPageButton) {presenter.loadMore()}
-
   def getTemplate: Modifier = {
 
     val repoTable = repoTableTemplate
-    val stats = PageView.fromRuns(model)
+    val stats = PagePresenter.fromRuns(model)
 
     div (
       s.container,
@@ -108,24 +72,35 @@ class PageView(
           s.runsTableContainer,
           UdashTable(stats.transformToSeq(_.stats))(
             headerFactory = Some { interceptor =>
-              tr(th(s.th, "Name") +: PageView.StatsRow().productElementNames.toSeq.map { elementName =>
+              tr(th(s.th, "Name") +: PagePresenter.StatsRow().productElementNames.toSeq.map { elementName =>
                 th(s.th, elementName.replaceAll("_", " "))
               })
             },
             rowFactory = (stat, interceptor) => tr(
               td(bind(stat.transform(_._1))),
-              produce(stat.transformToSeq(_._2.productIterator.toSeq))(x => x.map(value => td(value.toString).render))
+              produce(stat.transformToSeq(_._2.productIterator.toSeq))(x => x.map { value =>
+                val string = value match {
+                  case x: Double =>
+                    f"$x%.1f"
+                  case x =>
+                    x.toString
+                }
+                td(string).render
+              })
             ).render
           ).render
         ),
-        div(
-          s.flexRow,
-          nextPageButton.render,
-          div(s.useFlex1).render
-        ).render,
         p(
           "Total workflows ", bind(stats.transform(_.count)),
-          " Oldest workflow ", bind(stats.transform(_.oldest))
+          " Oldest workflow ", bind(stats.transform(_.oldest)),
+          bind(model.subProp(_.loading).transform(b => if (b) " Loading..." else "")),
+          produce(globals.subProp(_.rateLimits)) {
+            case Some((limit, remaining, reset)) =>
+              val now = System.currentTimeMillis() / 1000
+              s" Remaining $remaining of $limit, reset in ${(reset - now) / 60} min".render
+            case None =>
+              "".render
+          }
         ),
       ),
       div(

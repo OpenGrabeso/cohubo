@@ -6,6 +6,7 @@ package workflows
 import com.avsystem.commons.Future
 import com.github.opengrabeso.github.model._
 import com.github.opengrabeso.github.rest.DataWithHeaders
+import java.time.ZonedDateTime
 import dataModel._
 import routing._
 import io.udash._
@@ -17,8 +18,37 @@ import scala.concurrent.ExecutionContext
 import scala.util.Failure
 
 object PagePresenter {
-  sealed trait Filter
-  case class SearchFilter(expression: String) extends Filter
+
+  case class StatsRow(
+    total_duration: Long = 0,
+    total_count: Long = 0,
+    average_duration: Double = 0
+  )
+
+  case class Stats(
+    count: Int,
+    oldest: Option[ZonedDateTime],
+    stats: Seq[(String, StatsRow)]
+  )
+
+  def fromRuns(pageModel: ModelProperty[PageModel]): ReadableProperty[Stats] = {
+    pageModel.subSeq(_.runs).transform {
+      runs =>
+        Stats(
+          count = runs.size,
+          oldest = runs.view.map(_.created_at).minByOption(_.toInstant.toEpochMilli),
+          stats = runs.groupBy(_.name).map { case (name, named) =>
+            val total = named.map(w => (w.duration / 60.0).ceil.toLong).sum
+            name -> StatsRow(
+              total_duration = total,
+              total_count = named.size,
+              average_duration = total.toDouble / named.size
+            )
+          }.toSeq.sortBy(-_._2.total_duration)
+        )
+    }
+  }
+
 }
 
 import PagePresenter._
@@ -30,8 +60,23 @@ class PagePresenter(
    val application: Application[RoutingState]
 )(implicit ec: ExecutionContext) extends Presenter[WorkflowsPageState.type] with repository_base.RepoPresenter {
 
-  var loadInProgress = mutable.Set.empty[Product]
-  val pagingUrls =  mutable.Map.empty[ContextModel, Map[String, String]]
+  def refreshWorkflows(token: String): Unit = {
+    clearAllWorkflows()
+    if (token != null) {
+      for (context <- props.get.activeContexts) {
+        val now = ZonedDateTime.now()
+        val days = model.subProp(_.timespan).get match {
+          case "7 days" => 7
+          case "30 days" => 30
+          case _ => 1
+        }
+        val since = now.minusDays(days)
+        doLoadWorkflows(token, context, since)
+      }
+    }
+  }
+
+  model.subProp(_.timespan).listen (_ => refreshWorkflows(userService.properties.subProp(_.token).get), false)
 
   def init(): Unit = {
     // load the settings before installing the handler
@@ -40,16 +85,9 @@ class PagePresenter(
     // install the handler
     println(s"Install loadArticles handlers, token ${currentToken()}")
     props.subProp(_.token).listen { token =>
-      model.subProp(_.loading).set(true)
       //unselectedArticle()
       println(s"Token changed to $token, contexts: ${props.subSeq(_.contexts).size}")
-      clearAllWorkflows()
-      if (token != null) {
-        val state = filterState()
-        for (context <- props.get.activeContexts) {
-          doLoadWorkflows(token, context, state)
-        }
-      }
+      refreshWorkflows(token)
     }
 
     // different from select - we set the value after installing the handlers, otherwise load is not triggered
@@ -70,39 +108,19 @@ class PagePresenter(
 
       updateShortNames(contexts)
 
-      val token = currentToken()
       // completely empty - we can do much simpler cleanup (and shutdown any periodic handlers)
       clearAllWorkflows()
       model.subProp(_.selectedRunId).set(None)
-
-      val state = filterState()
-      ac.filter(_.valid).foreach(doLoadWorkflows(token, _, state))
     }
 
 
   }
 
-  def loadMore(): Unit = {
-    // TODO: be smart, decide which repositories need more issues
-    val token = currentToken()
-    for (context <- pageContexts) {
-      loadWorkflowsPage(token, context, "next", filter = filterState()) // state should not matter for next page
-    }
-  }
-  def filterState(): Filter = {
-    SearchFilter(model.subProp(_.filterExpression).get)
-  }
-
-  private def doLoadWorkflows(token: String, context: ContextModel, filter: Filter): Unit = {
-    println(s"Load articles $context $token filter = $filter")
-    loadWorkflowsPage(token, context, "init", filter = filter)
-  }
-
-  def insertIssues(preview: Seq[RunModel]): Unit = {
-    model.subSeq(_.runs).tap { as =>
-      //println(s"Insert articles at ${a.size}")
-      // TODO: clear / merge
-      as.insert(as.length, preview:_*)
+  private def doLoadWorkflows(token: String, context: ContextModel, since: ZonedDateTime): Unit = {
+    if (!model.subProp(_.loading).get) {
+      println(s"Load workflows $context $token")
+      model.subProp(_.loading).set(true)
+      loadWorkflowsPage(token, context, since, 1)
     }
   }
 
@@ -115,66 +133,52 @@ class PagePresenter(
     )
   }
 
-  def loadWorkflowsPage(token: String, context: ContextModel, mode: String, filter: Filter): Unit = {
-    val loadId = (token, context, mode, filter)
+  def loadWorkflowsPage(token: String, context: ContextModel, since: ZonedDateTime, page: Int): Unit = {
 
-    if (loadInProgress.contains(loadId)) {
-      return
+    val load = loadWorkflows(context, page)
+      .tap(_.onComplete {
+        case Failure(ex@HttpErrorException(code, _, _)) =>
+          if (code != 404) {
+            println(s"HTTP Error $code loading issues from ${context.relativeUrl}: $ex")
+          }
+          Failure(ex)
+        case Failure(ex) =>
+          println(s"Error loading issues from ${context.relativeUrl}: $ex")
+          ex.printStackTrace()
+          Failure(ex)
+        case _ =>
+          updateRateLimits()
+        // settings valid, store them
+      })
+
+    load.foreach { pageWithHeaders =>
+      // order newest first
+      val issuesOrdered = pageWithHeaders.data.workflow_runs.map(rowFromIssue(_, context)).sortBy(w => w.created_at).reverse
+      val inRange = issuesOrdered.filter(_.created_at.isAfter(since))
+      model.subSeq(_.runs).append(inRange: _*)
+
+      val stats = fromRuns(model).get
+      //println(s"Rows ${issuesOrdered.size}, newest ${issuesOrdered.headOption.map(_.created_at)} oldest ${issuesOrdered.lastOption.map(_.created_at)}")
+      if (inRange.nonEmpty && issuesOrdered.lastOption.exists(_.created_at.isAfter(since)) && stats.count < 50_000) {
+        loadWorkflowsPage(token, context, since, page + 1)
+      } else {
+        model.subProp(_.loading).set(false)
+      }
     }
-    loadInProgress += loadId
-
-    val loadIssue: Future[DataWithHeaders[Runs]] = mode match {
-      case "next" =>
-        pagingUrls.get(context).flatMap(_.get(mode)).map { link =>
-          println(s"Page $mode articles $context")
-          pageArticles(context, token, link)
-        }.getOrElse {
-          Future.successful(DataWithHeaders(Runs()))
-        }
-      case _ =>
-        pagingUrls.remove(context)
-        initArticles(context, filter).tap(_.onComplete {
-          case Failure(ex@HttpErrorException(code, _, _)) =>
-            if (code != 404) {
-              println(s"HTTP Error $code loading issues from ${context.relativeUrl}: $ex")
-            }
-            Failure(ex)
-          case Failure(ex) =>
-            println(s"Error loading issues from ${context.relativeUrl}: $ex")
-            ex.printStackTrace()
-            Failure(ex)
-          case _ =>
-          // settings valid, store them
-        })
-    }
-
-    loadIssue.foreach { issuesWithHeaders =>
-      loadInProgress -= loadId
-
-      pagingUrls += context -> issuesWithHeaders.headers.paging
-
-      val is = issuesWithHeaders.data
-      val issuesOrdered = is.workflow_runs.map(rowFromIssue(_, context)).sortBy(_.updated_at).reverse
-      insertIssues(issuesOrdered)
-
-      updateRateLimits()
-    }
-
   }
 
   private def updateRateLimits(): Unit = {
     userService.call(_.rate_limit).foreach { limits =>
       val c = limits.resources.core
-      println(c)
       userService.properties.subProp(_.rateLimits).set(Some(c.limit, c.remaining, c.reset))
     }
   }
 
-  private def initArticles(context: ContextModel, filter: Filter): Future[DataWithHeaders[Runs]] = {
+  private def loadWorkflows(context: ContextModel, page: Int): Future[DataWithHeaders[Runs]] = {
       userService.call(_
         .repos(context.organization, context.repository)
-        .actions.runs(per_page = 100)
-      ).tap(_.onComplete(_ => updateRateLimits()))
+        .actions.runs(page = page, per_page = 100)
+      )
   }
 
   //noinspection ScalaUnusedSymbol
